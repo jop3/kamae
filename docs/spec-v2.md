@@ -1,6 +1,6 @@
 # Kamae — Aikido Posing Machine — Build Specification v2
 
-**Status:** v2.1 — revised after feasibility testing on Godot 4.6-stable (2026-09-05), then updated with instructor decisions: N characters per scene (2–5), customizable skin colour, white gi later, no hakama. Supersedes `spec-v1.md`; changes are summarised at the end and justified in `spec-review.md`.
+**Status:** v2.2 — revised after feasibility testing on Godot 4.6-stable (2026-09-05), then updated with instructor decisions: N characters per scene (2–5), customizable skin colour, white gi later, no hakama, **CC0 character asset (not Mixamo), Linux as the primary platform, MP4 video via ffmpeg**. Supersedes `spec-v1.md`; changes are summarised at the end and justified in `spec-review.md`.
 **Target engine:** Godot 4.6.x (pinned). Uses `IKModifier3D` / `TwoBoneIK3D` / `SkeletonModifier3D` introduced in 4.6. Renderer: Compatibility (OpenGL 3.3) so the tool runs on laptops without a dedicated GPU.
 **Audience:** the engineering agent building the tool; the instructor who owns it.
 **Owner / domain expert:** a Ki-Aikido instructor documenting grading techniques for children. Sole judge of pose correctness.
@@ -35,11 +35,12 @@ Physics/ragdoll, AI pose generation, mocap, cloth simulation, hakama (dropped by
 ## 3. Design decisions (constraints)
 
 - **Engine:** Godot 4.6.x. If the environment only has < 4.6, stop and flag.
-- **Character rig:** Mixamo stock character (X Bot, T-pose FBX) imported natively via Godot's built-in FBX importer at scale 0.01, with the `SkeletonProfileHumanoid` bone map applied so bones are named `Hips`, `Spine`, `Chest`, `UpperChest`, `Neck`, `Head`, `LeftShoulder`, `LeftUpperArm`, `LeftLowerArm`, `LeftHand`, `LeftThumbMetacarpal` … `LeftLittleDistal`, `LeftUpperLeg`, `LeftLowerLeg`, `LeftFoot`, `LeftToes`, and mirrored `Right*`. All pose data uses these names, so any humanoid-mapped character can replace X Bot later.
-- **Asset licensing:** the Mixamo FBX is downloaded by the instructor and lives in `assets/characters/` which is git-ignored (Mixamo forbids redistributing raw files; this repo is public). The README documents the download and a CC0 fallback mannequin.
+- **Character rig:** a CC0-licensed rigged humanoid with finger bones, committed to the repo (decision 2026-09-05; Mixamo was rejected because its files cannot be redistributed and cannot be fetched by the agent). Imported as glTF with the `SkeletonProfileHumanoid` bone map applied so bones are named `Hips`, `Spine`, `Chest`, `UpperChest`, `Neck`, `Head`, `LeftShoulder`, `LeftUpperArm`, `LeftLowerArm`, `LeftHand`, `LeftThumbMetacarpal` … `LeftLittleDistal`, `LeftUpperLeg`, `LeftLowerLeg`, `LeftFoot`, `LeftToes`, and mirrored `Right*`. All pose data uses these names, so any humanoid-mapped character can replace X Bot later.
+- **Asset licensing:** everything committed is CC0 or MIT so the repo can stay public and other clubs can clone it. The chosen character and its source are recorded in `assets/characters/LICENSE.md`. Mixamo remains possible as a local, git-ignored alternative since the bone map makes pose data rig-independent.
 - **IK:** `TwoBoneIK3D` for arms and legs. `SkeletonIK3D` is not used.
 - **Pose data:** JSON, versioned. Baked bone rotations are canonical; IK targets and grips are stored alongside so poses can be re-solved live.
-- **Video:** Movie Maker (`--write-movie`), spawned as a child process of the tool. Formats: AVI/MJPEG default, PNG sequence always, OGV optional. MP4 only via an optional external ffmpeg step, never required.
+- **Video:** Movie Maker (`--write-movie`) spawned as a child process renders a PNG sequence; the tool then runs `ffmpeg` to encode **MP4 (H.264, yuv420p, 30 fps)**, which is the deliverable. ffmpeg is a documented runtime dependency (`apt install ffmpeg` on Linux). If ffmpeg is not found the tool says so and falls back to AVI/MJPEG rather than failing.
+- **Platform:** Linux is the primary and tested platform; Windows/macOS builds are best-effort.
 - **Grip attachment is the load-bearing feature.** Engine behaviour verified in `feasibility/`; the design in §5.3 is the tested one.
 
 ## 4. UX principle (unchanged, with concrete implications)
@@ -115,11 +116,11 @@ Orbit/pan/zoom always. Presets **Front** (on the Tori→primary Uke line, 1.4 m 
 
 ### 5.8 Export
 - Still: `exports/<sequence_slug>_<phase_slug>[_front|_side].png` at 1920×1080 (2× supersampled then downscaled to soften edges), flat colour or transparent per setting. Uses a `SubViewport` with `transparent_bg`.
-- Video: "Export video" writes `exports/<sequence_slug>.avi` (+ `exports/<sequence_slug>_frames/*.png`) by launching a second instance: `<exe> --path <project> --write-movie <file> --fixed-fps 30 -- --render-sequence <slug>`; the child loads the sequence, plays it, quits on finish. The parent shows progress and the output folder. Output directory is created first (Movie Maker does not create it). Optional: if `ffmpeg` is on PATH, offer MP4 conversion.
+- Video: "Export video" launches a second instance: `<exe> --path <project> --write-movie exports/<slug>_frames/f.png --fixed-fps 30 -- --render-sequence <slug>`; the child loads the sequence, plays it, quits on finish. The parent then runs `ffmpeg -framerate 30 -i exports/<slug>_frames/f%08d.png -c:v libx264 -pix_fmt yuv420p exports/<slug>.mp4` and shows progress and the output folder. Output directory is created first (Movie Maker does not create it). Frames are kept (they double as per-phase stills) unless the instructor turns that off. If ffmpeg is missing, fall back to `--write-movie exports/<slug>.avi` with a visible notice.
 - Rendering each keyframe as a still is a side effect of video export (required, was nice-to-have; it is trivial in the child process).
 
 ## 6. Non-functional
-Laptop without GPU (Compatibility renderer, verified on llvmpipe); ready in < 5 s; offline; Godot 4.6.x pinned in README with a link to the 4.6 docs; headless tests run with `godot --headless`; stills render in CI under Xvfb.
+Linux laptop without GPU (Compatibility renderer, verified on llvmpipe); ready in < 5 s; offline apart from nothing (ffmpeg is local); Godot 4.6.x pinned in README with a link to the 4.6 docs; headless tests run with `godot --headless`; stills render in CI under Xvfb.
 
 ## 7. Milestones
 See `build-plan.md`. Order: M0 project + character import (N-character data model from day one) → M1 FK posing + still → M2 IK + hand orient + fingers → M3 multiple characters + grips + skin colours → M4 save/load → M5 sequences + interpolation → M6 video export → M7 camera/export polish → M8 acceptance → M9 white gi (optional, later).
@@ -161,3 +162,4 @@ Unchanged from v1.
 - 2–5 characters per scene with ids/roles; grip graph with topological ordering; Front/Side relative to Tori→primary Uke; test case 8.4 (§2.1, 5.1, 5.3, 5.5, 5.7, 8.4).
 - Per-character skin colour, saved with the pose, applied to skin only so it survives the gi (§5.1).
 - Hakama dropped; white gi and anatomical body deferred to M9 (§2.2, 7.1).
+- v2.2: CC0 character committed instead of Mixamo; Linux primary; MP4 via ffmpeg with AVI fallback (§3, 5.8, 6).

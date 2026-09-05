@@ -14,6 +14,12 @@ Planning. No application code yet.
 - `docs/build-plan.md` — architecture, milestones, tests.
 - `feasibility/` — headless Godot experiments that prove the risky parts (IK, two-body grip follow, hand orientation, transparent stills, Movie Maker). Results in `feasibility/results/RESULTS.md`.
 
+## Requirements
+
+- Linux (primary platform). Windows/macOS best-effort.
+- Godot 4.6.x.
+- `ffmpeg` on PATH for MP4 video export (`sudo apt install ffmpeg`). Without it the tool falls back to AVI.
+
 ## Godot version
 
 Pinned to **Godot 4.6.x** (tested with 4.6-stable, official build). The IK stack (`TwoBoneIK3D`, `SkeletonModifier3D`) does not exist before 4.6. Documentation for this version: https://docs.godotengine.org/en/4.6/
