@@ -7,6 +7,7 @@ signal export_requested(transparent: bool)
 var controller: PoseController
 var scene: PosingScene
 var grips: GripDirector
+var camera: OrbitCamera
 
 var _char_list: ItemList
 var _joint_label: Label
@@ -29,16 +30,34 @@ var _finger_old := 0.0
 var _updating := false
 var _slider_old_q := Quaternion.IDENTITY
 var _root_old := {}
+var _weapon_type: OptionButton
+var _weapon_list: ItemList
+var _weapon_holder: OptionButton
+var _weapon_hand: OptionButton
+var _weapon_t: SpinBox
+var _weapon_roll: SpinBox
+var _weapon_drive: CheckButton
+var _weapon_x: SpinBox
+var _weapon_z: SpinBox
+var _weapon_yaw: SpinBox
+var _pose_name: LineEdit
+var _pose_list: ItemList
+const POSES_DIR := "user://poses"
 
 
-func setup(ctrl: PoseController, posing_scene: PosingScene, grip_director: GripDirector = null) -> void:
+func setup(ctrl: PoseController, posing_scene: PosingScene, grip_director: GripDirector = null, orbit_camera: OrbitCamera = null) -> void:
 	controller = ctrl
 	scene = posing_scene
 	grips = grip_director
+	camera = orbit_camera
 	custom_minimum_size.x = 300
+	var scroll := ScrollContainer.new()
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	add_child(scroll)
 	var vb := VBoxContainer.new()
 	vb.add_theme_constant_override("separation", 8)
-	add_child(vb)
+	vb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(vb)
 
 	vb.add_child(_header("Characters"))
 	_char_list = ItemList.new()
@@ -161,6 +180,73 @@ func setup(ctrl: PoseController, posing_scene: PosingScene, grip_director: GripD
 			_refresh_values())
 	finger_buttons.add_child(open_hand)
 
+	vb.add_child(_header("Weapons"))
+	var wrow := HBoxContainer.new(); vb.add_child(wrow)
+	_weapon_type = OptionButton.new()
+	for t in ["bokken", "jo", "tanto"]:
+		_weapon_type.add_item(t)
+	wrow.add_child(_weapon_type)
+	var add_w := Button.new(); add_w.text = "Add weapon"
+	add_w.pressed.connect(func():
+		var type: String = _weapon_type.get_item_text(_weapon_type.selected)
+		scene.add_weapon(scene.next_free_id(type), type))
+	wrow.add_child(add_w)
+	_weapon_list = ItemList.new()
+	_weapon_list.custom_minimum_size.y = 60
+	_weapon_list.item_selected.connect(func(_i): _refresh_weapon_values())
+	vb.add_child(_weapon_list)
+	var hrow := HBoxContainer.new(); vb.add_child(hrow)
+	_weapon_holder = OptionButton.new(); hrow.add_child(_weapon_holder)
+	_weapon_hand = OptionButton.new()
+	_weapon_hand.add_item("right hand"); _weapon_hand.add_item("left hand")
+	hrow.add_child(_weapon_hand)
+	var wg := GridContainer.new(); wg.columns = 2; vb.add_child(wg)
+	_weapon_t = _spin(wg, "t (0..1)", 0.0, 1.0, 0.01)
+	_weapon_t.allow_greater = false; _weapon_t.allow_lesser = false
+	_weapon_roll = _spin(wg, "Roll (°)", -180, 180, 1)
+	var hold := Button.new(); hold.text = "Hold"
+	hold.pressed.connect(_on_hold_pressed)
+	vb.add_child(hold)
+	var attach_other := Button.new(); attach_other.text = "Attach selected character's other hand at t"
+	attach_other.pressed.connect(_on_attach_weapon_pressed)
+	vb.add_child(attach_other)
+	_weapon_drive = CheckButton.new(); _weapon_drive.text = "Weapon-driven"
+	_weapon_drive.toggled.connect(_on_weapon_drive_toggled)
+	vb.add_child(_weapon_drive)
+	var wpg := GridContainer.new(); wpg.columns = 2; vb.add_child(wpg)
+	_weapon_x = _spin(wpg, "Weapon X (m)", -5, 5, 0.01)
+	_weapon_z = _spin(wpg, "Weapon Z (m)", -5, 5, 0.01)
+	_weapon_yaw = _spin(wpg, "Weapon turn (°)", -360, 360, 1)
+	for sb in [_weapon_x, _weapon_z, _weapon_yaw]:
+		sb.value_changed.connect(_on_weapon_pos_changed)
+	var remove_w := Button.new(); remove_w.text = "Remove weapon"
+	remove_w.pressed.connect(func():
+		var w := _selected_weapon()
+		if w: scene.remove_weapon(w.weapon_id))
+	vb.add_child(remove_w)
+
+	vb.add_child(_header("Camera"))
+	var crow := HBoxContainer.new(); vb.add_child(crow)
+	var cam_front := Button.new(); cam_front.text = "Front"
+	cam_front.pressed.connect(func(): if camera: camera.apply_preset(CameraPresets.front(scene)))
+	crow.add_child(cam_front)
+	var cam_side := Button.new(); cam_side.text = "Side"
+	cam_side.pressed.connect(func(): if camera: camera.apply_preset(CameraPresets.side(scene)))
+	crow.add_child(cam_side)
+
+	vb.add_child(_header("Poses"))
+	_pose_name = LineEdit.new(); _pose_name.placeholder_text = "Pose name"
+	vb.add_child(_pose_name)
+	var save_pose := Button.new(); save_pose.text = "Save pose"
+	save_pose.pressed.connect(_on_save_pose_pressed)
+	vb.add_child(save_pose)
+	_pose_list = ItemList.new()
+	_pose_list.custom_minimum_size.y = 70
+	vb.add_child(_pose_list)
+	var load_pose := Button.new(); load_pose.text = "Load pose"
+	load_pose.pressed.connect(_on_load_pose_pressed)
+	vb.add_child(load_pose)
+
 	vb.add_child(_header("Edit"))
 	var ur := HBoxContainer.new(); vb.add_child(ur)
 	var u := Button.new(); u.text = "Undo (Ctrl+Z)"; u.pressed.connect(func(): controller.undo.undo(); controller.pose_changed.emit()); ur.add_child(u)
@@ -176,10 +262,13 @@ func setup(ctrl: PoseController, posing_scene: PosingScene, grip_director: GripD
 	controller.limb_changed.connect(func(_r, _k): _refresh_values())
 	controller.pose_changed.connect(_refresh_values)
 	scene.characters_changed.connect(_refresh_characters)
+	scene.weapons_changed.connect(_refresh_weapons)
 	if grips:
 		grips.grips_changed.connect(_refresh_grips)
 	_refresh_characters()
 	_refresh_grips()
+	_refresh_weapons()
+	_refresh_poses()
 	_set_joint_enabled(false)
 
 
@@ -206,6 +295,10 @@ func _refresh_characters() -> void:
 		_grip_who.clear()
 		for c in scene.characters:
 			_grip_who.add_item(c.display_name)
+	if _weapon_holder:
+		_weapon_holder.clear()
+		for c in scene.characters:
+			_weapon_holder.add_item(c.display_name)
 	_refresh_values()
 
 
@@ -344,3 +437,139 @@ static func _limb_label(limb_key: String) -> String:
 		"LeftArm": return "Left arm IK"
 		"RightLeg": return "Right leg IK"
 		_: return "Left leg IK"
+
+
+# ---------------------------------------------------------------- weapons
+
+func _selected_weapon() -> Weapon:
+	if _weapon_list == null:
+		return null
+	var sel := _weapon_list.get_selected_items()
+	if sel.is_empty() or sel[0] >= scene.weapons.size():
+		return null
+	return scene.weapons[sel[0]]
+
+
+func _refresh_weapons() -> void:
+	if _weapon_list == null:
+		return
+	var prev := _weapon_list.get_selected_items()
+	_weapon_list.clear()
+	for w in scene.weapons:
+		_weapon_list.add_item("%s  (%s%s)" % [w.weapon_id, w.type, ", weapon-driven" if w.drive == "weapon" else ""])
+	if not prev.is_empty() and prev[0] < _weapon_list.item_count:
+		_weapon_list.select(prev[0])
+	elif _weapon_list.item_count > 0:
+		_weapon_list.select(_weapon_list.item_count - 1)
+	_refresh_weapon_values()
+
+
+func _refresh_weapon_values() -> void:
+	var w := _selected_weapon()
+	_updating = true
+	var driven := w != null and w.drive == "weapon"
+	_weapon_drive.button_pressed = driven
+	for sb in [_weapon_x, _weapon_z, _weapon_yaw]:
+		sb.editable = driven
+	if w:
+		_weapon_x.value = w.global_position.x
+		_weapon_z.value = w.global_position.z
+		_weapon_yaw.value = rad_to_deg(w.global_rotation.y)
+		if not w.hold.is_empty():
+			_weapon_t.value = w.hold.get("t", _weapon_t.value)
+			_weapon_roll.value = w.hold.get("roll_deg", _weapon_roll.value)
+	_updating = false
+
+
+func _holder_rig() -> CharacterRig:
+	return scene.characters[_weapon_holder.selected] if _weapon_holder.selected >= 0 and _weapon_holder.selected < scene.characters.size() else null
+
+
+func _on_hold_pressed() -> void:
+	var w := _selected_weapon()
+	var rig := _holder_rig()
+	if grips == null or w == null or rig == null:
+		return
+	var hand := "Right" if _weapon_hand.selected == 0 else "Left"
+	grips.hold_weapon(rig, hand, w, _weapon_t.value, _weapon_roll.value)
+	controller.pose_changed.emit()
+	_refresh_weapons()
+
+
+func _on_attach_weapon_pressed() -> void:
+	var w := _selected_weapon()
+	var rig := controller.selected_rig
+	if grips == null or w == null or rig == null:
+		return
+	var other := "Left" if _weapon_hand.selected == 0 else "Right"
+	if not w.hold.is_empty() and w.hold.get("character", "") == rig.character_id:
+		other = "Left" if w.hold.get("hand", "Right") == "Right" else "Right"
+	grips.attach_to_weapon(rig, other, w, _weapon_t.value)
+	controller.pose_changed.emit()
+
+
+func _on_weapon_drive_toggled(pressed: bool) -> void:
+	if _updating:
+		return
+	var w := _selected_weapon()
+	if grips == null or w == null:
+		return
+	grips.set_weapon_drive(w, "weapon" if pressed else "hand")
+	controller.pose_changed.emit()
+	_refresh_weapons()
+
+
+func _on_weapon_pos_changed(_v: float) -> void:
+	if _updating:
+		return
+	var w := _selected_weapon()
+	if w == null or w.drive != "weapon":
+		return
+	w.global_position = Vector3(_weapon_x.value, w.global_position.y, _weapon_z.value)
+	w.global_rotation.y = deg_to_rad(_weapon_yaw.value)
+	if grips:
+		grips.refresh_hand_driven()
+	controller.pose_changed.emit()
+
+
+# ---------------------------------------------------------------- poses
+
+func _refresh_poses() -> void:
+	if _pose_list == null:
+		return
+	_pose_list.clear()
+	var names: Array[String] = []
+	var d := DirAccess.open(POSES_DIR)
+	if d:
+		for f in d.get_files():
+			if f.get_extension() == "json":
+				names.append(f.get_basename())
+	names.sort()
+	for n in names:
+		_pose_list.add_item(n)
+
+
+func _on_save_pose_pressed() -> void:
+	var name := _pose_name.text.strip_edges()
+	if name == "":
+		name = "pose"
+	var data: Dictionary = await PoseFile.capture_baked(scene, grips, camera, name)
+	var err := PoseFile.save(PoseFile.pose_path(POSES_DIR, name), data)
+	if err != OK:
+		push_error("SidePanel: could not save pose (%s)" % error_string(err))
+	_refresh_poses()
+
+
+func _on_load_pose_pressed() -> void:
+	var sel := _pose_list.get_selected_items()
+	if sel.is_empty():
+		return
+	var path := POSES_DIR.path_join(_pose_list.get_item_text(sel[0]) + ".json")
+	var data := PoseFile.load(path)
+	if data.is_empty():
+		return
+	PoseFile.apply(data, scene, grips, controller)
+	_pose_name.text = str(data.get("name", _pose_list.get_item_text(sel[0])))
+	controller.pose_changed.emit()
+	_refresh_weapons()
+	_refresh_grips()

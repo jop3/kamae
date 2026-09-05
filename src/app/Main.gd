@@ -17,7 +17,7 @@ func _ready() -> void:
 	posing_scene.setup_default()
 	controller.setup(posing_scene, camera, gizmo)
 	grip_director.setup(posing_scene, controller)
-	panel.setup(controller, posing_scene, grip_director)
+	panel.setup(controller, posing_scene, grip_director, camera)
 	panel.export_requested.connect(_on_export_requested)
 	frame_all()
 	var args := OS.get_cmdline_user_args()
@@ -40,7 +40,7 @@ func _ready() -> void:
 
 func frame_all() -> void:
 	camera.fov = CameraPresets.FOV_DEG
-	camera.apply_preset(CameraPresets.front(posing_scene))
+	camera.apply_preset(CameraPresets.side(posing_scene))
 
 
 func _on_export_requested(transparent: bool) -> void:
