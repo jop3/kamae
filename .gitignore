@@ -3,3 +3,4 @@ exports/
 *.import.tmp
 tests/out/*.png
 tests/out/*.import
+tests/out/*.json
