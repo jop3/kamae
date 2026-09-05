@@ -12,9 +12,16 @@ extends Node3D
 
 var export_dir := "user://exports"
 var player: SequencePlayer
+var movie_export: MovieExport
 
 
 func _ready() -> void:
+	# The project viewport is 1920x1080 because Movie Maker records at the configured size and
+	# ignores --resolution. For interactive use open a window that fits a laptop screen.
+	if not OS.has_feature("movie") and not OS.get_cmdline_user_args().has("--render-sequence"):
+		var screen := DisplayServer.screen_get_size()
+		if screen.x < 2000 or screen.y < 1150:
+			get_window().size = Vector2i(1600, 900)
 	posing_scene.setup_default()
 	controller.setup(posing_scene, camera, gizmo)
 	grip_director.setup(posing_scene, controller)
@@ -24,6 +31,12 @@ func _ready() -> void:
 	player.setup(posing_scene, grip_director)
 	panel.setup(controller, posing_scene, grip_director, camera, player)
 	panel.export_requested.connect(_on_export_requested)
+	movie_export = MovieExport.new()
+	movie_export.name = "MovieExport"
+	add_child(movie_export)
+	movie_export.started.connect(func(job): panel.set_export_status("Rendering %s in a second window… (%s)" % [job["slug"], "MP4 via ffmpeg" if job["ffmpeg"] else "AVI: ffmpeg not found"]))
+	movie_export.finished.connect(func(job): panel.set_export_status(job["message"] + ("\n%d stills alongside" % job["stills"].size() if job["ok"] else "")))
+	panel.video_export_requested.connect(_on_video_export_requested)
 	frame_all()
 	var args := OS.get_cmdline_user_args()
 	if args.has("--demo-still"):
@@ -31,6 +44,9 @@ func _ready() -> void:
 		return
 	if args.has("--demo-weapon"):
 		await _render_demo_weapon(args[args.find("--demo-weapon") + 1])
+		return
+	if args.has("--render-sequence"):
+		await _render_sequence(args)
 		return
 	if args.has("--screenshot-ui"):
 		# Development aid: the last drawn frame with the panel visible (exports never include it).
@@ -69,6 +85,15 @@ func _on_export_requested(transparent: bool) -> void:
 	print("Exported %s (%s)" % [path, error_string(err)])
 
 
+func _on_video_export_requested(seq: Sequence) -> void:
+	var seq_path := ProjectSettings.globalize_path(Sequence.sequence_path(SidePanel.SEQUENCES_DIR, seq.name))
+	var poses_dir := ProjectSettings.globalize_path(SidePanel.POSES_DIR)
+	var out_dir := ProjectSettings.globalize_path(export_dir)
+	var job := movie_export.export_sequence(seq_path, poses_dir, out_dir)
+	if job.is_empty():
+		panel.set_export_status("An export is already running, or the sequence could not be read.")
+
+
 ## Never part of an exported image: the UI dock, the rotation gizmo and every IK handle.
 func _hide_always() -> Array[Node]:
 	var out: Array[Node] = [ui_layer, gizmo]
@@ -80,6 +105,73 @@ func _hide_always() -> Array[Node]:
 ## Only hidden when exporting on a transparent background.
 func _hide_for_transparent() -> Array[Node]:
 	return [floor_grid]
+
+
+## Child-process mode for video export (spec §5.8): plays a sequence under Movie Maker, which
+## calls _process with a fixed 1/30 s delta and writes every frame, saves a still at the start
+## of each phase, and quits when the sequence ends. Everything a still must not contain is hidden.
+func _render_sequence(args: PackedStringArray) -> void:
+	var seq_path: String = args[args.find("--render-sequence") + 1]
+	var poses_dir: String = args[args.find("--poses-dir") + 1] if args.has("--poses-dir") else seq_path.get_base_dir()
+	var stills_dir: String = args[args.find("--stills-dir") + 1] if args.has("--stills-dir") else ""
+	var seq := Sequence.load(seq_path)
+	if seq == null:
+		push_error("Cannot read sequence %s" % seq_path)
+		get_tree().quit(1)
+		return
+	var missing: Array = player.load_sequence(seq, poses_dir)
+	if not missing.is_empty():
+		push_error("Sequence %s names poses that are not saved: %s" % [seq.name, missing])
+		get_tree().quit(1)
+		return
+	posing_scene.show_handles = false
+	for rig in posing_scene.characters:
+		rig.set_show_handles(false)
+	# The first pose defines the characters and weapons; the blend only moves what exists.
+	PoseFile.apply(player.poses[seq.steps[0]["pose"]], posing_scene, grip_director)
+	ui_layer.visible = false
+	gizmo.suppressed = true
+	await get_tree().process_frame
+	await get_tree().process_frame
+	_apply_sequence_camera(seq)
+	player.seek(0.0)
+	await get_tree().process_frame
+	var phases := _phase_names(seq)
+	var next_phase := 0
+	player.play()
+	while player.playing:
+		await get_tree().process_frame
+		# A still at the moment each phase is fully reached, named predictably for the handout.
+		while next_phase < seq.steps.size() and player.time >= seq.step_start(next_phase) - 1e-4:
+			if stills_dir != "":
+				var img := get_viewport().get_texture().get_image()
+				img.save_png(stills_dir.path_join("%s_%s.png" % [seq.slug(), phases[next_phase]]))
+			next_phase += 1
+	await get_tree().process_frame
+	print("sequence rendered: %s, %.1f s" % [seq.name, seq.duration()])
+	get_tree().quit()
+
+
+func _apply_sequence_camera(seq: Sequence) -> void:
+	camera.fov = CameraPresets.FOV_DEG
+	match seq.camera:
+		"Front":
+			camera.apply_preset(CameraPresets.front(posing_scene))
+		_:
+			camera.apply_preset(CameraPresets.side(posing_scene))
+
+
+## Phase slugs for filenames: the pose slug with the technique's own slug stripped off.
+static func _phase_names(seq: Sequence) -> Array:
+	var out := []
+	var prefix: String = seq.slug() + "_"
+	for i in seq.steps.size():
+		var pose_slug: String = seq.steps[i]["pose"]
+		var phase := pose_slug.trim_prefix(prefix) if pose_slug.begins_with(prefix) else pose_slug
+		if phase == "" or phase in out:
+			phase = "%d" % (i + 1)
+		out.append(phase)
+	return out
 
 
 ## Test hook: a katatedori grip — Uke's hand wrapped around Tori's wrist, held by the grip system.

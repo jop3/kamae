@@ -44,6 +44,20 @@ manifest as a silent hang with the process spinning at full CPU:
   way. This costs nothing in practice: an exported still must not contain the tool's own UI anyway, so
   the UI layer and the gizmo are always in `_hide_always()`.
 
+## Movie Maker
+
+- **Movie Maker records at the project's configured window size and ignores `--resolution`.**
+  With a `window_width_override` set it records at the override. The project viewport is
+  therefore 1920×1080 with no override, and `Main._ready()` shrinks the interactive window on
+  small screens instead. The child render is checked by `tests/check_movie.gd`.
+- **IK handles come back on every limb-mode change.** `CharacterRig.show_handles` (inherited
+  from `PosingScene.show_handles`) keeps them hidden for the whole render; hiding them once at
+  the start is not enough, since the sequence blend re-applies limb modes every frame.
+- **A coroutine that awaits `skeleton_updated` resumes inside the skeleton update.** See
+  "Write baked poses after the frame boundary" above; `PoseFile.capture_baked` awaits
+  `process_frame` before returning for this reason.
+- **Movie Maker does not create its output directory.** `MovieExport` makes it first.
+
 ## Character generation (MakeHuman / MPFB)
 
 Three mistakes here all show up the same way: the mesh tears into ribbons or strands as soon as a

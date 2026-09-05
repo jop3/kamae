@@ -3,6 +3,7 @@ extends PanelContainer
 ## Right-hand dock: characters, selected joint, root placement, export.
 
 signal export_requested(transparent: bool)
+signal video_export_requested(sequence: Sequence)
 
 var controller: PoseController
 var scene: PosingScene
@@ -51,6 +52,7 @@ var _seq_hold: SpinBox
 var _seq_scrub: HSlider
 var _seq_time: Label
 var _sequence: Sequence
+var _export_status: Label
 const POSES_DIR := "user://poses"
 const SEQUENCES_DIR := "user://sequences"
 
@@ -320,6 +322,17 @@ func setup(ctrl: PoseController, posing_scene: PosingScene, grip_director: GripD
 	var ex := Button.new(); ex.text = "Export still (PNG)"
 	ex.pressed.connect(func(): export_requested.emit(transparent.button_pressed))
 	vb.add_child(ex)
+	var exv := Button.new(); exv.text = "Export video of the sequence"
+	exv.tooltip_text = "Renders every frame in a second window, then encodes MP4 with ffmpeg (AVI if ffmpeg is missing)"
+	exv.pressed.connect(func():
+		if _sequence:
+			_on_save_sequence_pressed()
+			video_export_requested.emit(_sequence))
+	vb.add_child(exv)
+	_export_status = Label.new()
+	_export_status.add_theme_font_size_override("font_size", 11)
+	_export_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	vb.add_child(_export_status)
 
 	controller.selection_changed.connect(_on_selection_changed)
 	controller.limb_changed.connect(func(_r, _k): _refresh_values())
@@ -800,3 +813,8 @@ func _on_load_sequence_pressed() -> void:
 	_seq_name.text = seq.name
 	_refresh_sequence()
 	_reload_player()
+
+
+func set_export_status(text: String) -> void:
+	if _export_status:
+		_export_status.text = text

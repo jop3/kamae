@@ -9,6 +9,8 @@ const MAX_CHARACTERS := 5
 const MIN_CHARACTERS := 1
 
 var characters: Array[CharacterRig] = []
+## Inherited by every character added; off while rendering for export.
+var show_handles := true
 var weapons: Array[Weapon] = []
 
 
@@ -22,6 +24,7 @@ func add_character(id: String, display_name: String, role: String, color: Color 
 	rig.role = role
 	add_child(rig)
 	rig.setup()
+	rig.set_show_handles(show_handles)
 	rig.set_skin_color(color if color != Color.TRANSPARENT else Palette.color_for_index(characters.size()))
 	characters.append(rig)
 	characters_changed.emit()

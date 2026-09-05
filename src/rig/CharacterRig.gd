@@ -20,6 +20,8 @@ var fingers: FingerCurl
 var _solved_poses: Array[Transform3D] = []
 ## limb key ("RightArm", "LeftLeg", …) -> Limb
 var limbs: Dictionary = {}
+## False while rendering for export: IK handles stay hidden whatever the limb modes do.
+var show_handles := true
 
 ## The four IK-able chains, in the order their nodes are added to the skeleton.
 const LIMB_CHAINS := [
@@ -109,8 +111,15 @@ func set_limb_mode(limb_key: String, mode: int) -> void:
 
 
 func _set_handles_visible(limb: Limb, visible_handles: bool) -> void:
-	limb.target.visible = visible_handles
-	limb.pole.visible = visible_handles
+	limb.target.visible = visible_handles and show_handles
+	limb.pole.visible = visible_handles and show_handles
+
+
+func set_show_handles(show: bool) -> void:
+	show_handles = show
+	for key in limbs:
+		var limb: Limb = limbs[key]
+		_set_handles_visible(limb, limb.mode == Limb.Mode.IK)
 
 
 ## Limb whose end bone (or a descendant of it) is `bone_name`, or "" when the bone is not on a limb.
