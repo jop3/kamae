@@ -1,6 +1,6 @@
 # Kamae — Aikido Posing Machine — Build Specification v2
 
-**Status:** v2.3 — revised after feasibility testing on Godot 4.6-stable (2026-09-05), then updated with instructor decisions: N characters per scene (2–5), customizable skin colour, white gi later, no hakama, **CC0 character asset (not Mixamo), Linux as the primary platform, MP4 video via ffmpeg**, and **weapons: bokken and jo, against an empty hand and against each other**. Supersedes `spec-v1.md`; changes are summarised at the end and justified in `spec-review.md`.
+**Status:** v2.3 — revised after feasibility testing on Godot 4.6-stable (2026-09-05), then updated with instructor decisions: N characters per scene (2–5), customizable skin colour, white gi later, no hakama, **CC0 character asset (not Mixamo), Linux as the primary platform, MP4 video via ffmpeg**, and **weapons: bokken, jo and tanto at standard aikido dimensions, against an empty hand and against each other**. Supersedes `spec-v1.md`; changes are summarised at the end and justified in `spec-review.md`.
 **Target engine:** Godot 4.6.x (pinned). Uses `IKModifier3D` / `TwoBoneIK3D` / `SkeletonModifier3D` introduced in 4.6. Renderer: Compatibility (OpenGL 3.3) so the tool runs on laptops without a dedicated GPU.
 **Audience:** the engineering agent building the tool; the instructor who owns it.
 **Owner / domain expert:** a Ki-Aikido instructor documenting grading techniques for children. Sole judge of pose correctness.
@@ -22,7 +22,7 @@ Produce clean, consistent, annotatable stills and short clips of two neutral fig
 - IK posing of arms and legs (`TwoBoneIK3D`) with per-limb IK/FK toggle (toggle to FK bakes the current solve).
 - Hand orientation control at the IK end (required, see §5.3).
 - Grip attachments: any hand ↔ any bone of another character *or any point along a weapon*, many at once, direction reversible, stored per pose.
-- Weapons: bokken and jo, held in one or two hands, handed from one character to another mid-sequence, and used against an empty hand or against each other (paired sword and paired staff practice). See §5.9.
+- Weapons: bokken, jo and tanto, held in one or two hands, handed from one character to another mid-sequence, and used against an empty hand or against each other (paired sword and paired staff practice). See §5.9.
 - Finger curl sliders and a grip preset.
 - Undo/redo within a session.
 - Pose library and technique sequences persisted as JSON.
@@ -141,20 +141,26 @@ Orbit/pan/zoom always. Presets **Front** (on the Tori→primary Uke line, 1.4 m 
 - Video: "Export video" launches a second instance: `<exe> --path <project> --write-movie exports/<slug>_frames/f.png --fixed-fps 30 -- --render-sequence <slug>`; the child loads the sequence, plays it, quits on finish. The parent then runs `ffmpeg -framerate 30 -i exports/<slug>_frames/f%08d.png -c:v libx264 -pix_fmt yuv420p exports/<slug>.mp4` and shows progress and the output folder. Output directory is created first (Movie Maker does not create it). Frames are kept (they double as per-phase stills) unless the instructor turns that off. If ffmpeg is missing, fall back to `--write-movie exports/<slug>.avi` with a visible notice.
 - Rendering each keyframe as a still is a side effect of video export (required, was nice-to-have; it is trivial in the child process).
 
-### 5.9 Weapons (bokken and jo)
+### 5.9 Weapons (bokken, jo, tanto)
 
 Weapons are objects in the scene, not characters. A pose may contain any number of them, and they are
 saved, interpolated and exported like everything else.
 
-**Shapes and sizes.** Generated from measurements, with defaults the instructor can change per weapon:
+**Shapes and sizes.** Generated from measurements. The defaults are the standard aikido dimensions
+(confirmed by the instructor, 2026-09-05) and remain editable per weapon:
 
 | Weapon | Overall length | Handle | Section |
 |---|---|---|---|
 | Bokken | 1.02 m | 0.24 m tsuka | flattened, gently curved blade, about 30 × 20 mm |
 | Jo | 1.28 m | none, held anywhere | round, 24 mm |
+| Tanto | 0.30 m | 0.12 m tsuka | flat straight blade, about 25 × 12 mm |
 
-Both are drawn in a wood tone distinct from every skin colour, so an armed hand still reads clearly in
-a printed still. Lengths are per weapon, so a child's shorter jo can be shown at its real size.
+All three are drawn in a wood tone distinct from every skin colour, so an armed hand still reads
+clearly in a printed still. Lengths are per weapon, so a child's shorter jo can be shown at its real
+size without changing the defaults.
+
+A tanto is the same object with different measurements: it is held in one hand, so it uses a hold
+with no second attachment, and tanto dori works exactly like the bokken and jo disarms in §8.5–8.6.
 
 **Holding.** Each weapon has one of two drive modes, chosen per pose:
 
@@ -251,9 +257,9 @@ Additions to the existing cases:
 ## 9. Open questions for the instructor
 See `spec-review.md` §"Questions" for the nine earlier items (background default, manual grip editing, Godot availability, packaging depth, AVI vs MP4, Mixamo download vs CC0 mannequin, auto Front+Side export, three-person technique, footprint overlay). Weapons add four more:
 
-10. Confirm the bokken and jo lengths used at the club. The defaults are 1.02 m and 1.28 m; children's weapons are often shorter, and the tool shows whatever length it is given.
+10. ~~Weapon lengths~~ — **answered:** standard aikido dimensions, as tabulated in §5.9. Per-weapon lengths stay editable for children's weapons.
 11. Which syllabus forms should the four weapon acceptance cases be (§8.5–8.8)? They are named generically now (tachi dori, jo dori, kumitachi, kumijo).
-12. Is a tanto also needed, or are bokken and jo enough? A tanto is the same code with different measurements, so it is cheap now and awkward to discover later.
+12. ~~Is a tanto needed~~ — **answered:** yes. Included in §5.9 at 0.30 m.
 13. Is blade contact as a measured indicator with a "close the gap" action enough, or is a hard constraint that keeps two weapons touching while either figure moves actually wanted?
 
 ## 10. Reference material
@@ -273,4 +279,4 @@ Unchanged from v1.
 - Per-character skin colour, saved with the pose, applied to skin only so it survives the gi (§5.1).
 - Hakama dropped; white gi and anatomical body deferred to M9 (§2.2, 7.1).
 - v2.2: CC0 character committed instead of Mixamo; Linux primary; MP4 via ffmpeg with AVI fallback (§3, 5.8, 6).
-- v2.3: weapons. Bokken and jo as procedural objects, held in one or two hands, transferable between characters, usable against an empty hand and against each other; grip targets generalised from "a bone" to "a bone or a point on a weapon" from M3 onwards; weapon contact as a measured indicator; four weapon acceptance cases (§2.1, 3, 5.3, 5.5, 5.6, 5.9, 7, 8.5–8.8, 9).
+- v2.3: weapons. Bokken, jo and tanto as procedural objects at standard aikido dimensions, held in one or two hands, transferable between characters, usable against an empty hand and against each other; grip targets generalised from "a bone" to "a bone or a point on a weapon" from M3 onwards; weapon contact as a measured indicator; four weapon acceptance cases (§2.1, 3, 5.3, 5.5, 5.6, 5.9, 7, 8.5–8.8, 9).
