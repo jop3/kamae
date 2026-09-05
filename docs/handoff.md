@@ -148,7 +148,10 @@ lead, so read it before building on it.
 - **Camera presets and CI** — `src/scene/CameraPresets.gd`, `OrbitCamera.apply_preset`,
   `Main.frame_all` now uses the Front preset (the default framing rendered the figures tiny),
   `tests/test_camera.gd`, `.github/workflows/tests.yml`. The workflow has not been seen to run
-  yet; expect a first-run fix.
+  yet; expect a first-run fix. **Seen in the render:** the Front preset stands directly behind
+  Tori on the Tori→Uke line, so Tori hides Uke and the head nearly clips the frame. Side is the
+  usable default; Front needs either an offset off the line or a larger distance before it is
+  worth a button in the handout workflow. Raise with the instructor (spec §5.7).
 
 Next in order: verify the three pieces above and wire them into `SidePanel` (weapons section: add
 weapon, hold by hand/t/roll, drive mode, attach second hand, contact gap and "close the gap";
