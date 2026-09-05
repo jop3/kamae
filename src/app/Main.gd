@@ -39,9 +39,8 @@ func _ready() -> void:
 
 
 func frame_all() -> void:
-	var axis: Dictionary = posing_scene.tori_uke_axis()
-	var center: Vector3 = axis["center"] + Vector3(0, 0.9, 0)
-	camera.look_from(Vector3(1, 0.35, 0.6), center, 4.0)
+	camera.fov = CameraPresets.FOV_DEG
+	camera.apply_preset(CameraPresets.front(posing_scene))
 
 
 func _on_export_requested(transparent: bool) -> void:

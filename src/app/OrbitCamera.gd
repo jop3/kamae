@@ -48,6 +48,11 @@ func look_from(direction: Vector3, center: Vector3, dist: float) -> void:
 	_apply()
 
 
+## Apply a CameraPresets result: {direction, center, distance}.
+func apply_preset(p: Dictionary) -> void:
+	look_from(p["direction"], p["center"], p["distance"])
+
+
 func _apply() -> void:
 	var offset := Vector3(sin(yaw) * cos(pitch), sin(pitch), cos(yaw) * cos(pitch)) * distance
 	global_position = target + offset

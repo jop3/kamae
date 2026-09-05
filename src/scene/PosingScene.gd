@@ -3,11 +3,13 @@ extends Node3D
 ## Owns the list of characters in the scene. 2–5 characters, each a CharacterRig.
 
 signal characters_changed
+signal weapons_changed
 
 const MAX_CHARACTERS := 5
 const MIN_CHARACTERS := 1
 
 var characters: Array[CharacterRig] = []
+var weapons: Array[Weapon] = []
 
 
 func add_character(id: String, display_name: String, role: String, color: Color = Color.TRANSPARENT) -> CharacterRig:
@@ -35,8 +37,29 @@ func remove_character(id: String) -> void:
 	characters_changed.emit()
 
 
-## Weapons arrive in M3W; the lookup exists now so GripTarget can resolve both kinds of target.
-func get_weapon(_id: String) -> Node3D:
+func add_weapon(id: String, type: String) -> Weapon:
+	assert(get_weapon(id) == null, "Duplicate weapon id %s" % id)
+	var weapon := Weapon.new()
+	add_child(weapon)
+	weapon.setup(id, type)
+	weapons.append(weapon)
+	weapons_changed.emit()
+	return weapon
+
+
+func remove_weapon(id: String) -> void:
+	var weapon := get_weapon(id)
+	if weapon == null:
+		return
+	weapons.erase(weapon)
+	weapon.queue_free()
+	weapons_changed.emit()
+
+
+func get_weapon(id: String) -> Weapon:
+	for w in weapons:
+		if w.weapon_id == id:
+			return w
 	return null
 
 

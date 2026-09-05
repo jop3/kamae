@@ -24,6 +24,10 @@ func setup(posing_scene: PosingScene, pose_controller: PoseController) -> void:
 	scene = posing_scene
 	controller = pose_controller
 	scene.characters_changed.connect(_on_characters_changed)
+	scene.weapons_changed.connect(_on_weapons_changed)
+	# Weapon-driven grips are applied at frame start, before any skeleton solves.
+	set_process_internal(true)
+	process_priority = -10
 
 
 # ---------------------------------------------------------------- editing
@@ -48,6 +52,106 @@ func detach(grip: Grip) -> void:
 	controller.undo.add_do_method(_remove.bind(grip))
 	controller.undo.add_undo_method(_add.bind(grip))
 	controller.undo.commit_action()
+
+
+## Puts a weapon in `gripper`'s hand: the weapon becomes hand-driven at `t`. With `snap` the hand
+## keeps its place and the weapon moves to the canonical hold; otherwise the current geometry is
+## kept as the hold offset.
+func hold_weapon(gripper: CharacterRig, hand: String, weapon: Weapon, t: float, roll_deg: float = 0.0, snap := true) -> void:
+	_drop_grips_on(weapon, gripper.character_id, hand)
+	weapon.drive = "hand"
+	weapon.set_hold(gripper.character_id, hand, t, roll_deg)
+	var hand_world := gripper.bone_world_transform(hand + "Hand")
+	if snap:
+		weapon.global_transform = hand_world * weapon.hold["offset"]
+	else:
+		weapon.set_hold_offset_from_current(hand_world)
+	_rebuild()
+
+
+## Attaches a second (or any) hand to a weapon at `t`. With `snap`, the hand's IK target is first
+## moved to the canonical hand pose for that point, so the grip is a real hold.
+func attach_to_weapon(gripper: CharacterRig, hand: String, weapon: Weapon, t: float, snap := true) -> Grip:
+	if snap:
+		gripper.set_limb_mode(hand + "Arm", Limb.Mode.IK)
+		var limb: Limb = gripper.limbs[hand + "Arm"]
+		limb.target.global_transform = weapon.global_transform * weapon.hold_offset(hand, t, 0.0).affine_inverse()
+	var grip := Grip.new()
+	grip.gripper_id = gripper.character_id
+	grip.hand = hand
+	grip.target = GripTarget.for_weapon(scene, weapon.weapon_id, t)
+	grip.target.bind(scene)
+	if snap:
+		grip.offset = grip.target.world_transform().affine_inverse() * (weapon.global_transform * weapon.hold_offset(hand, t, 0.0).affine_inverse())
+	else:
+		grip.offset = grip.target.world_transform().affine_inverse() * gripper.bone_world_transform(hand + "Hand")
+	_add(grip)
+	return grip
+
+
+## Switches who drives whom without moving anything. "weapon": the holder's hand becomes an
+## ordinary grip on the weapon at the hold's t. "hand": the weapon hangs off that hand again.
+func set_weapon_drive(weapon: Weapon, mode: String) -> void:
+	if weapon.drive == mode:
+		return
+	if mode == "weapon":
+		weapon.drive = "weapon"
+		if not weapon.hold.is_empty():
+			var holder := scene.get_character(weapon.hold["character"])
+			if holder:
+				attach_to_weapon(holder, weapon.hold["hand"], weapon, weapon.hold["t"], false)
+	else:
+		if weapon.hold.is_empty():
+			return
+		var holder := scene.get_character(weapon.hold["character"])
+		if holder == null:
+			return
+		var existing := grip_on_limb(holder.character_id, weapon.hold["hand"] + "Arm")
+		if existing and existing.target.kind == GripTarget.Kind.WEAPON and existing.target.weapon_id == weapon.weapon_id:
+			_remove(existing)
+		weapon.drive = "hand"
+		weapon.set_hold_offset_from_current(holder.bone_world_transform(weapon.hold["hand"] + "Hand"))
+	_rebuild()
+
+
+## Distance between two anchor points on two weapons, in metres.
+func contact_gap(a: Weapon, t_a: float, b: Weapon, t_b: float) -> float:
+	return a.anchor_transform(t_a).origin.distance_to(b.anchor_transform(t_b).origin)
+
+
+## Translates so the two anchor points touch: the weapon-driven weapon moves (b preferred), or
+## if both are hand-driven, `mover`'s holder hand IK target moves.
+func close_gap(a: Weapon, t_a: float, b: Weapon, t_b: float, mover: Weapon = null) -> void:
+	var delta := a.anchor_transform(t_a).origin - b.anchor_transform(t_b).origin
+	var target_weapon: Weapon = mover if mover else (b if b.drive == "weapon" else (a if a.drive == "weapon" else b))
+	if target_weapon == a:
+		delta = -delta
+	if target_weapon.drive == "weapon" or target_weapon.hold.is_empty():
+		target_weapon.global_position += delta
+		return
+	var holder := scene.get_character(target_weapon.hold["character"])
+	if holder == null:
+		return
+	var limb: Limb = holder.limbs[target_weapon.hold["hand"] + "Arm"]
+	holder.set_limb_mode(limb.key, Limb.Mode.IK)
+	limb.target.global_position += delta
+
+
+func _drop_grips_on(weapon: Weapon, gripper_id: String, hand: String) -> void:
+	for grip in grips.duplicate():
+		if grip.gripper_id == gripper_id and grip.hand == hand:
+			_remove(grip)
+
+
+func _on_weapons_changed() -> void:
+	for grip in grips.duplicate():
+		if grip.target.kind == GripTarget.Kind.WEAPON and scene.get_weapon(grip.target.weapon_id) == null:
+			_remove(grip)
+	for weapon in scene.weapons:
+		if not weapon.hold.is_empty() and scene.get_character(weapon.hold["character"]) == null:
+			weapon.hold = {}
+			weapon.drive = "weapon"
+	_rebuild()
 
 
 func grips_for(character_id: String) -> Array[Grip]:
@@ -102,7 +206,7 @@ func _on_characters_changed() -> void:
 		var target_alive: bool = grip.target.kind != GripTarget.Kind.BONE or scene.get_character(grip.target.character_id) != null
 		if gripper == null or not target_alive:
 			_remove(grip)
-	_rebuild()
+	_on_weapons_changed()
 
 
 # ---------------------------------------------------------------- evaluation
@@ -124,9 +228,7 @@ func _reorder_characters() -> void:
 	for id in ids:
 		depends[id] = []
 	for grip in grips:
-		if grip.target.kind != GripTarget.Kind.BONE:
-			continue
-		var before: String = grip.target.character_id
+		var before: String = _target_owner_character(grip)
 		if before in ids and grip.gripper_id in ids and before != grip.gripper_id:
 			depends[grip.gripper_id].append(before)
 	var ordered: Array[String] = []
@@ -154,17 +256,34 @@ func _reorder_characters() -> void:
 			scene.move_child(rig, i)
 
 
+## The character whose skeleton the grip's target hangs off: the bone's character, or the holder
+## of a hand-driven weapon. Empty for weapon-driven weapons.
+func _target_owner_character(grip: Grip) -> String:
+	if grip.target.kind == GripTarget.Kind.BONE:
+		return grip.target.character_id
+	var weapon := scene.get_weapon(grip.target.weapon_id)
+	if weapon and weapon.drive == "hand" and not weapon.hold.is_empty():
+		return weapon.hold["character"]
+	return ""
+
+
 func _reconnect() -> void:
 	for id in _connected.keys():
 		var rig := scene.get_character(id)
 		if rig and rig.skeleton.skeleton_updated.is_connected(_connected[id]):
 			rig.skeleton.skeleton_updated.disconnect(_connected[id])
 	_connected.clear()
-	# One connection per character that something grips, firing while its pose is live.
+	# One connection per character that something grips or that holds a hand-driven weapon,
+	# firing while its pose is live.
+	var ids: Array[String] = []
 	for grip in grips:
-		if grip.target.kind != GripTarget.Kind.BONE:
-			continue
-		var id: String = grip.target.character_id
+		var owner := _target_owner_character(grip)
+		if owner != "":
+			ids.append(owner)
+	for weapon in scene.weapons:
+		if weapon.drive == "hand" and not weapon.hold.is_empty():
+			ids.append(weapon.hold["character"])
+	for id in ids:
 		if _connected.has(id):
 			continue
 		var rig := scene.get_character(id)
@@ -176,16 +295,32 @@ func _reconnect() -> void:
 
 
 func _apply_grips_targeting(character_id: String) -> void:
+	var rig := scene.get_character(character_id)
+	# Hand-driven weapons follow their holder's hand first, so grips on them see the live weapon.
+	for weapon in scene.weapons:
+		if weapon.drive == "hand" and not weapon.hold.is_empty() and weapon.hold["character"] == character_id and rig:
+			weapon.global_transform = rig.bone_world_transform(weapon.hold["hand"] + "Hand") * weapon.hold["offset"]
 	for grip in grips:
-		if grip.target.kind == GripTarget.Kind.BONE and grip.target.character_id == character_id:
+		if _target_owner_character(grip) == character_id:
 			_apply(grip)
 
 
-## Weapon-anchored grips have no skeleton to hang off, so they are refreshed every frame.
-func _process(_delta: float) -> void:
-	for grip in grips:
-		if grip.target.kind != GripTarget.Kind.BONE:
-			_apply(grip)
+## Weapon-driven weapons have no skeleton to hang off, so their grips are refreshed at the start
+## of every frame, before the skeletons solve.
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_INTERNAL_PROCESS:
+		for grip in grips:
+			if grip.target.kind == GripTarget.Kind.WEAPON and _target_owner_character(grip) == "":
+				_apply(grip)
+
+
+## Where the weapon currently hangs (hand-driven), refreshed for callers outside skeleton_updated.
+func refresh_hand_driven() -> void:
+	for weapon in scene.weapons:
+		if weapon.drive == "hand" and not weapon.hold.is_empty():
+			var rig := scene.get_character(weapon.hold["character"])
+			if rig:
+				weapon.global_transform = rig.bone_world_transform(weapon.hold["hand"] + "Hand") * weapon.hold["offset"]
 
 
 func _apply(grip: Grip) -> void:
