@@ -117,8 +117,9 @@ Verified first: all of M0–M3 tests and the rendered-still checks pass on a fre
 download. Nothing from the earlier session was found broken.
 
 Because the session had only minutes left, three agents were dispatched in parallel on disjoint
-files. **Check each of these before trusting it**: run its test, read its code, and finish what is
-marked unfinished in the commit message.
+files. All three landed and the full suite (`tests/run.sh`, seven test scripts plus the rendered
+stills) was green at the end of the session. Their code has not been read line by line by the
+lead, so read it before building on it.
 
 - **M3W weapons** — `src/weapons/Weapon.gd`, `PosingScene` weapon list, `GripDirector` weapon
   integration, `tests/test_m3w.gd`. Design decisions taken (all reversible):
@@ -137,6 +138,9 @@ marked unfinished in the commit message.
     mapping: the signs were derived from numbers, not from a picture.
   - Switching weapon-driven→hand-driven captures the raw hand⁻¹×weapon offset so the geometry is
     preserved exactly even when the weapon was tilted out of the palm plane.
+  - Unfinished: no undo entries for `hold_weapon`, `attach_to_weapon`, `set_weapon_drive`,
+    `close_gap`; the second hand's roll in `attach_to_weapon` is fixed at 0°; `Weapon.to_dict()`
+    exists but `PoseFile.apply` does not yet recreate weapons or holds from a file.
 - **M4 save/load** — `src/data/PoseFile.gd`, `tests/test_m4.gd`. Bone rotations are captured inside
   `skeleton_updated` (baked), grips through `Grip.to_dict()`. Weapons are serialised only if the
   weapon agent's `Weapon.to_dict()` landed; otherwise `weapons: []` and that is the first thing to
