@@ -34,6 +34,10 @@ var drive: String = "hand"        ## "hand" | "weapon"
 var hold: Dictionary = {}
 
 var scene: Node                   ## PosingScene, to find a hold's character again after loading
+## Sequence playback: where the weapon would be if nobody held it, and how much the hold counts.
+## At influence 1 (always, outside playback) the hold places the weapon fully.
+var free_transform := Transform3D()
+var hold_influence := 1.0
 var _mesh_instance: MeshInstance3D
 
 

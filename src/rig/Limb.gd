@@ -94,6 +94,18 @@ func reset_pole() -> void:
 	pole.global_position = mid + rig.global_transform.basis * offset
 
 
+## Blend between the FK pose (0) and the IK solve (1). Used by sequence playback to ramp a grip
+## in or out; the instructor's own edits always run at 1.
+func set_influence(x: float) -> void:
+	# SkeletonModifier3D.influence: the engine blends each modifier's output with the pose it
+	# started from, so both the IK solve and the hand orientation ramp together.
+	var v := clampf(x, 0.0, 1.0)
+	if not is_equal_approx(ik.influence, v):
+		ik.influence = v
+	if not is_equal_approx(hand_orient.influence, v):
+		hand_orient.influence = v
+
+
 func set_orient_to_target(enabled: bool) -> void:
 	orient_to_target = enabled
 	hand_orient.enabled = enabled and mode == Mode.IK

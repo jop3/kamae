@@ -359,6 +359,12 @@ func _rebuild() -> void:
 	grips_changed.emit()
 
 
+## Public entry for code that changed holds or drive modes behind the director's back
+## (sequence playback): re-derives the evaluation order and signal connections.
+func rebuild() -> void:
+	_rebuild()
+
+
 ## Sorts characters so that every grip's target comes before its gripper in the scene tree.
 ## Cycles (A grips B and B grips A) are allowed: the edge that closes the cycle is dropped from the
 ## ordering and resolves one frame late, which is invisible at 30 fps and absent from baked stills.
@@ -441,7 +447,7 @@ func _apply_grips_targeting(character_id: String) -> void:
 	# Hand-driven weapons follow their holder's hand first, so grips on them see the live weapon.
 	for weapon in scene.weapons:
 		if weapon.drive == "hand" and not weapon.hold.is_empty() and weapon.hold["character"] == character_id and rig:
-			weapon.global_transform = rig.bone_world_transform(weapon.hold["hand"] + "Hand") * weapon.hold["offset"]
+			weapon.global_transform = _held_transform(weapon, rig.bone_world_transform(weapon.hold["hand"] + "Hand"))
 	for grip in grips:
 		if _target_owner_character(grip) == character_id:
 			_apply(grip)
@@ -456,13 +462,22 @@ func _notification(what: int) -> void:
 				_apply(grip)
 
 
+## Where a hand-driven weapon goes for a given hand transform, honouring a partial hold during
+## sequence playback (the weapon slides between its free transform and the hand).
+func _held_transform(weapon: Weapon, hand_world: Transform3D) -> Transform3D:
+	var held: Transform3D = hand_world * weapon.hold["offset"]
+	if weapon.hold_influence >= 1.0:
+		return held
+	return weapon.free_transform.interpolate_with(held, weapon.hold_influence)
+
+
 ## Where the weapon currently hangs (hand-driven), refreshed for callers outside skeleton_updated.
 func refresh_hand_driven() -> void:
 	for weapon in scene.weapons:
 		if weapon.drive == "hand" and not weapon.hold.is_empty():
 			var rig := scene.get_character(weapon.hold["character"])
 			if rig:
-				weapon.global_transform = rig.bone_world_transform(weapon.hold["hand"] + "Hand") * weapon.hold["offset"]
+				weapon.global_transform = _held_transform(weapon, rig.bone_world_transform(weapon.hold["hand"] + "Hand"))
 
 
 func _apply(grip: Grip) -> void:

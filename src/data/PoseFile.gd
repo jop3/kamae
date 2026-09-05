@@ -69,10 +69,18 @@ static func capture(scene: PosingScene, director: GripDirector, camera = null, n
 
 
 ## Capture with rotations read post-modifier, inside each skeleton's skeleton_updated.
+##
+## Resumes the caller only after the next frame boundary. Reading inside the signal leaves the
+## caller running inside the skeleton's update, where any bone pose it then writes is undone by
+## the skeleton's pose restore (docs/engine-notes.md); a caller that captured a pose and went
+## straight on to apply another would silently lose that write.
 static func capture_baked(scene: PosingScene, director: GripDirector, camera = null, name: String = "") -> Dictionary:
 	var rotations := {}
 	for rig in scene.characters:
 		rotations[rig.character_id] = await _read_rotations_baked(rig.skeleton)
+	var tree := Engine.get_main_loop() as SceneTree
+	if tree:
+		await tree.process_frame
 	return _assemble(scene, director, camera, name, rotations)
 
 
