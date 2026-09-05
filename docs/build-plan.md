@@ -33,17 +33,18 @@ Frame order that everything relies on (verified): animation/FK pose → `FingerC
 
 | # | Deliverable | Proof | Est. | Risk |
 |---|---|---|---|---|
-| M0 | Project skeleton, Compatibility renderer, README with Godot 4.6 pin, X Bot import at 0.01 with Humanoid bone map, teal/amber materials, floor grid, camera orbit. CC0 fallback character wired the same way. | Headless test lists the expected bone names on both characters; screenshot under Xvfb. | 1 | Mixamo download is manual; finger bone names after bone-map must be checked once against the real asset. |
+| M0 | Project skeleton, Compatibility renderer, README with Godot 4.6 pin, X Bot import at 0.01 with Humanoid bone map, `CharacterRig` instanced N times from a scene description (ids, roles, skin colour palette), floor grid, camera orbit. CC0 fallback character wired the same way. | Headless test instantiates 5 characters, lists the expected bone names on each, applies 5 distinct colours; screenshot under Xvfb. | 1.5 | Mixamo download is manual; finger bone names after bone-map must be checked once against the real asset. |
 | M1 | FK posing loop: pick capsules, selection highlight, rotation gizmo, Euler sliders, root move/turn, undo/redo, PNG still (flat + transparent). | Xvfb test: synthetic click on a capsule selects the right bone; gizmo drag rotates; still is RGBA. | 3 | The gizmo is the biggest UI piece. Fallback: sliders only for M1, gizmo polish in M7. |
 | M2 | IK for 4 limbs with draggable targets and poles, IK/FK toggle with baking, `HandOrient`, reach warning, finger curl sliders + grip preset. | Headless: target set → hand within 1e-4; toggle to FK leaves bones unchanged; reach flag flips at length. | 2 | Pole placement heuristics for natural elbows/knees; may need a per-limb default pole offset. |
-| M3 | Second character; `GripDirector` with attach/detach UI, offset capture, multi-grip, cycles, orientation follow. Validate on Katatedori Ikkyo Grepp→Kuzushi. | Headless: move Tori's arm → Uke's hand error 0.000; two grips independent; grip reversed mid-sequence. (Ported from `feasibility/iktest`.) | 2 | Mostly pre-paid by feasibility. Remaining risk: hand offset capture when the hand is already mid-IK. |
+| M3 | Characters panel (add/remove/duplicate/rename, colour picker); `GripDirector` with attach/detach UI between any pair, offset capture, grip graph + topological order, cycles, orientation follow. Validate on Katatedori Ikkyo Grepp→Kuzushi and the three-person fixture. | Headless: move Tori's arm → Uke's hand error 0.000; two Ukes on two wrists independent; chain Uke2→Uke1→Tori resolves in one frame; grip reversed mid-sequence. (Ported from `feasibility/iktest`.) | 2.5 | Mostly pre-paid by feasibility. Remaining risk: hand offset capture when the hand is already mid-IK. |
 | M4 | Pose save/load JSON, pose library panel, confirm dialogs, slugs, copy pose Tori↔Uke, mirror. | Headless: save→load→compare all bones, grips, camera within 1e-4. | 1.5 | None significant. |
 | M5 | Sequences: steps, durations, interpolation rules incl. live IK for double-active grips and influence ramps; in-app preview with scrub bar. | Headless: interpolate Ikkyo at t=0.5 and assert grip error stays 0; ramp reaches 0/1 at ends. | 2 | Visual quality of straight slerp on Shihonage's 180° turn; mitigated by inserting poses, per spec. |
 | M6 | Video export via spawned Movie Maker child (`--render-sequence`), AVI + PNG frames, per-keyframe stills, progress UI, optional ffmpeg MP4. | Xvfb: export Ikkyo → AVI exists, frame count = duration×30, stills for 3 phases exist with right slugs. | 1.5 | Child-process launch path differences on Windows/macOS (exe path, quoting). |
 | M7 | Camera presets Front/Side, per-pose camera, Front+Side batch export, 2× supersampling, UI polish, tooltips, keyboard shortcuts, gizmo snapping. | Xvfb screenshots of both presets for each acceptance pose. | 1.5 | Edge halo on transparent export (godot#113103); flat background remains default if it shows. |
-| M8 | Acceptance: build all three techniques as saved poses/sequences, export all stills and videos, check every criterion in spec-v2 §8, write the instructor guide. | `tests/run.sh` green; `exports/` contains the 3 AVIs and 18 stills. | 2 | Aikido correctness is the instructor's call; agent produces first drafts for them to adjust. |
+| M8 | Acceptance: build the three techniques plus the three-person fixture as saved poses/sequences, export all stills and videos, check every criterion in spec-v2 §8, write the instructor guide. | `tests/run.sh` green; `exports/` contains 4 AVIs and 24 stills. | 2 |
+| M9 | Optional, after sign-off: anatomical body with detailed hands rigged to the same bone names, white gi as skinned mesh with per-character belt colour, gi toggle per character. No hakama. | Xvfb renders of the four acceptance sequences in gi; grip error unchanged; skin colours still visible on hands/head/feet. | 4–6 | Aikido correctness is the instructor's call; agent produces first drafts for them to adjust. |
 
-Total: about 16.5 sessions. M3 stays early on purpose; do not start M5+ until M3's headless test is green.
+Total: about 18 sessions for M0–M8, plus 4–6 for the optional gi milestone M9. M3 stays early on purpose; do not start M5+ until M3's headless test is green.
 
 ## Testing strategy
 - `tests/run.sh` runs every `tests/test_*.gd` with `godot --headless -s`, printing `PASS`/`FAIL`; exits non-zero on failure. Rendering tests wrap Godot in `xvfb-run` when no display exists (pattern from `feasibility/run.sh`).
@@ -56,6 +57,7 @@ Total: about 16.5 sessions. M3 stays early on purpose; do not start M5+ until M3
 - Flat background default, transparent as a setting.
 - Humanoid bone names, not `mixamorig:*`.
 - Compatibility renderer.
+- N-character data model from M0 (a list of characters with ids), even though the first techniques use two, because retrofitting it later touches every panel.
 
 ## Immediate next steps
 1. Instructor answers the eight questions in `spec-review.md` (especially Mixamo download and AVI vs MP4).

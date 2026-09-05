@@ -72,4 +72,5 @@ Mixamo downloads require an Adobe login; the sandbox got 403. Mixamo terms allow
 5. **New:** Is AVI (MJPEG) acceptable for video, or is MP4 required (then ffmpeg becomes an optional install)?
 6. **New:** Can the instructor download Mixamo X Bot and place the FBX in the project? Or should the tool ship with a CC0 mannequin instead (loses the "known-good finger rig" argument, gains redistributability)?
 7. **New:** Is a per-technique fixed camera the norm, with Front and Side both exported automatically for every pose? (Cheap to do; doubles usefulness of each pose for the handout.)
-8. **New:** Should each pose also record which foot bears weight / footprints on the floor grid? The handout emphasises footwork; a simple floor footprint overlay in exports would help and is cheap.
+8. **New:** Which syllabus technique should be the three-person acceptance case (spec-v2 §8.4)?
+9. **New:** Should each pose also record which foot bears weight / footprints on the floor grid? The handout emphasises footwork; a simple floor footprint overlay in exports would help and is cheap.
