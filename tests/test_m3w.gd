@@ -39,7 +39,7 @@ func _initialize() -> void:
 	check(scene.get_weapon("bokken1") == bokken and bokken.length > 1.0, "weapon added and looked up")
 	director.hold_weapon(tori, "Right", bokken, 0.1)
 	await settle()
-	check(hold_error(bokken) < 1e-3, "anchor(t) sits at the holding hand origin (%.4f m)" % hold_error(bokken))
+	check(hold_error(bokken) < 1e-3, "anchor(t) sits at the holding hand's palm centre (%.4f m)" % hold_error(bokken))
 	var tip_before: Vector3 = bokken.anchor_transform(1.0).origin
 	ctrl.select(tori, "RightUpperArm")
 	tori.limbs["RightArm"].target.global_position += Vector3(0, 0.08, -0.05)
@@ -122,7 +122,8 @@ func _initialize() -> void:
 
 func hold_error(weapon: Weapon) -> float:
 	var rig: CharacterRig = scene.get_character(weapon.hold["character"])
-	return weapon.anchor_transform(weapon.hold["t"]).origin.distance_to(rig.bone_world_transform(weapon.hold["hand"] + "Hand").origin)
+	var palm: Vector3 = rig.bone_world_transform(weapon.hold["hand"] + "Hand") * Weapon.palm_centre(rig, weapon.hold["hand"])
+	return weapon.anchor_transform(weapon.hold["t"]).origin.distance_to(palm)
 
 
 func hold_offset_error(weapon: Weapon) -> float:

@@ -61,6 +61,23 @@ now asserts against all three, so a bad character cannot be exported silently.
 - **Bone renaming is safe.** Renaming armature bones in Blender renames the matching vertex groups,
   so the humanoid rename pass does not disturb weights.
 
+## Hands and weapons
+
+- **The finger flex axis is the across-the-knuckles line, not the palm normal.** The first
+  `FingerCurl` rotated each phalanx about `finger_dir × across`, which is the palm normal, so a
+  "curl" swept the fingers sideways across the palm. Every numeric check still passed (the
+  fingertip-to-wrist distance shrinks either way) and the hands looked flat on anything they held.
+  The axis is now `across` made perpendicular to the finger, with the sign taken from the rig's
+  own slight rest-pose bend, and `tests/test_m2.gd` checks that the middle knuckle moves out
+  through the palm rather than along it. Render a close-up of a closed fist before trusting any
+  change here.
+- **A held shaft runs through the palm, not the wrist joint.** The hand bone's origin is the wrist.
+  `Weapon.palm_centre()` puts the anchor about 6 cm toward the fingers and 2 cm out from the palm,
+  inside the curled fingers; every hold and weapon grip goes through it.
+- **Measure the palm axes from the rig; do not type them in.** Hand-typed palm normals had the
+  left hand's sign wrong. `FingerCurl.calibrate()` now records the palm normal and the
+  little-to-index direction per hand, and `Weapon.canonical_basis()` builds the hold from those.
+
 ## Posing pitfalls
 
 - **A non-unit rotation axis silently adds scale.** `Quaternion(axis, angle)` expects a normalised

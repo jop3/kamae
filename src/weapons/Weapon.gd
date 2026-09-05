@@ -15,10 +15,15 @@ const DEFAULTS := {
 const WOOD := Color("a0703a")
 const BOKKEN_CURVE := 0.02
 
-## Hand-local axes measured on the mannequin: +Y wrist -> fingers; palm width little -> index;
-## palm normal back -> palm.
-const PALM_WIDTH := {"Right": Vector3(0.48, 0.13, 0.87), "Left": Vector3(-0.66, 0.10, 0.75)}
-const PALM_NORMAL := {"Right": Vector3(-0.88, 0.10, 0.47), "Left": Vector3(-0.75, -0.06, -0.65)}
+## Which way the palm faces and which way it runs are measured from the rig by FingerCurl
+## (hand-local: +Y is wrist -> fingers). Hand-typed constants were tried first; the left hand's
+## normal came out with the wrong sign and the shaft ended up on the back of the hand.
+## Where the shaft runs through the closed hand, in hand-local metres: the hand bone's origin is
+## the wrist joint, but the shaft sits in the middle of the palm, about 6 cm toward the fingers
+## and 2 cm out from the palm surface (inside the curled fingers). Without this the weapon passes
+## through the wrist and the fingers close on air.
+const PALM_ALONG := 0.06
+const PALM_OUT := 0.02
 
 var weapon_id: String = ""
 var type: String = "bokken"
@@ -28,6 +33,7 @@ var drive: String = "hand"        ## "hand" | "weapon"
 ## {character, hand, t, roll_deg, offset} while a hand drives it; empty otherwise.
 var hold: Dictionary = {}
 
+var scene: Node                   ## PosingScene, to find a hold's character again after loading
 var _mesh_instance: MeshInstance3D
 
 
@@ -55,25 +61,31 @@ func _curve_offset(t: float) -> Vector3:
 # ---------------------------------------------------------------- hand-driven hold mapping
 
 ## Weapon frame expressed in the hand bone frame for the canonical hold: axis along the palm
-## width (little finger -> thumb side), edge into the palm.
-static func canonical_basis(hand: String) -> Basis:
-	var y: Vector3 = (PALM_WIDTH[hand] as Vector3).normalized()
-	var edge: Vector3 = PALM_NORMAL[hand]
+## width (little finger -> thumb side, so the tip is on the thumb side), edge into the palm.
+static func canonical_basis(rig: CharacterRig, hand: String) -> Basis:
+	var y: Vector3 = rig.fingers.palm_width(hand).normalized()
+	var edge: Vector3 = rig.fingers.palm_normal(hand)
 	var z: Vector3 = -(edge - y * edge.dot(y)).normalized()
 	var x := y.cross(z).normalized()
 	return Basis(x, y, z)
 
 
-## hand_world * hold_offset(t, roll) = weapon_world.
-func hold_offset(hand: String, t: float, roll_deg: float) -> Transform3D:
-	var b := canonical_basis(hand).rotated(canonical_basis(hand).y, deg_to_rad(roll_deg))
-	return Transform3D(b, Vector3.ZERO) * Transform3D(Basis.IDENTITY, -(Vector3(0, t * length, 0) + _curve_offset(t)))
+## The point in the hand that the shaft passes through, in the hand bone's frame.
+static func palm_centre(rig: CharacterRig, hand: String) -> Vector3:
+	return Vector3(0, PALM_ALONG, 0) + rig.fingers.palm_normal(hand).normalized() * PALM_OUT
 
 
-## Sets the hold so the weapon hangs off `character`'s `hand` at the canonical pose.
-func set_hold(character: String, hand: String, t: float, roll_deg: float = 0.0) -> void:
-	hold = {"character": character, "hand": hand, "t": t, "roll_deg": roll_deg,
-		"offset": hold_offset(hand, t, roll_deg)}
+## hand_world * hold_offset(t, roll) = weapon_world: anchor(t) lands on the palm centre.
+func hold_offset(rig: CharacterRig, hand: String, t: float, roll_deg: float) -> Transform3D:
+	var cb := canonical_basis(rig, hand)
+	var b := cb.rotated(cb.y, deg_to_rad(roll_deg))
+	return Transform3D(b, palm_centre(rig, hand)) * Transform3D(Basis.IDENTITY, -(Vector3(0, t * length, 0) + _curve_offset(t)))
+
+
+## Sets the hold so the weapon hangs off `rig`'s `hand` at the canonical pose.
+func set_hold(rig: CharacterRig, hand: String, t: float, roll_deg: float = 0.0) -> void:
+	hold = {"character": rig.character_id, "hand": hand, "t": t, "roll_deg": roll_deg,
+		"offset": hold_offset(rig, hand, t, roll_deg)}
 
 
 ## Keeps the weapon where it is relative to the holder's hand (for mode switching).
@@ -110,7 +122,8 @@ func apply_dict(d: Dictionary) -> void:
 		if hold.has("offset"):
 			hold["offset"] = PoseFile.array_to_transform(hold["offset"])
 		else:
-			hold["offset"] = hold_offset(hold["hand"], float(hold["t"]), float(hold.get("roll_deg", 0.0)))
+			var rig: CharacterRig = scene.get_character(hold["character"]) if scene else null
+			hold["offset"] = hold_offset(rig, hold["hand"], float(hold["t"]), float(hold.get("roll_deg", 0.0))) if rig else Transform3D()
 	if d.has("transform"):
 		global_transform = PoseFile.array_to_transform(d["transform"])
 

@@ -105,8 +105,31 @@ func _initialize() -> void:
 	var open_dist := palm.distance_to(open_tip)
 	ctrl.set_finger_curl(tori, "Right", "Index", 1.0)
 	await process_frame; await process_frame
-	var closed_dist := palm.distance_to(tori.bone_world_transform("RightIndexDistal").origin)
-	check(closed_dist < open_dist * 0.72, "full curl folds the index finger toward the palm (%.3f -> %.3f m)" % [open_dist, closed_dist])
+	var closed_tip := tori.bone_world_transform("RightIndexDistal").origin
+	var closed_dist := palm.distance_to(closed_tip)
+	check(closed_dist < open_dist * 0.72, "full curl brings the index fingertip toward the wrist (%.3f -> %.3f m)" % [open_dist, closed_dist])
+	# A finger that bends sideways across the palm also shortens that distance, so check the
+	# direction too. The middle knuckle is the clean probe: it moves out through the palm by about
+	# the length of the proximal segment, while the fingertip swings back toward the wrist and ends
+	# near the palm plane again. Measured in an orthonormal hand frame so the backward motion does
+	# not leak into the sideways reading.
+	ctrl.set_finger_curl(tori, "Right", "Index", 0.0)
+	await process_frame; await process_frame
+	var hand_xf := tori.bone_world_transform("RightHand")
+	var along: Vector3 = hand_xf.basis.y.normalized()
+	var width: Vector3 = hand_xf.basis * tori.fingers.palm_width("Right")
+	width = (width - along * width.dot(along)).normalized()
+	var palm_normal: Vector3 = along.cross(width)
+	if palm_normal.dot(hand_xf.basis * tori.fingers.palm_normal("Right")) < 0.0:
+		palm_normal = -palm_normal
+	var open_knuckle := tori.bone_world_transform("RightIndexIntermediate").origin
+	ctrl.set_finger_curl(tori, "Right", "Index", 1.0)
+	await process_frame; await process_frame
+	var moved := tori.bone_world_transform("RightIndexIntermediate").origin - open_knuckle
+	var moved_palmward := moved.dot(palm_normal)
+	var moved_sideways := absf(moved.dot(width))
+	check(moved_palmward > 0.015 and moved_palmward > moved_sideways * 3.0,
+		"the finger bends out through the palm rather than sideways (palmward %.3f m, sideways %.3f m)" % [moved_palmward, moved_sideways])
 	# Curling must not stretch the finger: every phalanx keeps its rest length.
 	var seg_ok := true
 	var worst := 0.0

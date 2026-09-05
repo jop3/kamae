@@ -62,7 +62,7 @@ func hold_weapon(gripper: CharacterRig, hand: String, weapon: Weapon, t: float, 
 	var dropped := _grips_on_hand(gripper.character_id, hand)
 	_drop_grips_on(weapon, gripper.character_id, hand)
 	weapon.drive = "hand"
-	weapon.set_hold(gripper.character_id, hand, t, roll_deg)
+	weapon.set_hold(gripper, hand, t, roll_deg)
 	var hand_world := gripper.bone_world_transform(hand + "Hand")
 	if snap:
 		weapon.global_transform = hand_world * weapon.hold["offset"]
@@ -110,14 +110,14 @@ func _attach_to_weapon_raw(gripper: CharacterRig, hand: String, weapon: Weapon, 
 	if snap:
 		gripper.set_limb_mode(hand + "Arm", Limb.Mode.IK)
 		var limb: Limb = gripper.limbs[hand + "Arm"]
-		limb.target.global_transform = weapon.global_transform * weapon.hold_offset(hand, t, 0.0).affine_inverse()
+		limb.target.global_transform = weapon.global_transform * weapon.hold_offset(gripper, hand, t, 0.0).affine_inverse()
 	var grip := Grip.new()
 	grip.gripper_id = gripper.character_id
 	grip.hand = hand
 	grip.target = GripTarget.for_weapon(scene, weapon.weapon_id, t)
 	grip.target.bind(scene)
 	if snap:
-		grip.offset = grip.target.world_transform().affine_inverse() * (weapon.global_transform * weapon.hold_offset(hand, t, 0.0).affine_inverse())
+		grip.offset = grip.target.world_transform().affine_inverse() * (weapon.global_transform * weapon.hold_offset(gripper, hand, t, 0.0).affine_inverse())
 	else:
 		grip.offset = grip.target.world_transform().affine_inverse() * gripper.bone_world_transform(hand + "Hand")
 	_add(grip)

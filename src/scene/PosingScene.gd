@@ -40,6 +40,7 @@ func remove_character(id: String) -> void:
 func add_weapon(id: String, type: String) -> Weapon:
 	assert(get_weapon(id) == null, "Duplicate weapon id %s" % id)
 	var weapon := Weapon.new()
+	weapon.scene = self
 	add_child(weapon)
 	weapon.setup(id, type)
 	weapons.append(weapon)

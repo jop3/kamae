@@ -129,8 +129,8 @@ func _initialize() -> void:
 	check(bk != null and scene.get_weapon("jo1") == null and scene.weapons.size() == 1, "weapon set restored")
 	if bk:
 		check(bk.drive == "hand" and bk.hold.get("character", "") == "tori" and bk.hold.get("hand", "") == "Right", "hold restored")
-		var herr := bk.anchor_transform(0.1).origin.distance_to(tori.bone_world_transform("RightHand").origin)
-		check(herr < 1e-3, "weapon anchor sits on holder's hand after reload (%.4f m)" % herr)
+		var herr := bk.anchor_transform(0.1).origin.distance_to(tori.bone_world_transform("RightHand") * Weapon.palm_centre(tori, "Right"))
+		check(herr < 1e-3, "weapon anchor sits in the holder's palm after reload (%.4f m)" % herr)
 		check(bk.anchor_transform(0.1).origin.distance_to(hold_before) < 1e-3, "weapon anchor back where it was saved")
 		var wgrips := 0
 		for g in director.grips:
