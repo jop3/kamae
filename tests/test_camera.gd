@@ -29,7 +29,7 @@ func _initialize() -> void:
 		for rig in scene.characters:
 			for bone in ["Head", "RightFoot", "LeftFoot"]:
 				var pos: Vector3 = rig.bone_world_transform(bone).origin
-				check(cam.is_position_in_frustum(pos), "%s: %s %s in frustum" % [name, rig.id, bone])
+				check(cam.is_position_in_frustum(pos), "%s: %s %s in frustum" % [name, rig.character_id, bone])
 
 	var axis: Dictionary = scene.tori_uke_axis()
 	var line: Vector3 = axis["to"] - axis["from"]
