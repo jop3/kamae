@@ -74,6 +74,16 @@ now asserts against all three, so a bad character cannot be exported silently.
 - **A held shaft runs through the palm, not the wrist joint.** The hand bone's origin is the wrist.
   `Weapon.palm_centre()` puts the anchor about 6 cm toward the fingers and 2 cm out from the palm,
   inside the curled fingers; every hold and weapon grip goes through it.
+- **The thumb is not a fourth finger.** It sweeps across the palm about the palm normal and then
+  folds; `FingerCurl.calibrate()` picks the sign of both axes by simulating the chain on the rest
+  pose and keeping the combination that lands the tip over the index knuckle. Two attempts at
+  deriving the signs from geometry were wrong on this rig.
+- **Let the forearm carry the wrist twist.** `HandOrient` splits the rotation the hand still needs
+  into twist about the elbow-to-wrist axis and the rest, and gives the forearm bone 70 % of the
+  twist (`twist_share`). Rotating the forearm about its own axis moves neither joint, so this is
+  free, and without it every bit of pronation is a kink at the wrist. Twist far beyond what a real
+  forearm does still shears the mesh; that is a sign the pose or elbow pole is wrong, not the
+  modifier.
 - **Measure the palm axes from the rig; do not type them in.** Hand-typed palm normals had the
   left hand's sign wrong. `FingerCurl.calibrate()` now records the palm normal and the
   little-to-index direction per hand, and `Weapon.canonical_basis()` builds the hold from those.

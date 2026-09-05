@@ -157,6 +157,19 @@ lead, so read it before building on it.
   usable default; Front needs either an offset off the line or a larger distance before it is
   worth a button in the handout workflow. Raise with the instructor (spec §5.7).
 
+Later the same evening the weapon render was looked at properly and it was bad: hands flat on
+the shaft, shaft through the wrist. Root causes fixed, each with a test or a render:
+`FingerCurl` bent fingers sideways (axis was the palm normal); the hold anchored at the wrist
+joint instead of the palm centre; the palm axes were typed constants with the left hand's sign
+wrong (now measured by `FingerCurl.calibrate()`); the thumb now sweeps and folds over the
+fingers; `HandOrient` gives the forearm 70 % of the wrist twist. `--demo-weapon <path>` renders
+a chudan kamae built weapon-driven with both hands snapped on, plus hand close-ups, and
+`--demo-hand <path>` renders one fist open and closed from three sides. Look at
+`tests/out/weapon_demo_rh_side.png` before and after any change to hands or holds. Still
+visibly off in that render: the left elbow rides high and its forearm shears at the wrist,
+which is the default elbow pole (`Limb.ARM_POLE_OFFSET`) fighting the hold orientation; a
+per-pose pole adjustment or a better default is the next thing to try.
+
 `SidePanel` now has Weapons, Camera and Poses sections wired to these APIs (untested beyond
 "compiles and the app launches"; no contact-gap UI yet). `Main.frame_all` uses the Side preset.
 

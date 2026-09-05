@@ -113,7 +113,7 @@ func _render_demo_weapon(path: String) -> void:
 	w.drive = "weapon"
 	var along := Vector3(0, 0.45, 0.9).normalized()       # tip forward and up, toward the throat
 	var up := Vector3(0, 0.9, -0.45).normalized()          # edge (-Z) faces down and forward
-	w.global_transform = Transform3D(Basis(along.cross(up), along, up), tori.global_position + Vector3(0.02, 1.0, 0.22))
+	w.global_transform = Transform3D(Basis(along.cross(up), along, up), tori.global_position + Vector3(0.0, 1.02, 0.25))
 	grip_director.attach_to_weapon(tori, "Left", w, 0.04, true)
 	grip_director.attach_to_weapon(tori, "Right", w, 0.17, true)
 	tori.fingers.apply_grip_preset("Right")
