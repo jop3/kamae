@@ -11,13 +11,18 @@ extends Node3D
 @onready var ui_layer: CanvasLayer = $UI
 
 var export_dir := "user://exports"
+var player: SequencePlayer
 
 
 func _ready() -> void:
 	posing_scene.setup_default()
 	controller.setup(posing_scene, camera, gizmo)
 	grip_director.setup(posing_scene, controller)
-	panel.setup(controller, posing_scene, grip_director, camera)
+	player = SequencePlayer.new()
+	player.name = "SequencePlayer"
+	add_child(player)
+	player.setup(posing_scene, grip_director)
+	panel.setup(controller, posing_scene, grip_director, camera, player)
 	panel.export_requested.connect(_on_export_requested)
 	frame_all()
 	var args := OS.get_cmdline_user_args()
@@ -26,6 +31,14 @@ func _ready() -> void:
 		return
 	if args.has("--demo-weapon"):
 		await _render_demo_weapon(args[args.find("--demo-weapon") + 1])
+		return
+	if args.has("--screenshot-ui"):
+		# Development aid: the last drawn frame with the panel visible (exports never include it).
+		for i in 6:
+			await get_tree().process_frame
+		get_viewport().get_texture().get_image().save_png(args[args.find("--screenshot-ui") + 1])
+		print("ui screenshot saved")
+		get_tree().quit()
 		return
 	if args.has("--demo-hand"):
 		await _render_demo_hand(args[args.find("--demo-hand") + 1])

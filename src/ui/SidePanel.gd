@@ -42,14 +42,25 @@ var _weapon_z: SpinBox
 var _weapon_yaw: SpinBox
 var _pose_name: LineEdit
 var _pose_list: ItemList
+var player: SequencePlayer
+var _seq_name: LineEdit
+var _seq_list: ItemList
+var _seq_files: ItemList
+var _seq_transition: SpinBox
+var _seq_hold: SpinBox
+var _seq_scrub: HSlider
+var _seq_time: Label
+var _sequence: Sequence
 const POSES_DIR := "user://poses"
+const SEQUENCES_DIR := "user://sequences"
 
 
-func setup(ctrl: PoseController, posing_scene: PosingScene, grip_director: GripDirector = null, orbit_camera: OrbitCamera = null) -> void:
+func setup(ctrl: PoseController, posing_scene: PosingScene, grip_director: GripDirector = null, orbit_camera: OrbitCamera = null, sequence_player: SequencePlayer = null) -> void:
 	controller = ctrl
 	scene = posing_scene
 	grips = grip_director
 	camera = orbit_camera
+	player = sequence_player
 	custom_minimum_size.x = 300
 	var scroll := ScrollContainer.new()
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
@@ -247,6 +258,58 @@ func setup(ctrl: PoseController, posing_scene: PosingScene, grip_director: GripD
 	load_pose.pressed.connect(_on_load_pose_pressed)
 	vb.add_child(load_pose)
 
+	vb.add_child(_header("Sequence"))
+	var seq_hint := Label.new()
+	seq_hint.text = "A technique is 2–5 saved poses with timings. Pose the scene, select a step and save the scene as that step's pose, then play."
+	seq_hint.add_theme_font_size_override("font_size", 11)
+	seq_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	vb.add_child(seq_hint)
+	var seq_name_row := HBoxContainer.new(); vb.add_child(seq_name_row)
+	_seq_name = LineEdit.new(); _seq_name.placeholder_text = "Technique name"
+	_seq_name.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_seq_name.text_changed.connect(func(t: String): if _sequence: _sequence.name = t)
+	seq_name_row.add_child(_seq_name)
+	var new_seq := Button.new(); new_seq.text = "New"
+	new_seq.tooltip_text = "Three steps: Grepp, Kuzushi, Kake"
+	new_seq.pressed.connect(_on_new_sequence_pressed)
+	seq_name_row.add_child(new_seq)
+	_seq_list = ItemList.new()
+	_seq_list.custom_minimum_size.y = 80
+	_seq_list.item_selected.connect(func(_i): _refresh_sequence_step())
+	vb.add_child(_seq_list)
+	var step_row := HBoxContainer.new(); vb.add_child(step_row)
+	var add_step := Button.new(); add_step.text = "Add step"
+	add_step.tooltip_text = "Adds the pose selected in the Poses list, or a new phase named after the technique"
+	add_step.pressed.connect(_on_add_step_pressed)
+	step_row.add_child(add_step)
+	var remove_step := Button.new(); remove_step.text = "Remove step"
+	remove_step.pressed.connect(_on_remove_step_pressed)
+	step_row.add_child(remove_step)
+	var timing := GridContainer.new(); timing.columns = 2; vb.add_child(timing)
+	_seq_transition = _spin(timing, "Transition (s)", 0, 5, 0.1)
+	_seq_hold = _spin(timing, "Hold (s)", 0, 10, 0.1)
+	_seq_transition.value_changed.connect(func(v: float): _set_step_timing("transition", v))
+	_seq_hold.value_changed.connect(func(v: float): _set_step_timing("hold", v))
+	var step_pose := Button.new(); step_pose.text = "Save scene as this step's pose"
+	step_pose.pressed.connect(_on_save_step_pose_pressed)
+	vb.add_child(step_pose)
+	var play_row := HBoxContainer.new(); vb.add_child(play_row)
+	var play := Button.new(); play.text = "Play"; play.pressed.connect(_on_play_pressed); play_row.add_child(play)
+	var pause := Button.new(); pause.text = "Pause"; pause.pressed.connect(func(): if player: player.pause()); play_row.add_child(pause)
+	var stop := Button.new(); stop.text = "Stop"; stop.pressed.connect(func(): if player: player.stop()); play_row.add_child(stop)
+	_seq_time = Label.new(); _seq_time.text = "0.0 s"; _seq_time.custom_minimum_size.x = 50; play_row.add_child(_seq_time)
+	_seq_scrub = HSlider.new(); _seq_scrub.min_value = 0.0; _seq_scrub.max_value = 1.0; _seq_scrub.step = 0.01
+	_seq_scrub.value_changed.connect(_on_scrub_changed)
+	vb.add_child(_seq_scrub)
+	var seq_files_row := HBoxContainer.new(); vb.add_child(seq_files_row)
+	var save_seq := Button.new(); save_seq.text = "Save sequence"; save_seq.pressed.connect(_on_save_sequence_pressed); seq_files_row.add_child(save_seq)
+	var load_seq := Button.new(); load_seq.text = "Load sequence"; load_seq.pressed.connect(_on_load_sequence_pressed); seq_files_row.add_child(load_seq)
+	_seq_files = ItemList.new()
+	_seq_files.custom_minimum_size.y = 50
+	vb.add_child(_seq_files)
+	if player:
+		player.time_changed.connect(_on_player_time)
+
 	vb.add_child(_header("Edit"))
 	var ur := HBoxContainer.new(); vb.add_child(ur)
 	var u := Button.new(); u.text = "Undo (Ctrl+Z)"; u.pressed.connect(func(): controller.undo.undo(); controller.pose_changed.emit()); ur.add_child(u)
@@ -269,6 +332,7 @@ func setup(ctrl: PoseController, posing_scene: PosingScene, grip_director: GripD
 	_refresh_grips()
 	_refresh_weapons()
 	_refresh_poses()
+	_refresh_sequence_files()
 	_set_joint_enabled(false)
 
 
@@ -575,3 +639,164 @@ func _on_load_pose_pressed() -> void:
 	controller.pose_changed.emit()
 	_refresh_weapons()
 	_refresh_grips()
+
+
+# ---------------------------------------------------------------- sequences
+
+func _selected_step() -> int:
+	var sel := _seq_list.get_selected_items()
+	return sel[0] if not sel.is_empty() else -1
+
+
+func _refresh_sequence() -> void:
+	_seq_list.clear()
+	if _sequence == null:
+		_seq_scrub.max_value = 1.0
+		return
+	for i in _sequence.steps.size():
+		var st: Dictionary = _sequence.steps[i]
+		var have := FileAccess.file_exists(POSES_DIR.path_join(str(st["pose"]) + ".json"))
+		_seq_list.add_item("%d. %s%s   →%.1f s  hold %.1f s" % [i + 1, st["pose"], "" if have else " (no pose saved)", float(st.get("transition", 0.0)), float(st.get("hold", 0.0))])
+	_seq_scrub.max_value = maxf(_sequence.duration(), 0.01)
+	_refresh_sequence_step()
+
+
+func _refresh_sequence_step() -> void:
+	var i := _selected_step()
+	_updating = true
+	if _sequence and i >= 0:
+		_seq_transition.value = float(_sequence.steps[i].get("transition", 0.0))
+		_seq_hold.value = float(_sequence.steps[i].get("hold", 0.0))
+		_seq_transition.editable = i > 0
+	_updating = false
+
+
+func _set_step_timing(key: String, value: float) -> void:
+	var i := _selected_step()
+	if _updating or _sequence == null or i < 0:
+		return
+	_sequence.steps[i][key] = value
+	var keep := i
+	_refresh_sequence()
+	_seq_list.select(keep)
+
+
+func _on_new_sequence_pressed() -> void:
+	var name := _seq_name.text.strip_edges()
+	if name == "":
+		name = "Teknik"
+		_seq_name.text = name
+	_sequence = Sequence.new_default(name)
+	_refresh_sequence()
+	_reload_player()
+
+
+func _on_add_step_pressed() -> void:
+	if _sequence == null:
+		_on_new_sequence_pressed()
+		_sequence.steps.clear()
+	if _sequence.steps.size() >= Sequence.MAX_STEPS:
+		return
+	var sel := _pose_list.get_selected_items()
+	var slug: String
+	if not sel.is_empty():
+		slug = _pose_list.get_item_text(sel[0])
+	else:
+		slug = PoseFile.slugify("%s steg %d" % [_sequence.name, _sequence.steps.size() + 1])
+	_sequence.steps.append({"pose": slug, "transition": 0.6, "hold": 0.5})
+	_refresh_sequence()
+	_seq_list.select(_sequence.steps.size() - 1)
+	_refresh_sequence_step()
+	_reload_player()
+
+
+func _on_remove_step_pressed() -> void:
+	var i := _selected_step()
+	if _sequence == null or i < 0:
+		return
+	_sequence.steps.remove_at(i)
+	_refresh_sequence()
+	_reload_player()
+
+
+## Writes the live scene into the selected step's pose file, so posing and sequencing are one loop.
+func _on_save_step_pose_pressed() -> void:
+	var i := _selected_step()
+	if _sequence == null or i < 0 or grips == null:
+		return
+	var slug: String = _sequence.steps[i]["pose"]
+	var data: Dictionary = await PoseFile.capture_baked(scene, grips, camera, slug)
+	var err := PoseFile.save(POSES_DIR.path_join(slug + ".json"), data)
+	if err != OK:
+		push_error("Could not save pose %s: %s" % [slug, error_string(err)])
+	_refresh_poses()
+	_refresh_sequence()
+	_seq_list.select(i)
+	_reload_player()
+
+
+func _reload_player() -> void:
+	if player == null or _sequence == null:
+		return
+	player.load_sequence(_sequence, ProjectSettings.globalize_path(POSES_DIR))
+
+
+func _on_play_pressed() -> void:
+	if player == null or _sequence == null:
+		return
+	_reload_player()
+	if player.time >= player.duration():
+		player.time = 0.0
+	player.play()
+
+
+func _on_scrub_changed(v: float) -> void:
+	if _updating or player == null or _sequence == null:
+		return
+	if player.poses.is_empty():
+		_reload_player()
+	player.pause()
+	player.seek(v)
+
+
+func _on_player_time(t: float) -> void:
+	_updating = true
+	_seq_scrub.value = t
+	_seq_time.text = "%.1f s" % t
+	_updating = false
+
+
+func _refresh_sequence_files() -> void:
+	if _seq_files == null:
+		return
+	_seq_files.clear()
+	var d := DirAccess.open(SEQUENCES_DIR)
+	if d == null:
+		return
+	for f in d.get_files():
+		if f.ends_with(".json"):
+			_seq_files.add_item(f.get_basename())
+
+
+func _on_save_sequence_pressed() -> void:
+	if _sequence == null:
+		return
+	_sequence.name = _seq_name.text.strip_edges() if _seq_name.text.strip_edges() != "" else _sequence.name
+	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(SEQUENCES_DIR))
+	var err := _sequence.save(Sequence.sequence_path(SEQUENCES_DIR, _sequence.name))
+	if err != OK:
+		push_error("Could not save sequence: %s" % error_string(err))
+	_refresh_sequence_files()
+
+
+func _on_load_sequence_pressed() -> void:
+	var sel := _seq_files.get_selected_items()
+	if sel.is_empty():
+		return
+	var seq := Sequence.load(SEQUENCES_DIR.path_join(_seq_files.get_item_text(sel[0]) + ".json"))
+	if seq == null:
+		return
+	_sequence = seq
+	_seq_name.text = seq.name
+	_refresh_sequence()
+	_reload_player()
