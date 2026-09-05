@@ -35,6 +35,12 @@ func _initialize() -> void:
 		var p := OUT.path_join("katatedori_ikkyo_%s.png" % phase)
 		var still := Image.load_from_file(p)
 		check(still != null and still.get_width() == MovieExport.WIDTH, "phase still %s exists at full size" % p.get_file())
+	# Front+Side batch: two stills per phase from the --render-stills child.
+	for phase in ["grepp", "kuzushi", "kake"]:
+		for view in ["front", "side"]:
+			var p := "/home/user/kamae/tests/out/m7/katatedori_ikkyo_%s_%s.png" % [phase, view]
+			var still := Image.load_from_file(p)
+			check(still != null and still.get_width() == MovieExport.WIDTH, "Front+Side still %s exists at full size" % p.get_file())
 	# The exporter's own command lines, checked without spawning anything.
 	var args := MovieExport.child_args("/s.json", "/poses", "/out/f.png", "/out")
 	check("--write-movie" in args and "--fixed-fps" in args and "--render-sequence" in args and "--" in args, "child command line carries Movie Maker flags and the render request")

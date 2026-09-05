@@ -4,6 +4,7 @@ extends PanelContainer
 
 signal export_requested(transparent: bool)
 signal video_export_requested(sequence: Sequence)
+signal stills_export_requested(sequence: Sequence, transparent: bool)
 
 var controller: PoseController
 var scene: PosingScene
@@ -322,6 +323,13 @@ func setup(ctrl: PoseController, posing_scene: PosingScene, grip_director: GripD
 	var ex := Button.new(); ex.text = "Export still (PNG)"
 	ex.pressed.connect(func(): export_requested.emit(transparent.button_pressed))
 	vb.add_child(ex)
+	var exs := Button.new(); exs.text = "Export Front+Side stills of the sequence"
+	exs.tooltip_text = "Two stills per phase, front and side, at full size"
+	exs.pressed.connect(func():
+		if _sequence:
+			_on_save_sequence_pressed()
+			stills_export_requested.emit(_sequence, transparent.button_pressed))
+	vb.add_child(exs)
 	var exv := Button.new(); exv.text = "Export video of the sequence"
 	exv.tooltip_text = "Renders every frame in a second window, then encodes MP4 with ffmpeg (AVI if ffmpeg is missing)"
 	exv.pressed.connect(func():
@@ -647,7 +655,7 @@ func _on_load_pose_pressed() -> void:
 	var data := PoseFile.load(path)
 	if data.is_empty():
 		return
-	PoseFile.apply(data, scene, grips, controller)
+	PoseFile.apply(data, scene, grips, controller, camera)
 	_pose_name.text = str(data.get("name", _pose_list.get_item_text(sel[0])))
 	controller.pose_changed.emit()
 	_refresh_weapons()

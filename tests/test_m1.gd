@@ -46,6 +46,26 @@ func _initialize() -> void:
 	var after := tori.bone_world_transform("RightHand").origin
 	check(before.distance_to(after) > 0.1, "rotating upper arm moves the hand (%.2f m)" % before.distance_to(after))
 	check(ctrl.undo.has_undo(), "undo stack has an action")
+	# Shift snaps a gizmo drag to 15 degree steps, measured from where the drag started.
+	var emitted := {"total": 0.0}
+	gizmo.rotated.connect(func(_axis: Vector3, angle: float): emitted["total"] += angle)
+	var centre := cam.unproject_position(gizmo.global_position)
+	var mouse_at := func(deg: float) -> Vector2: return centre + Vector2(cos(deg_to_rad(deg)), -sin(deg_to_rad(deg))) * 60.0
+	var shift := InputEventKey.new(); shift.keycode = KEY_SHIFT; shift.pressed = true
+	Input.parse_input_event(shift)
+	await process_frame
+	gizmo.begin_drag(2, mouse_at.call(0.0))
+	gizmo.drag_to(mouse_at.call(7.0))
+	var after_10: float = emitted["total"]
+	gizmo.drag_to(mouse_at.call(20.0))
+	var after_20: float = emitted["total"]
+	gizmo.end_drag()
+	shift.pressed = false
+	Input.parse_input_event(shift)
+	await process_frame
+	check(is_zero_approx(after_10), "with Shift, 7 degrees of drag applies nothing yet (%.1f)" % rad_to_deg(after_10))
+	check(is_equal_approx(absf(rad_to_deg(after_20)), 15.0), "with Shift, 20 degrees of drag snaps to 15 (%.1f)" % rad_to_deg(after_20))
+	ctrl.undo.undo(); await process_frame
 	ctrl.undo.undo(); await process_frame
 	check(ctrl.get_bone_rotation(tori, "RightUpperArm").is_equal_approx(q0), "undo restores rotation")
 	ctrl.undo.redo(); await process_frame

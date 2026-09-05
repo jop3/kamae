@@ -138,6 +138,14 @@ func _initialize() -> void:
 				wgrips += 1
 		check(wgrips == 1, "weapon grip restored")
 
+	# The camera is saved with a pose and restored on load.
+	var cam2 := OrbitCamera.new(); root.add_child(cam2)
+	cam2.look_from(Vector3(1, 0.4, 0.3), Vector3(0.2, 1.0, 0.1), 2.7)
+	var with_cam := PoseFile.capture(scene, director, cam2, "cam")
+	check(with_cam["camera"] is Dictionary and is_equal_approx(float(with_cam["camera"]["distance"]), 2.7), "camera state is saved with the pose")
+	cam2.look_from(Vector3(-1, 0.1, 0), Vector3.ZERO, 5.0)
+	PoseFile.apply(with_cam, scene, director, ctrl, cam2)
+	check(is_equal_approx(cam2.distance, 2.7) and cam2.target.distance_to(Vector3(0.2, 1.0, 0.1)) < 1e-4, "loading a pose restores its camera")
 	print("RESULT %s (%d failures)" % ["OK" if failures == 0 else "FAILED", failures])
 	quit(0 if failures == 0 else 1)
 

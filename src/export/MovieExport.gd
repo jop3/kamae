@@ -65,6 +65,29 @@ func export_sequence(sequence_path: String, poses_dir: String, out_dir: String) 
 	return _job
 
 
+## Starts a child that writes Front and Side stills for every phase of the sequence.
+func export_stills(sequence_path: String, poses_dir: String, out_dir: String, transparent := false) -> Dictionary:
+	if _pid >= 0:
+		return {}
+	var seq := Sequence.load(sequence_path)
+	if seq == null:
+		return {}
+	DirAccess.make_dir_recursive_absolute(out_dir)
+	_job = {"slug": seq.slug(), "sequence": sequence_path, "poses_dir": poses_dir, "out_dir": out_dir,
+		"frames_dir": "", "movie_target": "", "ffmpeg": false, "stills_only": true,
+		"output": out_dir, "stills": [], "ok": false, "message": ""}
+	var args := PackedStringArray(["--path", ProjectSettings.globalize_path("res://"), "--resolution", "%dx%d" % [WIDTH, HEIGHT], "--",
+		"--render-stills", sequence_path, "--poses-dir", poses_dir, "--stills-dir", out_dir])
+	if transparent:
+		args.append("--transparent")
+	_pid = OS.create_process(OS.get_executable_path(), args)
+	if _pid < 0:
+		_job = {}
+		return {}
+	started.emit(_job)
+	return _job
+
+
 ## Command line for the child render, kept in one place so tests can check it.
 static func child_args(sequence_path: String, poses_dir: String, movie_target: String, stills_dir: String) -> PackedStringArray:
 	return PackedStringArray([
@@ -98,6 +121,12 @@ func _process(_delta: float) -> void:
 	_pid = -1
 	var job := _job
 	_job = {}
+	if job.get("stills_only", false):
+		job["stills"] = _list_pngs(job["out_dir"], job["slug"])
+		job["ok"] = not job["stills"].is_empty()
+		job["message"] = "%d stills written to %s" % [job["stills"].size(), job["out_dir"]] if job["ok"] else "No stills were written"
+		finished.emit(job)
+		return
 	if job["ffmpeg"]:
 		var out := []
 		var code := OS.execute("ffmpeg", ffmpeg_args(job["frames_dir"], job["output"]), out, true)

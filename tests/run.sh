@@ -24,6 +24,9 @@ run "$GODOT" --headless -s tests/check_exports.gd >/dev/null 2>&1 || status=1
 echo "== video export (Movie Maker child on the test_m5 sequence)"
 rm -rf tests/out/m6 && mkdir -p tests/out/m6/frames
 timeout 300 $RUN --path . --write-movie "$PWD/tests/out/m6/frames/f.png" --fixed-fps 30 -- --render-sequence "$PWD/tests/out/poses_m5/katatedori_ikkyo.sequence.json" --poses-dir "$PWD/tests/out/poses_m5" --stills-dir "$PWD/tests/out/m6" 2>&1 | grep -E "sequence rendered|SCRIPT ERROR" || true
+echo "== Front+Side stills (child on the test_m5 sequence)"
+rm -rf tests/out/m7 && mkdir -p tests/out/m7
+timeout 300 $RUN --path . --resolution 1920x1080 -- --render-stills "$PWD/tests/out/poses_m5/katatedori_ikkyo.sequence.json" --poses-dir "$PWD/tests/out/poses_m5" --stills-dir "$PWD/tests/out/m7" 2>&1 | grep -E "SCRIPT ERROR" || true
 run "$GODOT" --headless -s tests/check_movie.gd 2>&1 | grep -E "^(PASS|FAIL|RESULT)|ffmpeg" || true
 run "$GODOT" --headless -s tests/check_movie.gd >/dev/null 2>&1 || status=1
 exit $status

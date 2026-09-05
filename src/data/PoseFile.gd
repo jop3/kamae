@@ -100,7 +100,7 @@ static func _read_rotations_baked(sk: Skeleton3D) -> Dictionary:
 	return box.get("rot", {})
 
 
-static func _assemble(scene: PosingScene, director: GripDirector, _camera, name: String, rotations: Dictionary) -> Dictionary:
+static func _assemble(scene: PosingScene, director: GripDirector, camera, name: String, rotations: Dictionary) -> Dictionary:
 	var characters := []
 	for rig in scene.characters:
 		var bones := {}
@@ -147,7 +147,7 @@ static func _assemble(scene: PosingScene, director: GripDirector, _camera, name:
 		"characters": characters,
 		"weapons": weapons,
 		"grips": grips,
-		"camera": null,
+		"camera": camera.state() if camera != null and camera.has_method("state") else null,
 	}
 
 
@@ -155,7 +155,9 @@ static func _assemble(scene: PosingScene, director: GripDirector, _camera, name:
 
 ## Rebuilds the scene from `data`. Must be called from ordinary code (not inside
 ## skeleton_updated), since bone writes made during the signal are undone by the pose restore.
-static func apply(data: Dictionary, scene: PosingScene, director: GripDirector, _controller: PoseController = null) -> void:
+static func apply(data: Dictionary, scene: PosingScene, director: GripDirector, _controller: PoseController = null, camera = null) -> void:
+	if camera != null and camera.has_method("apply_state") and data.get("camera") is Dictionary:
+		camera.apply_state(data["camera"])
 	var chars: Array = data.get("characters", [])
 	var wanted := {}
 	for c in chars:

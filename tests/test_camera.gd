@@ -39,7 +39,7 @@ func _initialize() -> void:
 	var view: Vector3 = -cam.global_transform.basis.z
 	view.y = 0.0
 	var angle := rad_to_deg(view.normalized().angle_to(line.normalized()))
-	check(angle < 5.0, "front view is along the Tori→Uke line (%.1f°)" % angle)
+	check(absf(angle - CameraPresets.FRONT_OFFSET_DEG) < 5.0, "front view is a three-quarter front, %.0f° off the Tori→Uke line (%.1f°)" % [CameraPresets.FRONT_OFFSET_DEG, angle])
 
 	print("RESULT %s (%d failures)" % ["OK" if failures == 0 else "FAILED", failures])
 	quit(1 if failures > 0 else 0)

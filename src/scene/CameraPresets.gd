@@ -7,6 +7,10 @@ extends RefCounted
 const HEIGHT := 1.4
 const FOV_DEG := 50.0
 const MARGIN := 1.25
+## Front is swung this far off the Tori→Uke line. Exactly on the line (spec §5.7) the nearer
+## figure hides the other completely, so the "front" view is a three-quarter front: still
+## clearly from Tori's side of the line, but both figures visible. Raised with the instructor.
+const FRONT_OFFSET_DEG := 35.0
 ## Bones whose world positions bound a character well enough for framing.
 const FRAME_BONES := ["Hips", "Head", "RightHand", "LeftHand", "RightFoot", "LeftFoot"]
 
@@ -17,7 +21,7 @@ static func front(scene: PosingScene) -> Dictionary:
 	along.y = 0.0
 	if along.length() < 0.001:
 		along = Vector3(0, 0, 1)
-	return _preset(scene, -along.normalized())
+	return _preset(scene, (-along.normalized()).rotated(Vector3.UP, deg_to_rad(FRONT_OFFSET_DEG)))
 
 
 static func side(scene: PosingScene) -> Dictionary:

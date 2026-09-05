@@ -57,3 +57,37 @@ func _apply() -> void:
 	var offset := Vector3(sin(yaw) * cos(pitch), sin(pitch), cos(yaw) * cos(pitch)) * distance
 	global_position = target + offset
 	look_at(target, Vector3.UP)
+
+
+## The orbit state as plain numbers, for saving with a pose.
+func state() -> Dictionary:
+	return {"target": [target.x, target.y, target.z], "distance": distance, "yaw": yaw, "pitch": pitch, "fov": fov}
+
+
+func apply_state(d: Dictionary) -> void:
+	if d.is_empty():
+		return
+	var t = d.get("target", null)
+	if t is Array and t.size() >= 3:
+		target = Vector3(t[0], t[1], t[2])
+	distance = float(d.get("distance", distance))
+	yaw = float(d.get("yaw", yaw))
+	pitch = float(d.get("pitch", pitch))
+	fov = float(d.get("fov", fov))
+	_apply()
+
+
+## Between two saved states; yaw goes the short way round.
+static func blend_state(a: Dictionary, b: Dictionary, u: float) -> Dictionary:
+	if a.is_empty():
+		return b
+	if b.is_empty():
+		return a
+	var ta: Array = a.get("target", [0, 0.9, 0])
+	var tb: Array = b.get("target", [0, 0.9, 0])
+	var t := Vector3(ta[0], ta[1], ta[2]).lerp(Vector3(tb[0], tb[1], tb[2]), u)
+	return {"target": [t.x, t.y, t.z],
+		"distance": lerpf(float(a.get("distance", 4.0)), float(b.get("distance", 4.0)), u),
+		"yaw": lerp_angle(float(a.get("yaw", 0.0)), float(b.get("yaw", 0.0)), u),
+		"pitch": lerpf(float(a.get("pitch", 0.0)), float(b.get("pitch", 0.0)), u),
+		"fov": lerpf(float(a.get("fov", 50.0)), float(b.get("fov", 50.0)), u)}

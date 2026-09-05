@@ -18,7 +18,7 @@ var movie_export: MovieExport
 func _ready() -> void:
 	# The project viewport is 1920x1080 because Movie Maker records at the configured size and
 	# ignores --resolution. For interactive use open a window that fits a laptop screen.
-	if not OS.has_feature("movie") and not OS.get_cmdline_user_args().has("--render-sequence"):
+	if not _is_render_child():
 		var screen := DisplayServer.screen_get_size()
 		if screen.x < 2000 or screen.y < 1150:
 			get_window().size = Vector2i(1600, 900)
@@ -29,6 +29,7 @@ func _ready() -> void:
 	player.name = "SequencePlayer"
 	add_child(player)
 	player.setup(posing_scene, grip_director)
+	player.camera = camera
 	panel.setup(controller, posing_scene, grip_director, camera, player)
 	panel.export_requested.connect(_on_export_requested)
 	movie_export = MovieExport.new()
@@ -37,6 +38,11 @@ func _ready() -> void:
 	movie_export.started.connect(func(job): panel.set_export_status("Rendering %s in a second window… (%s)" % [job["slug"], "MP4 via ffmpeg" if job["ffmpeg"] else "AVI: ffmpeg not found"]))
 	movie_export.finished.connect(func(job): panel.set_export_status(job["message"] + ("\n%d stills alongside" % job["stills"].size() if job["ok"] else "")))
 	panel.video_export_requested.connect(_on_video_export_requested)
+	panel.stills_export_requested.connect(func(seq: Sequence, transparent: bool):
+		var job := movie_export.export_stills(ProjectSettings.globalize_path(Sequence.sequence_path(SidePanel.SEQUENCES_DIR, seq.name)),
+			ProjectSettings.globalize_path(SidePanel.POSES_DIR), ProjectSettings.globalize_path(export_dir), transparent)
+		if job.is_empty():
+			panel.set_export_status("An export is already running, or the sequence could not be read."))
 	frame_all()
 	var args := OS.get_cmdline_user_args()
 	if args.has("--demo-still"):
@@ -47,6 +53,9 @@ func _ready() -> void:
 		return
 	if args.has("--render-sequence"):
 		await _render_sequence(args)
+		return
+	if args.has("--render-stills"):
+		await _render_stills(args)
 		return
 	if args.has("--screenshot-ui"):
 		# Development aid: the last drawn frame with the panel visible (exports never include it).
@@ -83,6 +92,13 @@ func _on_export_requested(transparent: bool) -> void:
 	var path := ProjectSettings.globalize_path(export_dir).path_join(name + ".png")
 	var err: Error = await StillExport.capture(get_viewport(), path, transparent, _hide_always(), _hide_for_transparent())
 	print("Exported %s (%s)" % [path, error_string(err)])
+
+
+## True in a second instance spawned to render (video frames or batch stills), where the window
+## must keep the full export size.
+static func _is_render_child() -> bool:
+	var args := OS.get_cmdline_user_args()
+	return OS.has_feature("movie") or args.has("--render-sequence") or args.has("--render-stills")
 
 
 func _on_video_export_requested(seq: Sequence) -> void:
@@ -149,6 +165,42 @@ func _render_sequence(args: PackedStringArray) -> void:
 			next_phase += 1
 	await get_tree().process_frame
 	print("sequence rendered: %s, %.1f s" % [seq.name, seq.duration()])
+	get_tree().quit()
+
+
+## Child-process mode for "Export Front+Side": every phase of a sequence as two stills at full
+## size, <slug>_<phase>_front.png and _side.png, on a flat or transparent background.
+func _render_stills(args: PackedStringArray) -> void:
+	var seq_path: String = args[args.find("--render-stills") + 1]
+	var poses_dir: String = args[args.find("--poses-dir") + 1] if args.has("--poses-dir") else seq_path.get_base_dir()
+	var stills_dir: String = args[args.find("--stills-dir") + 1] if args.has("--stills-dir") else seq_path.get_base_dir()
+	var transparent := args.has("--transparent")
+	var seq := Sequence.load(seq_path)
+	if seq == null:
+		push_error("Cannot read sequence %s" % seq_path)
+		get_tree().quit(1)
+		return
+	var missing: Array = player.load_sequence(seq, poses_dir)
+	if not missing.is_empty():
+		push_error("Sequence %s names poses that are not saved: %s" % [seq.name, missing])
+		get_tree().quit(1)
+		return
+	posing_scene.show_handles = false
+	for rig in posing_scene.characters:
+		rig.set_show_handles(false)
+	PoseFile.apply(player.poses[seq.steps[0]["pose"]], posing_scene, grip_director)
+	await get_tree().process_frame
+	var phases := _phase_names(seq)
+	for i in seq.steps.size():
+		player.seek(seq.step_start(i))
+		for k in 3:
+			await get_tree().process_frame
+		for view in ["front", "side"]:
+			camera.fov = CameraPresets.FOV_DEG
+			camera.apply_preset(CameraPresets.front(posing_scene) if view == "front" else CameraPresets.side(posing_scene))
+			var path := stills_dir.path_join("%s_%s_%s.png" % [seq.slug(), phases[i], view])
+			await StillExport.capture(get_viewport(), path, transparent, _hide_always(), _hide_for_transparent())
+			print("still saved: ", path)
 	get_tree().quit()
 
 

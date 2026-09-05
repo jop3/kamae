@@ -18,6 +18,10 @@ var hover_axis := -1
 var suppressed := false  ## while true the gizmo stays hidden (used during export)
 var _last_angle := 0.0
 var _basis_world := Basis.IDENTITY
+## With Shift held the rotation snaps to multiples of this, measured from the drag start.
+const SNAP_DEG := 15.0
+var _raw_total := 0.0     ## angle dragged since begin_drag, unsnapped
+var _emitted_total := 0.0 ## angle actually applied since begin_drag
 
 
 func _ready() -> void:
@@ -108,6 +112,8 @@ func pick(mouse: Vector2) -> int:
 func begin_drag(axis: int, mouse: Vector2) -> void:
 	active_axis = axis
 	_last_angle = _screen_angle(mouse)
+	_raw_total = 0.0
+	_emitted_total = 0.0
 	drag_started.emit()
 
 
@@ -122,7 +128,17 @@ func drag_to(mouse: Vector2) -> void:
 	var to_cam := (camera.global_position - global_position).normalized()
 	if a.dot(to_cam) < 0.0:
 		delta = -delta
-	rotated.emit(a, delta)
+	_raw_total += delta
+	# Shift snaps: only ever apply whole steps, so the joint lands exactly on a multiple of 15°
+	# relative to where the drag started.
+	var wanted := _raw_total
+	if Input.is_key_pressed(KEY_SHIFT):
+		var step := deg_to_rad(SNAP_DEG)
+		wanted = roundf(_raw_total / step) * step
+	var apply := wanted - _emitted_total
+	if absf(apply) > 1e-6:
+		_emitted_total = wanted
+		rotated.emit(a, apply)
 
 
 func end_drag() -> void:

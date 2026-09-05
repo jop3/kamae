@@ -8,6 +8,7 @@ signal finished
 
 var scene: PosingScene
 var director: GripDirector
+var camera: Node        ## OrbitCamera, only used when the sequence's camera is "per_pose"
 var sequence: Sequence
 var poses: Dictionary = {}     ## slug -> pose dictionary
 var time := 0.0
@@ -100,3 +101,8 @@ func apply_time(t: float) -> void:
 		PoseBlend.apply(scene, director, a, a, 0.0)
 	else:
 		PoseBlend.apply(scene, director, a, b, st["u"])
+	if camera != null and sequence.camera == "per_pose":
+		var ca = a.get("camera")
+		var cb = b.get("camera")
+		if ca is Dictionary or cb is Dictionary:
+			camera.apply_state(OrbitCamera.blend_state(ca if ca is Dictionary else {}, cb if cb is Dictionary else {}, st["u"]))
