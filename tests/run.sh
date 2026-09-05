@@ -13,7 +13,9 @@ for t in tests/test_*.gd; do
   "$GODOT" --headless -s "$t" >/dev/null 2>&1 || status=1
 done
 RUN="$GODOT"; if [ -z "${DISPLAY:-}" ] && command -v xvfb-run >/dev/null; then RUN="xvfb-run -a $GODOT"; fi
-echo "== screenshot"
-$RUN --resolution 1600x900 -- --screenshot "$PWD/tests/out/m0.png" 2>&1 | grep -E "screenshot|SCRIPT ERROR" || true
-[ -s tests/out/m0.png ] && echo "OK tests/out/m0.png" || { echo "FAIL no screenshot"; status=1; }
+echo "== rendered stills"
+$RUN --resolution 1600x900 -- --screenshot "$PWD/tests/out/m1_flat.png" 2>&1 | grep -E "screenshot|SCRIPT ERROR" || true
+$RUN --resolution 1600x900 -- --screenshot-transparent "$PWD/tests/out/m1_transparent.png" 2>&1 | grep -E "screenshot|SCRIPT ERROR" || true
+"$GODOT" --headless -s tests/check_exports.gd 2>&1 | grep -E "^(PASS|FAIL|RESULT)" || true
+"$GODOT" --headless -s tests/check_exports.gd >/dev/null 2>&1 || status=1
 exit $status
