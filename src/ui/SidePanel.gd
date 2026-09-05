@@ -14,6 +14,13 @@ var _euler_vals: Array[Label] = []
 var _root_x: SpinBox
 var _root_z: SpinBox
 var _root_yaw: SpinBox
+var _limb_buttons: Dictionary = {}   ## limb key -> CheckButton
+var _limb_warnings: Dictionary = {}  ## limb key -> Label
+var _limb_orient: Dictionary = {}    ## limb key -> CheckBox
+var _finger_sliders: Dictionary = {} ## finger -> HSlider
+var _finger_side := "Right"
+var _finger_side_button: OptionButton
+var _finger_old := 0.0
 var _updating := false
 var _slider_old_q := Quaternion.IDENTITY
 var _root_old := {}
@@ -60,6 +67,70 @@ func setup(ctrl: PoseController, posing_scene: PosingScene) -> void:
 	reset.pressed.connect(func(): if controller.selected_bone != "": controller.reset_bone(controller.selected_rig, controller.selected_bone))
 	vb.add_child(reset)
 
+	vb.add_child(_header("Arms and legs"))
+	var hint := Label.new()
+	hint.text = "IK: drag the blue ball to place the hand or foot,\nthe grey ball steers the elbow or knee."
+	hint.add_theme_font_size_override("font_size", 11)
+	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	vb.add_child(hint)
+	for limb_key in ["RightArm", "LeftArm", "RightLeg", "LeftLeg"]:
+		var row := HBoxContainer.new(); vb.add_child(row)
+		var cb := CheckButton.new()
+		cb.text = _limb_label(limb_key)
+		cb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		cb.toggled.connect(_on_limb_toggled.bind(limb_key))
+		row.add_child(cb)
+		_limb_buttons[limb_key] = cb
+		var orient := CheckBox.new()
+		orient.text = "turn"
+		orient.tooltip_text = "Hand or foot also takes the target's rotation"
+		orient.toggled.connect(func(pressed: bool):
+			if not _updating and controller.selected_rig:
+				controller.selected_rig.limbs[limb_key].set_orient_to_target(pressed))
+		row.add_child(orient)
+		_limb_orient[limb_key] = orient
+		var warn := Label.new()
+		warn.add_theme_color_override("font_color", Color(0.85, 0.15, 0.15))
+		warn.add_theme_font_size_override("font_size", 11)
+		warn.custom_minimum_size.x = 70
+		row.add_child(warn)
+		_limb_warnings[limb_key] = warn
+
+	vb.add_child(_header("Fingers"))
+	_finger_side_button = OptionButton.new()
+	_finger_side_button.add_item("Right hand")
+	_finger_side_button.add_item("Left hand")
+	_finger_side_button.item_selected.connect(func(i: int):
+		_finger_side = "Right" if i == 0 else "Left"
+		_refresh_values())
+	vb.add_child(_finger_side_button)
+	for finger in FingerCurl.FINGERS:
+		var row := HBoxContainer.new(); vb.add_child(row)
+		var l := Label.new(); l.text = finger; l.custom_minimum_size.x = 52; row.add_child(l)
+		var sl := HSlider.new(); sl.min_value = 0.0; sl.max_value = 1.0; sl.step = 0.01
+		sl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		sl.value_changed.connect(_on_finger_changed.bind(finger))
+		sl.drag_started.connect(func(): _finger_old = controller.selected_rig.fingers.get_curl(_finger_side, finger) if controller.selected_rig else 0.0)
+		sl.drag_ended.connect(func(changed: bool):
+			if changed and controller.selected_rig:
+				controller.commit_finger_curl(controller.selected_rig, _finger_side, finger, _finger_old, sl.value))
+		row.add_child(sl)
+		_finger_sliders[finger] = sl
+	var finger_buttons := HBoxContainer.new(); vb.add_child(finger_buttons)
+	var grip := Button.new(); grip.text = "Grip"
+	grip.pressed.connect(func():
+		if controller.selected_rig:
+			controller.apply_grip_preset(controller.selected_rig, _finger_side)
+			_refresh_values())
+	finger_buttons.add_child(grip)
+	var open_hand := Button.new(); open_hand.text = "Open"
+	open_hand.pressed.connect(func():
+		if controller.selected_rig:
+			for f in FingerCurl.FINGERS:
+				controller.set_finger_curl(controller.selected_rig, _finger_side, f, 0.0)
+			_refresh_values())
+	finger_buttons.add_child(open_hand)
+
 	vb.add_child(_header("Edit"))
 	var ur := HBoxContainer.new(); vb.add_child(ur)
 	var u := Button.new(); u.text = "Undo (Ctrl+Z)"; u.pressed.connect(func(): controller.undo.undo(); controller.pose_changed.emit()); ur.add_child(u)
@@ -72,6 +143,7 @@ func setup(ctrl: PoseController, posing_scene: PosingScene) -> void:
 	vb.add_child(ex)
 
 	controller.selection_changed.connect(_on_selection_changed)
+	controller.limb_changed.connect(func(_r, _k): _refresh_values())
 	controller.pose_changed.connect(_refresh_values)
 	scene.characters_changed.connect(_refresh_characters)
 	_refresh_characters()
@@ -115,10 +187,30 @@ func _set_joint_enabled(on: bool) -> void:
 		s.editable = on
 
 
+func _process(_delta: float) -> void:
+	# Reach warnings change as the instructor drags a target, so they are polled rather than
+	# recomputed only on discrete edits.
+	var rig := controller.selected_rig
+	for limb_key in _limb_warnings:
+		var label: Label = _limb_warnings[limb_key]
+		if rig == null:
+			label.text = ""
+			continue
+		var limb: Limb = rig.limbs[limb_key]
+		var shortfall := limb.reach_shortfall() if limb.mode == Limb.Mode.IK else 0.0
+		label.text = "%.0f cm short" % (shortfall * 100.0) if shortfall > 0.005 else ""
+
+
 func _refresh_values() -> void:
 	_updating = true
 	var rig := controller.selected_rig
 	if rig:
+		for limb_key in _limb_buttons:
+			var limb: Limb = rig.limbs[limb_key]
+			_limb_buttons[limb_key].button_pressed = limb.mode == Limb.Mode.IK
+			_limb_orient[limb_key].button_pressed = limb.orient_to_target
+		for finger in _finger_sliders:
+			_finger_sliders[finger].value = rig.fingers.get_curl(_finger_side, finger)
 		_root_x.value = rig.position.x
 		_root_z.value = rig.position.z
 		_root_yaw.value = rad_to_deg(rig.rotation.y)
@@ -166,3 +258,23 @@ static func _pretty(bone: String) -> String:
 	for pair in [["Left", "left "], ["Right", "right "], ["UpperArm", "upper arm"], ["LowerArm", "forearm"], ["UpperLeg", "thigh"], ["LowerLeg", "shin"], ["UpperChest", "upper chest"], ["Metacarpal", " base"], ["Proximal", " 1"], ["Intermediate", " 2"], ["Distal", " tip"], ["Little", "pinky"]]:
 		s = s.replace(pair[0], pair[1])
 	return s.to_lower()
+
+
+func _on_limb_toggled(pressed: bool, limb_key: String) -> void:
+	if _updating or controller.selected_rig == null:
+		return
+	controller.set_limb_mode(controller.selected_rig, limb_key, Limb.Mode.IK if pressed else Limb.Mode.FK)
+
+
+func _on_finger_changed(value: float, finger: String) -> void:
+	if _updating or controller.selected_rig == null:
+		return
+	controller.set_finger_curl(controller.selected_rig, _finger_side, finger, value)
+
+
+static func _limb_label(limb_key: String) -> String:
+	match limb_key:
+		"RightArm": return "Right arm IK"
+		"LeftArm": return "Left arm IK"
+		"RightLeg": return "Right leg IK"
+		_: return "Left leg IK"

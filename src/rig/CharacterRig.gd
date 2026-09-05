@@ -13,6 +13,21 @@ var role: String = "Other"  # Tori | Uke | Other
 var skeleton: Skeleton3D
 var body: MeshInstance3D
 var skin_material: StandardMaterial3D
+var fingers: FingerCurl
+## Bone global poses as the modifier stack left them, refreshed every skeleton_updated.
+## Reading Skeleton3D directly outside that signal returns the *authored* pose, not the posed one
+## (see docs/engine-notes.md), so everything that asks "where is this bone now" goes through here.
+var _solved_poses: Array[Transform3D] = []
+## limb key ("RightArm", "LeftLeg", …) -> Limb
+var limbs: Dictionary = {}
+
+## The four IK-able chains, in the order their nodes are added to the skeleton.
+const LIMB_CHAINS := [
+	["RightArm", "RightUpperArm", "RightLowerArm", "RightHand", true],
+	["LeftArm", "LeftUpperArm", "LeftLowerArm", "LeftHand", true],
+	["RightLeg", "RightUpperLeg", "RightLowerLeg", "RightFoot", false],
+	["LeftLeg", "LeftUpperLeg", "LeftLowerLeg", "LeftFoot", false],
+]
 
 
 static func load_mannequin_scene() -> PackedScene:
@@ -44,6 +59,14 @@ func _ready() -> void:
 		setup()
 
 
+## Keeps target colours honest: a target the limb cannot reach is drawn red.
+func _process(_delta: float) -> void:
+	for key in limbs:
+		var limb: Limb = limbs[key]
+		if limb.mode == Limb.Mode.IK:
+			limb.target.set_unreachable(limb.reach_shortfall() > 0.001)
+
+
 func setup() -> void:
 	if skeleton != null:
 		return
@@ -55,6 +78,58 @@ func setup() -> void:
 	skin_material.roughness = 0.9
 	body.material_override = skin_material
 	set_skin_color(Color(0.8, 0.8, 0.8))
+	_solved_poses.resize(skeleton.get_bone_count())
+	_cache_solved_poses()          # seed with the rest pose so limbs can be built against it
+	skeleton.skeleton_updated.connect(_cache_solved_poses)
+	_build_limbs()
+
+
+## Modifier order on the skeleton is child order: finger curls first, then each limb's
+## IK solve followed by its hand-orientation modifier.
+func _build_limbs() -> void:
+	fingers = FingerCurl.new()
+	fingers.name = "FingerCurl"
+	skeleton.add_child(fingers)
+	fingers.calibrate()
+	for chain in LIMB_CHAINS:
+		var limb := Limb.new(chain[0], chain[1], chain[2], chain[3], chain[4])
+		var target := LimbHandle.new(character_id, limb.key, false)
+		var pole := LimbHandle.new(character_id, limb.key, true)
+		add_child(target)
+		add_child(pole)
+		limb.build(self, skeleton, target, pole)
+		limbs[limb.key] = limb
+		_set_handles_visible(limb, false)
+
+
+func set_limb_mode(limb_key: String, mode: int) -> void:
+	var limb: Limb = limbs[limb_key]
+	limb.set_mode(mode)
+	_set_handles_visible(limb, mode == Limb.Mode.IK)
+
+
+func _set_handles_visible(limb: Limb, visible_handles: bool) -> void:
+	limb.target.visible = visible_handles
+	limb.pole.visible = visible_handles
+
+
+## Limb whose end bone (or a descendant of it) is `bone_name`, or "" when the bone is not on a limb.
+## The IK target and pole balls. They are posing aids, never part of an exported image.
+func handles() -> Array[Node]:
+	var out: Array[Node] = []
+	for key in limbs:
+		var limb: Limb = limbs[key]
+		out.append(limb.target)
+		out.append(limb.pole)
+	return out
+
+
+func limb_for_bone(bone_name: String) -> String:
+	for key in limbs:
+		var limb: Limb = limbs[key]
+		if bone_name in [limb.root_bone, limb.middle_bone, limb.end_bone]:
+			return key
+	return ""
 
 
 func set_skin_color(color: Color) -> void:
@@ -72,8 +147,22 @@ func bone_names() -> PackedStringArray:
 	return names
 
 
-## World-space transform of a bone, valid after skeleton_updated for the current frame.
+func _cache_solved_poses() -> void:
+	for i in skeleton.get_bone_count():
+		_solved_poses[i] = skeleton.get_bone_global_pose(i)
+
+
+## Where a bone actually is on screen, in world space, as of the last completed pose evaluation.
+## Use this everywhere except inside skeleton_updated itself, where the live values are available
+## and are one frame fresher (grip following needs that; UI and tests do not).
 func bone_world_transform(bone_name: String) -> Transform3D:
+	var idx := skeleton.find_bone(bone_name)
+	assert(idx >= 0, "Unknown bone %s" % bone_name)
+	return skeleton.global_transform * _solved_poses[idx]
+
+
+## Same value read live from the skeleton. Only correct inside skeleton_updated.
+func bone_world_transform_live(bone_name: String) -> Transform3D:
 	var idx := skeleton.find_bone(bone_name)
 	assert(idx >= 0, "Unknown bone %s" % bone_name)
 	return skeleton.global_transform * skeleton.get_bone_global_pose(idx)

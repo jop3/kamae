@@ -29,6 +29,39 @@ manifest as a silent hang with the process spinning at full CPU:
   way. This costs nothing in practice: an exported still must not contain the tool's own UI anyway, so
   the UI layer and the gizmo are always in `_hide_always()`.
 
+## Character generation (MakeHuman / MPFB)
+
+Three mistakes here all show up the same way: the mesh tears into ribbons or strands as soon as a
+bone moves, while every numeric check on the skeleton still passes. `tools/generate_mannequin.py`
+now asserts against all three, so a bad character cannot be exported silently.
+
+- **Keep `detailed_helpers=True` when creating the body.** MPFB fits bone positions to MakeHuman's
+  helper geometry. Without it the arm and hand bones land up to 47 cm away from the body, so any arm
+  pose swings the skin around a pivot outside the mesh. The generator checks that no bone is further
+  than 12 cm from the nearest body vertex.
+- **Never delete the helper vertices with bmesh.** Rewriting the mesh that way detaches the skin
+  weights from their vertices, leaving e.g. finger weights on hip vertices. Leave MPFB's Mask
+  modifier in place and let the glTF exporter apply it. The generator checks that a 70 degree bend
+  of one finger phalanx moves no vertex more than 12 cm (the correct arc is about 8.6 cm).
+- **Bone renaming is safe.** Renaming armature bones in Blender renames the matching vertex groups,
+  so the humanoid rename pass does not disturb weights.
+
+## Posing pitfalls
+
+- **A non-unit rotation axis silently adds scale.** `Quaternion(axis, angle)` expects a normalised
+  axis. Transforming an axis into a bone's local frame can leave it unnormalised, and the resulting
+  non-unit quaternion smuggles scale into the bone pose, which stretches the skinned mesh. Normalise
+  after transforming.
+- **Do not force an absolute hand orientation by default.** Making the hand take an arbitrary target
+  rotation twists the wrist beyond what the single-bone forearm can absorb and shears the mesh.
+  Hand orientation is opt-in per limb, and grips supply a captured offset that stays near the
+  natural orientation.
+- **Write baked poses after the frame boundary.** Rotations captured inside `skeleton_updated` must
+  be written back on a later frame; writing them during the signal is undone by Skeleton3D's pose
+  restore.
+- **GDScript lambdas capture locals by value.** A callback that assigns to a local variable of the
+  enclosing function changes only its own copy. Write into a Dictionary or Array instead.
+
 ## Project layout
 
 - **Rendered output must not be scanned by the importer.** `tests/out/` carries a `.gdignore` so the PNGs

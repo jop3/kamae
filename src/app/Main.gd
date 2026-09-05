@@ -19,6 +19,9 @@ func _ready() -> void:
 	panel.export_requested.connect(_on_export_requested)
 	frame_all()
 	var args := OS.get_cmdline_user_args()
+	if args.has("--demo-still"):
+		await _render_demo_still(args[args.find("--demo-still") + 1])
+		return
 	for flag in ["--screenshot", "--screenshot-transparent"]:
 		if args.has(flag):
 			await get_tree().process_frame
@@ -46,11 +49,35 @@ func _on_export_requested(transparent: bool) -> void:
 	print("Exported %s (%s)" % [path, error_string(err)])
 
 
-## Never part of an exported image: the UI dock and the posing gizmo.
+## Never part of an exported image: the UI dock, the rotation gizmo and every IK handle.
 func _hide_always() -> Array[Node]:
-	return [ui_layer, gizmo]
+	var out: Array[Node] = [ui_layer, gizmo]
+	for rig in posing_scene.characters:
+		out.append_array(rig.handles())
+	return out
 
 
 ## Only hidden when exporting on a transparent background.
 func _hide_for_transparent() -> Array[Node]:
 	return [floor_grid]
+
+
+## Test hook: shows what M2 provides on one figure — an arm placed by IK with the hand oriented to
+## the target, and fingers closed into a grip. Two-character grips arrive in M3.
+func _render_demo_still(path: String) -> void:
+	var tori: CharacterRig = posing_scene.get_character("tori")
+	posing_scene.remove_character("uke1")
+	controller.set_root(tori, Vector3.ZERO, deg_to_rad(200))
+	await get_tree().process_frame
+	await controller.set_limb_mode(tori, "RightArm", Limb.Mode.IK)
+	var shoulder: Vector3 = tori.bone_world_transform("RightUpperArm").origin
+	var arm: Limb = tori.limbs["RightArm"]
+	# Forward and slightly up from the shoulder, well inside the arm's reach.
+	arm.target.global_position = shoulder + Vector3(0.12, -0.02, 0.34)
+	tori.fingers.apply_grip_preset("Right")
+	camera.look_from(Vector3(0.8, 0.15, 0.6), Vector3(0.05, 1.15, 0.1), 1.5)
+	for i in 4:
+		await get_tree().process_frame
+	await StillExport.capture(get_viewport(), path, false, _hide_always(), _hide_for_transparent())
+	print("demo still saved: ", path)
+	get_tree().quit()

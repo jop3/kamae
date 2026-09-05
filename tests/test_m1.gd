@@ -26,9 +26,13 @@ func _initialize() -> void:
 	var head_world := uke.bone_world_transform("Head").origin + Vector3(0, 0.08, 0)
 	var hit := ctrl.pick_bone(cam.unproject_position(head_world))
 	check(hit.get("character_id", "") == "uke1" and hit.get("bone_name", "") == "Head", "ray pick hits uke1 Head (got %s)" % [hit])
-	var hand_world := uke.bone_world_transform("RightHand").origin.lerp(uke.bone_world_transform("RightMiddleProximal").origin, 0.6)
-	hit = ctrl.pick_bone(cam.unproject_position(hand_world))
-	check(hit.get("bone_name", "").begins_with("Right") and ("Hand" in hit.get("bone_name", "") or "Index" in hit.get("bone_name", "") or "Thumb" in hit.get("bone_name", "") or "Middle" in hit.get("bone_name", "")), "ray pick near right hand hits a right-hand bone (got %s)" % [hit])
+	# Aim at the middle finger itself: the hand and forearm capsules overlap around the wrist, so a
+	# fingertip is the unambiguous target for this check.
+	var finger_world := uke.bone_world_transform("RightMiddleIntermediate").origin
+	hit = ctrl.pick_bone(cam.unproject_position(finger_world))
+	var picked: String = hit.get("bone_name", "")
+	check(picked.begins_with("Right") and ("Middle" in picked or "Index" in picked or "Hand" in picked),
+		"ray pick on the right middle finger hits a right-hand bone (got %s)" % picked)
 
 	# FK rotate + undo/redo
 	ctrl.select(tori, "RightUpperArm")
