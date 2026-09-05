@@ -138,9 +138,11 @@ lead, so read it before building on it.
     mapping: the signs were derived from numbers, not from a picture.
   - Switching weapon-driven→hand-driven captures the raw hand⁻¹×weapon offset so the geometry is
     preserved exactly even when the weapon was tilted out of the palm plane.
-  - Unfinished: no undo entries for `hold_weapon`, `attach_to_weapon`, `set_weapon_drive`,
-    `close_gap`; the second hand's roll in `attach_to_weapon` is fixed at 0°; `Weapon.to_dict()`
-    exists but `PoseFile.apply` does not yet recreate weapons or holds from a file.
+  - A second pass added undo for `hold_weapon`, `attach_to_weapon` and `set_weapon_drive`, and
+    `Weapon.apply_dict()` so `PoseFile.apply` recreates weapons and holds (tested in `test_m4`).
+    Still unfinished: no undo for `close_gap`; the second hand's roll in `attach_to_weapon` is
+    fixed at 0°; **no still has yet been rendered with a weapon in a hand**, so the hold mapping
+    is unverified visually.
 - **M4 save/load** — `src/data/PoseFile.gd`, `tests/test_m4.gd`. Bone rotations are captured inside
   `skeleton_updated` (baked), grips through `Grip.to_dict()`. Weapons are serialised only if the
   weapon agent's `Weapon.to_dict()` landed; otherwise `weapons: []` and that is the first thing to
@@ -153,6 +155,8 @@ lead, so read it before building on it.
   usable default; Front needs either an offset off the line or a larger distance before it is
   worth a button in the handout workflow. Raise with the instructor (spec §5.7).
 
-Next in order: verify the three pieces above and wire them into `SidePanel` (weapons section: add
-weapon, hold by hand/t/roll, drive mode, attach second hand, contact gap and "close the gap";
-poses section: save/load; camera section: Front/Side buttons), then M5 sequences, M6 video, M8.
+`SidePanel` now has Weapons, Camera and Poses sections wired to these APIs (untested beyond
+"compiles and the app launches"; no contact-gap UI yet). `Main.frame_all` uses the Side preset.
+
+Next in order: render a still with a bokken held two-handed and fix the hold mapping if it looks
+wrong; contact-gap UI; pose library confirm dialogs; then M5 sequences, M6 video, M8 acceptance.
