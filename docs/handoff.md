@@ -1,18 +1,15 @@
 # Handoff — Kamae posing tool
 
-Written 2026-09-05 at the end of the session that produced M0–M3. Read this first; it says where the
-work stands, how to run it, and what the next session should pick up.
+Written 2026-09-05 at the end of the session that produced M0–M3, updated the same day by a short
+follow-up session that started M3W, M4 and the camera presets in parallel. Read this first; it says
+where the work stands, how to run it, and what the next session should pick up.
 
 ## Where things stand
 
 | Branch | Contents | State |
 |---|---|---|
-| `main` | Spec v2.2, spec review, build plan, feasibility experiments | merged (PR #1) |
-| `claude/spec-analysis-planning-cfcmc4` | Spec v2.3: weapons (bokken, jo, tanto) | open as PR #2, **not merged** |
-| `claude/m0-project-setup` | The application: M0, M1, M2, M3 | open as PR #3 |
-
-The two open pull requests do not conflict: one touches `docs/` only, the other adds the Godot
-project. Merge the spec PR first so the implementation branch is working against the current spec.
+| `main` | Spec v2.3, build plan, feasibility, the application M0–M3 | PRs #1–#3 merged |
+| `claude/handoff-continuation-8iw00t` | M3W weapons, M4 save/load, camera presets, CI workflow (see "Follow-up session" below) | this branch |
 
 Milestones done: **M0** project and character, **M1** click-to-select FK posing with a gizmo and PNG
 export, **M2** IK arms and legs with finger curls, **M3** grip attachments. Next up is **M3W**
@@ -31,7 +28,16 @@ Rendering needs a display. On a headless machine install `xvfb` and the scripts 
 which carries a `.gdignore` so Godot's importer leaves the rendered PNGs alone.
 
 Godot 4.6.x is required and pinned: the IK stack does not exist before it. A binary can be fetched
-from the `godotengine/godot-builds` releases.
+from the `godotengine/godot-builds` releases; this works from inside an agent session:
+
+```sh
+curl -sSL -o godot.zip https://github.com/godotengine/godot-builds/releases/download/4.6-stable/Godot_v4.6-stable_linux.x86_64.zip
+unzip godot.zip && chmod +x Godot_v4.6-stable_linux.x86_64
+```
+
+`xvfb-run` is present on the agent machines; `ffmpeg` is **not**, so the M6 MP4 path can only be
+tested there through its AVI fallback unless ffmpeg is installed first (`apt-get install ffmpeg`).
+The full suite (`tests/run.sh`) takes about 25 s.
 
 ## The shape of the code
 
@@ -104,3 +110,42 @@ One judgement call worth raising early: the mannequin is MakeHuman's neutral bod
 anatomical detail. For a children's handout it may want to be flatter and more androgynous. That is a
 parameter change plus a re-export via `tools/generate_mannequin.py`, and the gi in M9 covers it
 anyway.
+
+## Follow-up session (2026-09-05, evening)
+
+Verified first: all of M0–M3 tests and the rendered-still checks pass on a fresh Godot 4.6-stable
+download. Nothing from the earlier session was found broken.
+
+Because the session had only minutes left, three agents were dispatched in parallel on disjoint
+files. **Check each of these before trusting it**: run its test, read its code, and finish what is
+marked unfinished in the commit message.
+
+- **M3W weapons** — `src/weapons/Weapon.gd`, `PosingScene` weapon list, `GripDirector` weapon
+  integration, `tests/test_m3w.gd`. Design decisions taken (all reversible):
+  - Weapon local **+Y runs from butt (t=0) to tip (t=1)**; the bokken curves toward +Z, edge on −Z.
+  - A hand-driven weapon is placed **inside its holder's `skeleton_updated`** (where the hand pose is
+    live) and the grips on that weapon are applied in the same callback; a gripper of a weapon
+    depends on the weapon's holder in the topological order.
+  - Weapon-driven weapons apply their grips at **frame start**, from the director's internal
+    process at `process_priority = -10`, which runs before any skeleton solves that frame (Godot
+    runs internal process for the whole group before normal `_process`, ordered by priority).
+  - Canonical hold mapping from the mannequin's hand frame, measured this session: hand-local +Y is
+    wrist→fingers; palm width axis (little→index) ≈ (0.48, 0.13, 0.87) right / (−0.66, 0.10, 0.75)
+    left; palm normal (back→palm) ≈ (−0.88, 0.10, 0.47) right / (−0.75, −0.06, −0.65) left. The
+    weapon axis lies along the width axis toward the thumb side, the edge faces the palm normal,
+    `roll_deg` turns about the weapon axis. **Render a still and look at it** before believing this
+    mapping: the signs were derived from numbers, not from a picture.
+  - Switching weapon-driven→hand-driven captures the raw hand⁻¹×weapon offset so the geometry is
+    preserved exactly even when the weapon was tilted out of the palm plane.
+- **M4 save/load** — `src/data/PoseFile.gd`, `tests/test_m4.gd`. Bone rotations are captured inside
+  `skeleton_updated` (baked), grips through `Grip.to_dict()`. Weapons are serialised only if the
+  weapon agent's `Weapon.to_dict()` landed; otherwise `weapons: []` and that is the first thing to
+  add. No UI yet: the pose library panel (list, save, load, confirm-overwrite) is still to do.
+- **Camera presets and CI** — `src/scene/CameraPresets.gd`, `OrbitCamera.apply_preset`,
+  `Main.frame_all` now uses the Front preset (the default framing rendered the figures tiny),
+  `tests/test_camera.gd`, `.github/workflows/tests.yml`. The workflow has not been seen to run
+  yet; expect a first-run fix.
+
+Next in order: verify the three pieces above and wire them into `SidePanel` (weapons section: add
+weapon, hold by hand/t/roll, drive mode, attach second hand, contact gap and "close the gap";
+poses section: save/load; camera section: Front/Side buttons), then M5 sequences, M6 video, M8.
