@@ -58,6 +58,8 @@ func detach(grip: Grip) -> void:
 ## keeps its place and the weapon moves to the canonical hold; otherwise the current geometry is
 ## kept as the hold offset.
 func hold_weapon(gripper: CharacterRig, hand: String, weapon: Weapon, t: float, roll_deg: float = 0.0, snap := true) -> void:
+	var before := _weapon_state(weapon)
+	var dropped := _grips_on_hand(gripper.character_id, hand)
 	_drop_grips_on(weapon, gripper.character_id, hand)
 	weapon.drive = "hand"
 	weapon.set_hold(gripper.character_id, hand, t, roll_deg)
@@ -67,11 +69,44 @@ func hold_weapon(gripper: CharacterRig, hand: String, weapon: Weapon, t: float, 
 	else:
 		weapon.set_hold_offset_from_current(hand_world)
 	_rebuild()
+	if controller:
+		var after := _weapon_state(weapon)
+		controller.undo.create_action("Hold %s" % weapon.weapon_id)
+		controller.undo.add_do_method(_restore_weapon_state.bind(weapon, after))
+		for g in dropped:
+			controller.undo.add_do_method(_remove.bind(g))
+		controller.undo.add_undo_method(_restore_weapon_state.bind(weapon, before))
+		for g in dropped:
+			controller.undo.add_undo_method(_add.bind(g))
+		controller.undo.commit_action(false)
+
+
+func _weapon_state(weapon: Weapon) -> Dictionary:
+	return {"drive": weapon.drive, "hold": weapon.hold.duplicate(), "xf": weapon.global_transform}
+
+
+func _restore_weapon_state(weapon: Weapon, state: Dictionary) -> void:
+	if not is_instance_valid(weapon):
+		return
+	weapon.drive = state["drive"]
+	weapon.hold = state["hold"].duplicate()
+	weapon.global_transform = state["xf"]
+	_rebuild()
 
 
 ## Attaches a second (or any) hand to a weapon at `t`. With `snap`, the hand's IK target is first
 ## moved to the canonical hand pose for that point, so the grip is a real hold.
 func attach_to_weapon(gripper: CharacterRig, hand: String, weapon: Weapon, t: float, snap := true) -> Grip:
+	var grip := _attach_to_weapon_raw(gripper, hand, weapon, t, snap)
+	if controller:
+		controller.undo.create_action("Grip %s" % grip.describe())
+		controller.undo.add_do_method(_add.bind(grip))
+		controller.undo.add_undo_method(_remove.bind(grip))
+		controller.undo.commit_action(false)
+	return grip
+
+
+func _attach_to_weapon_raw(gripper: CharacterRig, hand: String, weapon: Weapon, t: float, snap := true) -> Grip:
 	if snap:
 		gripper.set_limb_mode(hand + "Arm", Limb.Mode.IK)
 		var limb: Limb = gripper.limbs[hand + "Arm"]
@@ -94,12 +129,40 @@ func attach_to_weapon(gripper: CharacterRig, hand: String, weapon: Weapon, t: fl
 func set_weapon_drive(weapon: Weapon, mode: String) -> void:
 	if weapon.drive == mode:
 		return
+	var before := _weapon_state(weapon)
+	var grips_before := grips.duplicate()
+	_set_weapon_drive(weapon, mode)
+	if controller:
+		var after := _weapon_state(weapon)
+		var added: Array[Grip] = []
+		var removed: Array[Grip] = []
+		for g in grips:
+			if not g in grips_before:
+				added.append(g)
+		for g in grips_before:
+			if not g in grips:
+				removed.append(g)
+		controller.undo.create_action("Drive %s by %s" % [weapon.weapon_id, mode])
+		controller.undo.add_do_method(_restore_weapon_state.bind(weapon, after))
+		for g in added:
+			controller.undo.add_do_method(_add.bind(g))
+		for g in removed:
+			controller.undo.add_do_method(_remove.bind(g))
+		controller.undo.add_undo_method(_restore_weapon_state.bind(weapon, before))
+		for g in added:
+			controller.undo.add_undo_method(_remove.bind(g))
+		for g in removed:
+			controller.undo.add_undo_method(_add.bind(g))
+		controller.undo.commit_action(false)
+
+
+func _set_weapon_drive(weapon: Weapon, mode: String) -> void:
 	if mode == "weapon":
 		weapon.drive = "weapon"
 		if not weapon.hold.is_empty():
 			var holder := scene.get_character(weapon.hold["character"])
 			if holder:
-				attach_to_weapon(holder, weapon.hold["hand"], weapon, weapon.hold["t"], false)
+				_attach_to_weapon_raw(holder, weapon.hold["hand"], weapon, weapon.hold["t"], false)
 	else:
 		if weapon.hold.is_empty():
 			return
@@ -135,6 +198,14 @@ func close_gap(a: Weapon, t_a: float, b: Weapon, t_b: float, mover: Weapon = nul
 	var limb: Limb = holder.limbs[target_weapon.hold["hand"] + "Arm"]
 	holder.set_limb_mode(limb.key, Limb.Mode.IK)
 	limb.target.global_position += delta
+
+
+func _grips_on_hand(gripper_id: String, hand: String) -> Array[Grip]:
+	var out: Array[Grip] = []
+	for grip in grips:
+		if grip.gripper_id == gripper_id and grip.hand == hand:
+			out.append(grip)
+	return out
 
 
 func _drop_grips_on(weapon: Weapon, gripper_id: String, hand: String) -> void:

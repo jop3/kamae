@@ -85,7 +85,34 @@ func set_hold_offset_from_current(hand_world: Transform3D) -> void:
 
 func to_dict() -> Dictionary:
 	var h := hold.duplicate()
-	return {"id": weapon_id, "type": type, "drive": drive, "hold": h, "transform": global_transform}
+	if h.has("offset"):
+		h["offset"] = PoseFile.transform_to_array(h["offset"])
+	return {"id": weapon_id, "type": type, "length": length, "tsuka": tsuka, "drive": drive, "hold": h,
+		"transform": PoseFile.transform_to_array(global_transform)}
+
+
+## Restores everything `to_dict` wrote (geometry included). Does not touch grips.
+func apply_dict(d: Dictionary) -> void:
+	var new_type: String = d.get("type", type)
+	var new_length: float = float(d.get("length", length))
+	var new_tsuka: float = float(d.get("tsuka", tsuka))
+	if new_type != type or not is_equal_approx(new_length, length) or not is_equal_approx(new_tsuka, tsuka):
+		type = new_type
+		length = new_length
+		tsuka = new_tsuka
+		_build_mesh()
+	drive = d.get("drive", drive)
+	var h: Dictionary = d.get("hold", {})
+	if h.is_empty():
+		hold = {}
+	else:
+		hold = h.duplicate()
+		if hold.has("offset"):
+			hold["offset"] = PoseFile.array_to_transform(hold["offset"])
+		else:
+			hold["offset"] = hold_offset(hold["hand"], float(hold["t"]), float(hold.get("roll_deg", 0.0)))
+	if d.has("transform"):
+		global_transform = PoseFile.array_to_transform(d["transform"])
 
 
 # ---------------------------------------------------------------- mesh

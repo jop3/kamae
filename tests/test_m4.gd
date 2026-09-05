@@ -46,11 +46,19 @@ func _initialize() -> void:
 	uke.fingers.apply_grip_preset("Left")
 	tori.fingers.set_curl("Right", "Index", 0.4)
 	await settle()
+	var bokken := scene.add_weapon("bokken1", "bokken")
+	director.hold_weapon(tori, "Right", bokken, 0.1)
+	await settle()
+	await ctrl.set_limb_mode(uke, "RightArm", Limb.Mode.IK)
+	director.attach_to_weapon(uke, "Right", bokken, 0.2)
+	await settle()
+	var hold_before: Vector3 = bokken.anchor_transform(0.1).origin
 
 	# --- capture + save --------------------------------------------------------
 	var data: Dictionary = await PoseFile.capture_baked(scene, director, null, "Katatedori Ikkyō — Grepp")
 	check(data["format"] == 1 and data["characters"].size() == 2, "captured two characters")
-	check(data["grips"].size() == 1, "captured one grip")
+	check(data["grips"].size() == 2, "captured two grips (bone + weapon)")
+	check(data["weapons"].size() == 1 and data["weapons"][0]["id"] == "bokken1", "captured the bokken")
 	var ik_before: Dictionary = data["characters"][0]["ik"]
 	check(ik_before["RightArm"]["mode"] == "ik" and ik_before["LeftArm"]["mode"] == "fk", "captured limb modes")
 	check(PoseFile.save(OUT, data) == OK, "saved to %s" % OUT)
@@ -71,6 +79,8 @@ func _initialize() -> void:
 		for i in r.skeleton.get_bone_count():
 			r.skeleton.set_bone_pose_rotation(i, Quaternion(Vector3.RIGHT, 0.2) * r.skeleton.get_bone_rest(i).basis.get_rotation_quaternion())
 	scene.add_character("uke2", "Uke", "Uke")
+	scene.remove_weapon("bokken1")
+	scene.add_weapon("jo1", "jo")
 	await settle()
 
 	# --- reload -----------------------------------------------------------------
@@ -115,6 +125,18 @@ func _initialize() -> void:
 		check(g.gripper_id == d["gripper"] and g.hand == d["hand"] and g.target.to_dict() == d["target"], "grip %d identity restored" % i)
 		check(g.offset.origin.distance_to(off.origin) < 1e-5 and (g.offset.basis.x - off.basis.x).length() < 1e-5, "grip %d offset restored" % i)
 	check(director.worst_error() < 0.002, "grip hand sits on target after reload (%.4f m)" % director.worst_error())
+	var bk: Weapon = scene.get_weapon("bokken1")
+	check(bk != null and scene.get_weapon("jo1") == null and scene.weapons.size() == 1, "weapon set restored")
+	if bk:
+		check(bk.drive == "hand" and bk.hold.get("character", "") == "tori" and bk.hold.get("hand", "") == "Right", "hold restored")
+		var herr := bk.anchor_transform(0.1).origin.distance_to(tori.bone_world_transform("RightHand").origin)
+		check(herr < 1e-3, "weapon anchor sits on holder's hand after reload (%.4f m)" % herr)
+		check(bk.anchor_transform(0.1).origin.distance_to(hold_before) < 1e-3, "weapon anchor back where it was saved")
+		var wgrips := 0
+		for g in director.grips:
+			if g.target.kind == GripTarget.Kind.WEAPON and g.target.weapon_id == "bokken1":
+				wgrips += 1
+		check(wgrips == 1, "weapon grip restored")
 
 	print("RESULT %s (%d failures)" % ["OK" if failures == 0 else "FAILED", failures])
 	quit(0 if failures == 0 else 1)

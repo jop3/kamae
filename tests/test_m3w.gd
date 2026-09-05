@@ -48,6 +48,22 @@ func _initialize() -> void:
 	check(hold_error(bokken) < 1e-3, "weapon follows when the arm rotates (%.4f m)" % hold_error(bokken))
 	check(bokken.anchor_transform(1.0).origin.distance_to(tip_before) > 0.05, "the tip actually moved")
 
+	# --- undo of hold_weapon ----------------------------------------------
+	var held_xf: Transform3D = bokken.global_transform
+	var held_hold: Dictionary = bokken.hold.duplicate()
+	director.hold_weapon(tori, "Right", bokken, 0.4)
+	await settle()
+	check(absf(bokken.hold["t"] - 0.4) < 1e-6, "re-hold at t=0.4 applied")
+	ctrl.undo.undo()
+	await settle()
+	check(absf(bokken.hold["t"] - held_hold["t"]) < 1e-6 and bokken.global_transform.origin.distance_to(held_xf.origin) < 1e-4,
+		"undo restores the previous hold (t=%.2f)" % bokken.hold["t"])
+	ctrl.undo.redo()
+	await settle()
+	check(absf(bokken.hold["t"] - 0.4) < 1e-6, "redo re-applies the hold")
+	ctrl.undo.undo()
+	await settle()
+
 	# --- second hand on the tsuka ----------------------------------------
 	var grip2 := director.attach_to_weapon(tori, "Left", bokken, 0.2)
 	await settle()

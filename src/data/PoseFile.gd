@@ -192,7 +192,21 @@ static func apply(data: Dictionary, scene: PosingScene, director: GripDirector, 
 			if entry.has("pole"):
 				limb.pole.global_position = array_to_vec(entry["pole"])
 			limb.set_orient_to_target(entry.get("orient", false))
+	# Weapons before grips, so weapon-kind grips resolve their target.
+	var weapons_data: Array = data.get("weapons", [])
+	var wanted_weapons := {}
+	for wd in weapons_data:
+		wanted_weapons[wd["id"]] = true
+	for w in scene.weapons.duplicate():
+		if not wanted_weapons.has(w.weapon_id):
+			scene.remove_weapon(w.weapon_id)
+	for wd in weapons_data:
+		var weapon: Weapon = scene.get_weapon(wd["id"])
+		if weapon == null:
+			weapon = scene.add_weapon(wd["id"], wd.get("type", "bokken"))
+		weapon.apply_dict(wd)
 	if director:
+		director.refresh_hand_driven()
 		for g in data.get("grips", []):
 			var d: Dictionary = g.duplicate()
 			d["offset"] = array_to_transform(d.get("offset", null))
