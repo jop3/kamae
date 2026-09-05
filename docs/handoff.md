@@ -141,8 +141,10 @@ lead, so read it before building on it.
   - A second pass added undo for `hold_weapon`, `attach_to_weapon` and `set_weapon_drive`, and
     `Weapon.apply_dict()` so `PoseFile.apply` recreates weapons and holds (tested in `test_m4`).
     Still unfinished: no undo for `close_gap`; the second hand's roll in `attach_to_weapon` is
-    fixed at 0°; **no still has yet been rendered with a weapon in a hand**, so the hold mapping
-    is unverified visually.
+    fixed at 0°; a first still was rendered with `--demo-weapon <path>` (hook in `Main.gd`): the bokken sits in
+    Tori's right hand across the palm with the blade up, which looks plausible; the second hand at
+    t=0.05 was 10 cm short (reach, given the demo's arbitrary IK targets), so the two-handed
+    geometry still needs a proper chudan pose before judging it.
 - **M4 save/load** — `src/data/PoseFile.gd`, `tests/test_m4.gd`. Bone rotations are captured inside
   `skeleton_updated` (baked), grips through `Grip.to_dict()`. Weapons are serialised only if the
   weapon agent's `Weapon.to_dict()` landed; otherwise `weapons: []` and that is the first thing to

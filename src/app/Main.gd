@@ -24,6 +24,9 @@ func _ready() -> void:
 	if args.has("--demo-still"):
 		await _render_demo_still(args[args.find("--demo-still") + 1])
 		return
+	if args.has("--demo-weapon"):
+		await _render_demo_weapon(args[args.find("--demo-weapon") + 1])
+		return
 	for flag in ["--screenshot", "--screenshot-transparent"]:
 		if args.has(flag):
 			await get_tree().process_frame
@@ -91,4 +94,30 @@ func _render_demo_still(path: String) -> void:
 		await get_tree().process_frame
 	await StillExport.capture(get_viewport(), path, false, _hide_always(), _hide_for_transparent())
 	print("demo still saved: ", path)
+	get_tree().quit()
+
+
+## Test hook: Tori holds a bokken with both hands via the grip system.
+func _render_demo_weapon(path: String) -> void:
+	var tori: CharacterRig = posing_scene.get_character("tori")
+	await controller.set_limb_mode(tori, "RightArm", Limb.Mode.IK)
+	await controller.set_limb_mode(tori, "LeftArm", Limb.Mode.IK)
+	var shoulder: Vector3 = tori.bone_world_transform("RightUpperArm").origin
+	tori.limbs["RightArm"].target.global_position = shoulder + Vector3(0, -0.25, 0.35)
+	tori.limbs["LeftArm"].target.global_position = shoulder + Vector3(0, -0.30, 0.28)
+	for i in 3:
+		await get_tree().process_frame
+	var w: Weapon = posing_scene.add_weapon("bokken1", "bokken")
+	grip_director.hold_weapon(tori, "Right", w, 0.12, 0.0, true)
+	grip_director.attach_to_weapon(tori, "Left", w, 0.05, true)
+	tori.fingers.apply_grip_preset("Right")
+	tori.fingers.apply_grip_preset("Left")
+	for i in 4:
+		await get_tree().process_frame
+	print("weapon grip error: %.4f m" % grip_director.worst_error())
+	camera.look_from(Vector3(1, 0.3, 0.8), Vector3(0, 1.1, -0.3), 2.2)
+	for i in 3:
+		await get_tree().process_frame
+	await StillExport.capture(get_viewport(), path, false, _hide_always(), _hide_for_transparent())
+	print("weapon demo saved: ", path)
 	get_tree().quit()
