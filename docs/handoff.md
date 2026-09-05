@@ -173,5 +173,17 @@ per-pose pole adjustment or a better default is the next thing to try.
 `SidePanel` now has Weapons, Camera and Poses sections wired to these APIs (untested beyond
 "compiles and the app launches"; no contact-gap UI yet). `Main.frame_all` uses the Side preset.
 
-Next in order: render a still with a bokken held two-handed and fix the hold mapping if it looks
-wrong; contact-gap UI; pose library confirm dialogs; then M5 sequences, M6 video, M8 acceptance.
+Then M5 and M6 landed the same night: `Sequence` (steps with transition and hold), `PoseBlend`
+(the §5.6 rules: root lerp, bone slerp, finger lerp, grips live when in both poses and ramped via
+modifier influence when in one, weapon holds blended), `SequencePlayer`, a Sequence section in
+the panel, `MovieExport` plus the `--render-sequence` child mode, and `tests/check_movie.gd`
+which renders the test_m5 sequence under Xvfb and checks frame count, size, handle-free frames
+and the per-phase stills. Two engine facts found on the way are in `docs/engine-notes.md`:
+Movie Maker records at the configured window size and ignores `--resolution` (so the project
+viewport is 1920×1080 and the interactive window shrinks itself), and a coroutine that awaits
+`skeleton_updated` resumes inside the update, so `capture_baked` now awaits `process_frame`
+before returning.
+
+Next in order: M7 polish (Front+Side batch stills, gizmo snapping, per-pose camera, 2×
+supersampling if the Compatibility renderer allows it, tooltips), then M8 acceptance fixtures as
+committed `poses/` and `sequences/` with a build script, then the instructor guide.
