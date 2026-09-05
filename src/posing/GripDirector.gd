@@ -94,6 +94,76 @@ func _restore_weapon_state(weapon: Weapon, state: Dictionary) -> void:
 	_rebuild()
 
 
+## How far the palm centre sits off a gripped limb's axis: a fist closes to about 2.5 cm from
+## its own axis and a wrist is about 4 cm across, so the palm rides just off the bone line.
+const WRAP_RADIUS := 0.02
+
+## Attaches a hand to a limb bone of another character with the hand wrapped around it, the
+## way a real katatedori takes the wrist: the bone is treated as a shaft, the hand is placed at
+## the point of the bone nearest to where it is now, on the same side of the bone it is on now,
+## with the shaft across its palm and the fingers closing round it. With `snap` false this is
+## an ordinary `attach` that freezes the hand wherever it is.
+func attach_wrapped(gripper: CharacterRig, hand: String, target_rig: CharacterRig, bone: String, snap := true) -> Grip:
+	var target := GripTarget.for_bone(scene, target_rig.character_id, bone)
+	if not snap:
+		return attach(gripper, hand, target)
+	var hand_world := wrapped_hand_transform(gripper, hand, target_rig, bone)
+	gripper.set_limb_mode(hand + "Arm", Limb.Mode.IK)
+	var limb: Limb = gripper.limbs[hand + "Arm"]
+	limb.target.global_transform = hand_world
+	limb.reset_pole()
+	var grip := Grip.new()
+	grip.gripper_id = gripper.character_id
+	grip.hand = hand
+	grip.target = target
+	grip.target.bind(scene)
+	grip.offset = target.world_transform().affine_inverse() * hand_world
+	_add(grip)
+	if controller:
+		controller.undo.create_action("Grip %s" % grip.describe())
+		controller.undo.add_do_method(_add.bind(grip))
+		controller.undo.add_undo_method(_remove.bind(grip))
+		controller.undo.commit_action(false)
+	return grip
+
+
+## Where `gripper`'s `hand` should be to wrap around `bone` of `target_rig`, given where the
+## hand is now (nearest point along the bone, same side of it).
+func wrapped_hand_transform(gripper: CharacterRig, hand: String, target_rig: CharacterRig, bone: String) -> Transform3D:
+	var bone_xf := target_rig.bone_world_transform(bone)
+	var joint := bone_xf.origin
+	var child := _child_joint(target_rig, bone)
+	var axis := (child - joint).normalized()
+	var length := joint.distance_to(child)
+	var palm_now: Vector3 = gripper.bone_world_transform(hand + "Hand") * Weapon.palm_centre(gripper, hand)
+	var t := clampf((palm_now - joint).dot(axis) / maxf(length, 1e-3), 0.25, 0.9)
+	var on_axis := joint + axis * t * length
+	var radial := palm_now - on_axis
+	radial -= axis * radial.dot(axis)
+	if radial.length() < 1e-3:
+		radial = gripper.global_transform.basis.z
+		radial -= axis * radial.dot(axis)
+	radial = radial.normalized()
+	# The shaft frame: +Y along the bone, the palm-facing side (-Z of a weapon) toward the bone.
+	var width_now: Vector3 = gripper.bone_world_transform(hand + "Hand").basis * gripper.fingers.palm_width(hand)
+	var y := axis if width_now.dot(axis) >= 0.0 else -axis
+	var z := radial
+	var x := y.cross(z).normalized()
+	var shaft := Transform3D(Basis(x, y, z).orthonormalized(), on_axis + radial * WRAP_RADIUS)
+	var hold := Transform3D(Weapon.canonical_basis(gripper, hand), Weapon.palm_centre(gripper, hand))
+	return shaft * hold.affine_inverse()
+
+
+func _child_joint(rig: CharacterRig, bone: String) -> Vector3:
+	var sk := rig.skeleton
+	var idx := sk.find_bone(bone)
+	for i in sk.get_bone_count():
+		if sk.get_bone_parent(i) == idx:
+			return rig.bone_world_transform(sk.get_bone_name(i)).origin
+	# A leaf bone: extend along its own +Y by its rest length guess.
+	return rig.bone_world_transform(bone) * Vector3(0, 0.1, 0)
+
+
 ## Attaches a second (or any) hand to a weapon at `t`. With `snap`, the hand's IK target is first
 ## moved to the canonical hand pose for that point, so the grip is a real hold.
 func attach_to_weapon(gripper: CharacterRig, hand: String, weapon: Weapon, t: float, snap := true) -> Grip:

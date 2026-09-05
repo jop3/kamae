@@ -84,6 +84,10 @@ now asserts against all three, so a bad character cannot be exported silently.
   free, and without it every bit of pronation is a kink at the wrist. Twist far beyond what a real
   forearm does still shears the mesh; that is a sign the pose or elbow pole is wrong, not the
   modifier.
+- **A gripped wrist is a shaft too.** `GripDirector.attach_wrapped()` treats the gripped limb bone
+  as a weapon axis: nearest point along the bone, same side the hand is on now, palm centre
+  2 cm off the bone line, fingers across it. Attaching without the wrap freezes the hand wherever
+  it happens to be, which for a hand hovering above a wrist looks like nothing at all.
 - **Measure the palm axes from the rig; do not type them in.** Hand-typed palm normals had the
   left hand's sign wrong. `FingerCurl.calibrate()` now records the palm normal and the
   little-to-index direction per hand, and `Weapon.canonical_basis()` builds the hold from those.

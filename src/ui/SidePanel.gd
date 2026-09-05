@@ -123,7 +123,7 @@ func setup(ctrl: PoseController, posing_scene: PosingScene, grip_director: GripD
 
 	vb.add_child(_header("Grips"))
 	var grip_hint := Label.new()
-	grip_hint.text = "Click the body part to be gripped, pick who grips it, then Attach."
+	grip_hint.text = "Click the body part to be gripped, pick who grips it, then Attach. On an arm or leg the hand wraps round the limb on the side it is on now."
 	grip_hint.add_theme_font_size_override("font_size", 11)
 	grip_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	vb.add_child(grip_hint)
@@ -317,7 +317,9 @@ func _on_attach_pressed() -> void:
 	if gripper == null or gripper == controller.selected_rig:
 		return   # a hand cannot grip its own body
 	var hand := "Right" if _grip_hand.selected == 0 else "Left"
-	grips.attach(gripper, hand, GripTarget.for_bone(scene, controller.selected_rig.character_id, controller.selected_bone))
+	# A limb bone is gripped by wrapping the hand around it; anything else freezes the hand where it is.
+	var wrap := controller.selected_rig.limb_for_bone(controller.selected_bone) != ""
+	grips.attach_wrapped(gripper, hand, controller.selected_rig, controller.selected_bone, wrap)
 
 
 func _on_release_pressed() -> void:

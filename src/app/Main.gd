@@ -69,7 +69,7 @@ func _hide_for_transparent() -> Array[Node]:
 	return [floor_grid]
 
 
-## Test hook: a katatedori grip — Uke's hand attached to Tori's wrist, held by the grip system.
+## Test hook: a katatedori grip — Uke's hand wrapped around Tori's wrist, held by the grip system.
 func _render_demo_still(path: String) -> void:
 	var tori: CharacterRig = posing_scene.get_character("tori")
 	var uke: CharacterRig = posing_scene.get_character("uke1")
@@ -82,25 +82,33 @@ func _render_demo_still(path: String) -> void:
 	await controller.set_limb_mode(uke, "LeftArm", Limb.Mode.IK)
 	for i in 3:
 		await get_tree().process_frame
-	uke.limbs["LeftArm"].target.global_position = tori.bone_world_transform("RightLowerArm").origin + Vector3(0, 0.03, 0)
+	# Uke's hand comes in from above the wrist; the wrap keeps it on that side.
+	uke.limbs["LeftArm"].target.global_position = tori.bone_world_transform("RightLowerArm").origin + Vector3(0, 0.06, 0.12)
 	for i in 3:
 		await get_tree().process_frame
-	grip_director.attach(uke, "Left", GripTarget.for_bone(posing_scene, "tori", "RightLowerArm"))
-	uke.fingers.apply_grip_preset("Left")
+	grip_director.attach_wrapped(uke, "Left", tori, "RightLowerArm")
+	for f in FingerCurl.FINGERS:
+		uke.fingers.set_curl("Left", f, 0.55)
+	uke.fingers.set_curl("Left", "Thumb", 0.7)
 	# Now move Tori: the grip must hold without touching Uke again.
 	controller.set_root(tori, Vector3(0.05, 0, -0.20), deg_to_rad(12))
 	for i in 4:
 		await get_tree().process_frame
 	print("grip error after moving Tori: %.4f m" % grip_director.worst_error())
-	camera.look_from(Vector3(0.9, 0.30, 0.5), Vector3(0, 1.05, 0), 2.0)
-	for i in 3:
-		await get_tree().process_frame
-	await StillExport.capture(get_viewport(), path, false, _hide_always(), _hide_for_transparent())
-	print("demo still saved: ", path)
+	var wrist: Vector3 = tori.bone_world_transform("RightHand").origin
+	var views := {"": [Vector3(0.9, 0.30, 0.5), Vector3(0, 1.05, 0), 2.0],
+		"_grip": [Vector3(-0.8, 0.3, 0.3), wrist, 0.45]}
+	for suffix in views:
+		var v: Array = views[suffix]
+		camera.look_from(v[0], v[1], v[2])
+		for i in 3:
+			await get_tree().process_frame
+		var p: String = path.get_basename() + str(suffix) + ".png"
+		await StillExport.capture(get_viewport(), p, false, _hide_always(), _hide_for_transparent())
+		print("demo still saved: ", p)
 	get_tree().quit()
 
 
-## Test hook: Tori holds a bokken with both hands via the grip system.
 func _render_demo_weapon(path: String) -> void:
 	# Chudan kamae with a bokken, built the way paired practice is meant to be authored: the weapon
 	# is placed directly (weapon-driven) and both hands snap onto it at their canonical hold.
