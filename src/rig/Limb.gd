@@ -8,7 +8,7 @@ extends RefCounted
 
 enum Mode { IK, FK }
 
-const ARM_POLE_OFFSET := Vector3(0.0, -0.35, -0.45)   ## elbows point back and down
+const ARM_POLE_OFFSET := Vector3(0.12, -0.45, -0.10)  ## elbows hang down, a little out and back
 const LEG_POLE_OFFSET := Vector3(0.0, -0.25, 0.55)    ## knees point forward
 
 var key: String            ## "RightArm", "LeftLeg", …
@@ -81,10 +81,17 @@ func reset_target_to_pose() -> void:
 	target.global_transform = end_pose
 
 
+## Puts the pole where a relaxed elbow or knee would be for the current target: arms hang their
+## elbow below the shoulder-to-hand line, a little outward and back; knees point forward.
+## Measured from the current line rather than the rest-pose joint, so it stays sensible when the
+## hand is somewhere the rest pose never had it.
 func reset_pole() -> void:
-	var elbow: Transform3D = rig.bone_world_transform(middle_bone)
+	var shoulder: Vector3 = rig.bone_world_transform(root_bone).origin
+	var mid: Vector3 = (shoulder + target.global_position) * 0.5
 	var offset := ARM_POLE_OFFSET if is_arm else LEG_POLE_OFFSET
-	pole.global_position = elbow.origin + rig.global_transform.basis * offset
+	if is_arm and key.begins_with("Right"):
+		offset.x = -offset.x   # the character faces +Z, so its right side is -X
+	pole.global_position = mid + rig.global_transform.basis * offset
 
 
 func set_orient_to_target(enabled: bool) -> void:

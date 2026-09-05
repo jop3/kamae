@@ -111,6 +111,7 @@ func _attach_to_weapon_raw(gripper: CharacterRig, hand: String, weapon: Weapon, 
 		gripper.set_limb_mode(hand + "Arm", Limb.Mode.IK)
 		var limb: Limb = gripper.limbs[hand + "Arm"]
 		limb.target.global_transform = weapon.global_transform * weapon.hold_offset(gripper, hand, t, 0.0).affine_inverse()
+		limb.reset_pole()
 	var grip := Grip.new()
 	grip.gripper_id = gripper.character_id
 	grip.hand = hand

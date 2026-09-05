@@ -137,6 +137,9 @@ func _render_demo_weapon(path: String) -> void:
 		print("%s hand: fingers/axis angle %.0f deg, palm centre %.3f m from axis, middle tip %.3f m from axis, palm normal . edge %.2f, thumb along axis %.3f vs palm %.3f" % [
 			side, rad_to_deg(acos(absf(fingers.dot(axis)))), to_axis.call(palm), to_axis.call(tip), normal.dot(edge),
 			(thumb - w.global_position).dot(axis), (palm - w.global_position).dot(axis)])
+	for side in ["Right", "Left"]:
+		var limb: Limb = tori.limbs[side + "Arm"]
+		print("%s arm: shoulder %s elbow %s pole %s target %s" % [side, tori.bone_world_transform(side + "UpperArm").origin, tori.bone_world_transform(side + "LowerArm").origin, limb.pole.global_position, limb.target.global_position])
 	var hands: Vector3 = w.anchor_transform(0.1).origin
 	var rh: Vector3 = tori.bone_world_transform("RightHand").origin
 	var views := {
