@@ -118,7 +118,7 @@ func _build_mesh() -> void:
 		var b: Array = rings[r + 1]
 		var n: int = a.size()
 		for k in n:
-			var k2 := (k + 1) % n
+			var k2: int = (k + 1) % n
 			st.add_vertex(a[k]); st.add_vertex(b[k]); st.add_vertex(b[k2])
 			st.add_vertex(a[k]); st.add_vertex(b[k2]); st.add_vertex(a[k2])
 	# caps
@@ -127,7 +127,7 @@ func _build_mesh() -> void:
 		for v in cap: c += v
 		c /= cap.size()
 		for k in cap.size():
-			var k2 := (k + 1) % cap.size()
+			var k2: int = (k + 1) % cap.size()
 			if cap == rings[0]:
 				st.add_vertex(c); st.add_vertex(cap[k2]); st.add_vertex(cap[k])
 			else:

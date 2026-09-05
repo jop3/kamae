@@ -42,7 +42,8 @@ func _initialize() -> void:
 	check(hold_error(bokken) < 1e-3, "anchor(t) sits at the holding hand origin (%.4f m)" % hold_error(bokken))
 	var tip_before: Vector3 = bokken.anchor_transform(1.0).origin
 	ctrl.select(tori, "RightUpperArm")
-	ctrl.rotate_selected_world(Vector3.RIGHT, 0.3)
+	tori.limbs["RightArm"].target.global_position += Vector3(0, 0.08, -0.05)
+	tori.limbs["RightArm"].target.rotate_x(0.3)
 	await settle(1)
 	check(hold_error(bokken) < 1e-3, "weapon follows when the arm rotates (%.4f m)" % hold_error(bokken))
 	check(bokken.anchor_transform(1.0).origin.distance_to(tip_before) > 0.05, "the tip actually moved")
@@ -52,7 +53,7 @@ func _initialize() -> void:
 	await settle()
 	check(director.grips.size() == 1, "second hand registered as a weapon grip")
 	check(grips_hold(), "second hand tracks its anchor (error %.4f, shortfall %.4f)" % [director.error_for(grip2), tori.limbs["LeftArm"].reach_shortfall()])
-	ctrl.rotate_selected_world(Vector3.RIGHT, -0.2)
+	tori.limbs["RightArm"].target.rotate_x(-0.2)
 	await settle(1)
 	check(grips_hold(), "second hand still tracks after another rotation (error %.4f)" % director.error_for(grip2))
 	check(hold_error(bokken) < 1e-3, "holding hand still exact")
@@ -64,7 +65,7 @@ func _initialize() -> void:
 	director.hold_weapon(uke, "Right", bokken, 0.1, 0.0, false)
 	check(bokken.global_transform.origin.distance_to(before_xf.origin) < 1e-3, "handover without snap does not jump")
 	await settle()
-	check(bokken.hold["character"] == "uke1" and hold_error(bokken) < 1e-3, "Uke now holds it exactly (%.4f)" % hold_error(bokken))
+	check(bokken.hold["character"] == "uke1" and hold_offset_error(bokken) < 1e-3, "Uke now holds it with the captured offset (%.4f)" % hold_offset_error(bokken))
 	check(bokken.global_transform.origin.distance_to(before_xf.origin) < 0.02, "weapon stays put across the switch (%.3f m)" % bokken.global_transform.origin.distance_to(before_xf.origin))
 
 	# --- weapon-driven ------------------------------------------------------
@@ -106,6 +107,12 @@ func _initialize() -> void:
 func hold_error(weapon: Weapon) -> float:
 	var rig: CharacterRig = scene.get_character(weapon.hold["character"])
 	return weapon.anchor_transform(weapon.hold["t"]).origin.distance_to(rig.bone_world_transform(weapon.hold["hand"] + "Hand").origin)
+
+
+func hold_offset_error(weapon: Weapon) -> float:
+	var rig: CharacterRig = scene.get_character(weapon.hold["character"])
+	var expected: Transform3D = rig.bone_world_transform(weapon.hold["hand"] + "Hand") * weapon.hold["offset"]
+	return expected.origin.distance_to(weapon.global_transform.origin)
 
 
 func grips_hold(tolerance: float = 0.002) -> bool:
