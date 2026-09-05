@@ -35,6 +35,11 @@ func remove_character(id: String) -> void:
 	characters_changed.emit()
 
 
+## Weapons arrive in M3W; the lookup exists now so GripTarget can resolve both kinds of target.
+func get_weapon(_id: String) -> Node3D:
+	return null
+
+
 func get_character(id: String) -> CharacterRig:
 	for c in characters:
 		if c.character_id == id:

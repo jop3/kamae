@@ -6,10 +6,11 @@ Kamae is a small Godot 4.6 desktop tool that lets an Aikido instructor hand-pose
 
 ## Status
 
-M0–M2 on this branch: Godot project, CC0 mannequin with 52 humanoid bones
+M0–M3 on this branch: Godot project, CC0 mannequin with 52 humanoid bones
 including fingers, N-character scene with per-character skin colour, floor grid, orbit camera, click-to-select FK posing with a rotation gizmo, undo/redo, PNG still export
 on a flat or transparent background, IK for both arms and legs with draggable targets and an IK/FK
-toggle that bakes the current solve, a reach warning, and per-finger curl sliders with a grip preset. Headless tests plus rendered-still checks.
+toggle that bakes the current solve, a reach warning, per-finger curl sliders with a grip preset, and grip attachments that keep one character's hand on another's
+body as either of them moves. Headless tests plus rendered-still checks.
 
 ## Running
 

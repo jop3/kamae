@@ -5,6 +5,7 @@ extends Node3D
 @onready var camera: OrbitCamera = $OrbitCamera
 @onready var gizmo: RotationGizmo = $RotationGizmo
 @onready var controller: PoseController = $PoseController
+@onready var grip_director: GripDirector = $GripDirector
 @onready var panel: SidePanel = $UI/SidePanel
 @onready var floor_grid: Node3D = $FloorGrid
 @onready var ui_layer: CanvasLayer = $UI
@@ -15,7 +16,8 @@ var export_dir := "user://exports"
 func _ready() -> void:
 	posing_scene.setup_default()
 	controller.setup(posing_scene, camera, gizmo)
-	panel.setup(controller, posing_scene)
+	grip_director.setup(posing_scene, controller)
+	panel.setup(controller, posing_scene, grip_director)
 	panel.export_requested.connect(_on_export_requested)
 	frame_all()
 	var args := OS.get_cmdline_user_args()
@@ -62,21 +64,31 @@ func _hide_for_transparent() -> Array[Node]:
 	return [floor_grid]
 
 
-## Test hook: shows what M2 provides on one figure — an arm placed by IK with the hand oriented to
-## the target, and fingers closed into a grip. Two-character grips arrive in M3.
+## Test hook: a katatedori grip — Uke's hand attached to Tori's wrist, held by the grip system.
 func _render_demo_still(path: String) -> void:
 	var tori: CharacterRig = posing_scene.get_character("tori")
-	posing_scene.remove_character("uke1")
-	controller.set_root(tori, Vector3.ZERO, deg_to_rad(200))
+	var uke: CharacterRig = posing_scene.get_character("uke1")
+	controller.set_root(tori, Vector3(0, 0, -0.22), 0.0)
+	controller.set_root(uke, Vector3(0, 0, 0.22), PI)
 	await get_tree().process_frame
+	# Tori offers the right arm; Uke reaches for it with the facing (left) hand and takes hold.
 	await controller.set_limb_mode(tori, "RightArm", Limb.Mode.IK)
-	var shoulder: Vector3 = tori.bone_world_transform("RightUpperArm").origin
-	var arm: Limb = tori.limbs["RightArm"]
-	# Forward and slightly up from the shoulder, well inside the arm's reach.
-	arm.target.global_position = shoulder + Vector3(0.12, -0.02, 0.34)
-	tori.fingers.apply_grip_preset("Right")
-	camera.look_from(Vector3(0.8, 0.15, 0.6), Vector3(0.05, 1.15, 0.1), 1.5)
+	tori.limbs["RightArm"].target.global_position = tori.bone_world_transform("RightUpperArm").origin + Vector3(0, -0.14, 0.22)
+	await controller.set_limb_mode(uke, "LeftArm", Limb.Mode.IK)
+	for i in 3:
+		await get_tree().process_frame
+	uke.limbs["LeftArm"].target.global_position = tori.bone_world_transform("RightLowerArm").origin + Vector3(0, 0.03, 0)
+	for i in 3:
+		await get_tree().process_frame
+	grip_director.attach(uke, "Left", GripTarget.for_bone(posing_scene, "tori", "RightLowerArm"))
+	uke.fingers.apply_grip_preset("Left")
+	# Now move Tori: the grip must hold without touching Uke again.
+	controller.set_root(tori, Vector3(0.05, 0, -0.20), deg_to_rad(12))
 	for i in 4:
+		await get_tree().process_frame
+	print("grip error after moving Tori: %.4f m" % grip_director.worst_error())
+	camera.look_from(Vector3(0.9, 0.30, 0.5), Vector3(0, 1.05, 0), 2.0)
+	for i in 3:
 		await get_tree().process_frame
 	await StillExport.capture(get_viewport(), path, false, _hide_always(), _hide_for_transparent())
 	print("demo still saved: ", path)

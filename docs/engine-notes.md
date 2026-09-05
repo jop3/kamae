@@ -17,6 +17,21 @@ is ignored, so a future change does not quietly reintroduce the problem.
 - **IK does not stretch.** An out-of-reach target leaves the hand short by the shortfall, so the UI has to
   warn rather than assume the hand arrives.
 
+## Grips
+
+- **Capture grip offsets from the cached solved pose, not from the skeleton.** `Skeleton3D` reports
+  the *unposed* pose outside `skeleton_updated`, so reading a bone there when attaching a grip puts
+  the captured offset out by however far the limb was posed (half a metre in practice). The cached
+  pose each `CharacterRig` keeps is correct in both contexts: it is refreshed at the start of that
+  character's own update, so it is live inside the signal and last-frame outside it.
+- **Order characters in the scene tree by their grip dependencies.** Godot evaluates skeletons in
+  tree order, so a chain (Uke 2 grips Uke 1 who grips Tori) resolves in one frame only if targets
+  come before grippers. The director topologically sorts the characters whenever the grip list
+  changes, and breaks cycles by leaving the closing edge one frame behind.
+- **A gripping hand that misses its point is out of reach, never stretched.** The only two legitimate
+  outcomes are "exactly on the point" and "short by exactly the arm's reach shortfall", which is what
+  `tests/test_m3.gd` asserts rather than pinning down particular coordinates.
+
 ## Still capture
 
 `StillExport.capture()` awaits `RenderingServer.frame_post_draw`. Two constraints, both of which
