@@ -1,0 +1,22 @@
+{
+	"camera": "Side",
+	"format": 1,
+	"name": "Jo dori",
+	"steps": [
+		{
+			"hold": 0.5,
+			"pose": "jo_dori_tsuki",
+			"transition": 0.0
+		},
+		{
+			"hold": 0.3,
+			"pose": "jo_dori_uke",
+			"transition": 0.7
+		},
+		{
+			"hold": 1.0,
+			"pose": "jo_dori_kake",
+			"transition": 0.7
+		}
+	]
+}

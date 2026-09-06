@@ -129,6 +129,29 @@ func _initialize() -> void:
 	ctrl.set_root(tori, Vector3(0.05, 0, -0.24), deg_to_rad(8))
 	await settle()
 
+	# --- wrapping a hand round a wrist -----------------------------------
+	# The attach used by the panel places the hand round the limb like a real katatedori: the
+	# palm centre rides just off the forearm axis and the shaft runs across the palm.
+	for g in director.grips.duplicate():
+		director._remove(g)
+	await settle()
+	uke.limbs["LeftArm"].target.global_position = tori.bone_world_transform("RightLowerArm").origin + Vector3(0, 0.06, 0.10)
+	await settle()
+	director.attach_wrapped(uke, "Left", tori, "RightLowerArm")
+	await settle(3)
+	var elbow: Vector3 = tori.bone_world_transform("RightLowerArm").origin
+	var wrist: Vector3 = tori.bone_world_transform("RightHand").origin
+	var forearm_axis: Vector3 = (wrist - elbow).normalized()
+	var palm: Vector3 = uke.bone_world_transform("LeftHand") * Weapon.palm_centre(uke, "Left")
+	var rel: Vector3 = palm - elbow
+	var off_axis: float = (rel - forearm_axis * rel.dot(forearm_axis)).length()
+	var along: float = rel.dot(forearm_axis) / elbow.distance_to(wrist)
+	var width_world: Vector3 = uke.bone_world_transform("LeftHand").basis * uke.fingers.palm_width("Left")
+	check(grips_hold(), "the wrapped grip holds (error %.4f, shortfall %.4f)" % [director.worst_error(), worst_shortfall()])
+	check(off_axis < 0.035, "the wrapped palm sits on the forearm (%.3f m off its axis)" % off_axis)
+	check(along > 0.2 and along < 0.95, "the wrap is on the forearm, not beyond a joint (%.2f of its length)" % along)
+	check(absf(width_world.normalized().dot(forearm_axis)) > 0.85, "the forearm runs across the palm (%.2f)" % absf(width_world.normalized().dot(forearm_axis)))
+
 	# --- removing a character cleans up its grips --------------------------
 	scene.remove_character("uke2")
 	await settle()

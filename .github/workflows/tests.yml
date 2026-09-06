@@ -1,0 +1,29 @@
+name: tests
+on: [push, pull_request]
+jobs:
+  godot:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Godot 4.6 and Xvfb
+        run: |
+          curl -sSL -o godot.zip https://github.com/godotengine/godot-builds/releases/download/4.6-stable/Godot_v4.6-stable_linux.x86_64.zip
+          unzip -q godot.zip
+          chmod +x Godot_v4.6-stable_linux.x86_64
+          sudo apt-get update && sudo apt-get install -y xvfb ffmpeg
+      - name: Run tests
+        run: GODOT=$PWD/Godot_v4.6-stable_linux.x86_64 tests/run.sh
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: tests-out
+          path: tests/out
+      - name: Upload the rendered techniques (stills and videos)
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: exports
+          path: |
+            exports/*.png
+            exports/*.mp4
+            exports/*.avi

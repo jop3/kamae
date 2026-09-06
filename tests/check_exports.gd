@@ -35,6 +35,6 @@ func _initialize() -> void:
 				gizmo_px += 1
 	check(gizmo_px == 0, "transparent still: no gizmo ring pixels (%d samples)" % gizmo_px)
 	check(flat.get_pixel(5, 5).a == 1.0, "flat still: background is opaque")
-	check(flat.get_size() == Vector2i(1600, 900), "still is rendered at the window resolution")
+	check(flat.get_width() == StillExport.OUTPUT_SIZE.x and flat.get_height() == StillExport.OUTPUT_SIZE.y, "still is rendered at the export size %dx%d regardless of the window (%dx%d)" % [StillExport.OUTPUT_SIZE.x, StillExport.OUTPUT_SIZE.y, flat.get_width(), flat.get_height()])
 	print("RESULT %s (%d failures)" % ["OK" if failures == 0 else "FAILED", failures])
 	quit(1 if failures > 0 else 0)

@@ -8,7 +8,7 @@ extends RefCounted
 
 enum Mode { IK, FK }
 
-const ARM_POLE_OFFSET := Vector3(0.0, -0.35, -0.45)   ## elbows point back and down
+const ARM_POLE_OFFSET := Vector3(0.12, -0.45, -0.10)  ## elbows hang down, a little out and back
 const LEG_POLE_OFFSET := Vector3(0.0, -0.25, 0.55)    ## knees point forward
 
 var key: String            ## "RightArm", "LeftLeg", …
@@ -81,10 +81,29 @@ func reset_target_to_pose() -> void:
 	target.global_transform = end_pose
 
 
+## Puts the pole where a relaxed elbow or knee would be for the current target: arms hang their
+## elbow below the shoulder-to-hand line, a little outward and back; knees point forward.
+## Measured from the current line rather than the rest-pose joint, so it stays sensible when the
+## hand is somewhere the rest pose never had it.
 func reset_pole() -> void:
-	var elbow: Transform3D = rig.bone_world_transform(middle_bone)
+	var shoulder: Vector3 = rig.bone_world_transform(root_bone).origin
+	var mid: Vector3 = (shoulder + target.global_position) * 0.5
 	var offset := ARM_POLE_OFFSET if is_arm else LEG_POLE_OFFSET
-	pole.global_position = elbow.origin + rig.global_transform.basis * offset
+	if is_arm and key.begins_with("Right"):
+		offset.x = -offset.x   # the character faces +Z, so its right side is -X
+	pole.global_position = mid + rig.global_transform.basis * offset
+
+
+## Blend between the FK pose (0) and the IK solve (1). Used by sequence playback to ramp a grip
+## in or out; the instructor's own edits always run at 1.
+func set_influence(x: float) -> void:
+	# SkeletonModifier3D.influence: the engine blends each modifier's output with the pose it
+	# started from, so both the IK solve and the hand orientation ramp together.
+	var v := clampf(x, 0.0, 1.0)
+	if not is_equal_approx(ik.influence, v):
+		ik.influence = v
+	if not is_equal_approx(hand_orient.influence, v):
+		hand_orient.influence = v
 
 
 func set_orient_to_target(enabled: bool) -> void:

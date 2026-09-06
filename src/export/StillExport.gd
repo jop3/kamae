@@ -19,17 +19,27 @@ static func slugify(text: String) -> String:
 	return out.trim_prefix("_").trim_suffix("_")
 
 
-## Captures `viewport` to `path`.
-## `hide_always` (UI overlay, gizmos) is hidden for every export; `hide_for_transparent`
-## (floor, backdrop) only when a transparent background is requested.
-## Nodes are hidden for the whole capture and restored afterwards, so nothing the instructor
-## sees on screen leaks into the exported image.
+## Captures the 3D world seen by `viewport`'s camera to `path` at OUTPUT_SIZE, rendered at
+## SUPERSAMPLE times that size through a SubViewport that shares the world and downscaled with a
+## Lanczos filter (spec §5.8: 2× supersampled then downscaled to soften edges). The
+## Compatibility renderer ignores `scaling_3d_scale`, so the extra resolution has to come from a
+## viewport of its own; that also makes the still independent of the window size.
+##
+## `hide_always` (UI overlay, gizmos, handles) is hidden for every export; `hide_for_transparent`
+## (floor, backdrop) only when a transparent background is requested. Everything is restored
+## afterwards on every path.
 ##
 ## Two constraints, both found by testing on Godot 4.6:
 ##  * A display is required. Under --headless the render callback never arrives and the await hangs,
 ##    so we refuse early instead.
-##  * The UI CanvasLayer must be among the hidden nodes. Capturing with it visible deadlocks the
-##    same way, and a UI-free image is what the handout needs anyway.
+##  * Overlapping captures would record each other's hidden state as the one to restore, so a
+##    second call while one is pending is refused with ERR_BUSY.
+const OUTPUT_SIZE := Vector2i(1920, 1080)
+const SUPERSAMPLE := 2
+
+static var _busy := false
+
+
 static func capture(
 		viewport: Viewport,
 		path: String,
@@ -39,10 +49,15 @@ static func capture(
 	if DisplayServer.get_name() == "headless":
 		push_error("StillExport.capture needs a display; run without --headless (use xvfb-run on a server).")
 		return ERR_UNAVAILABLE
-	var prev_bg := viewport.transparent_bg
+	if _busy:
+		return ERR_BUSY
+	_busy = true
+	var camera := viewport.get_camera_3d()
+	if camera == null:
+		_busy = false
+		return ERR_UNCONFIGURED
 	var hidden: Array[Node] = hide_always.duplicate()
 	if transparent:
-		viewport.transparent_bg = true
 		hidden.append_array(hide_for_transparent)
 	var was_visible := []
 	for n in hidden:
@@ -50,14 +65,36 @@ static func capture(
 		n.visible = false
 		if n is RotationGizmo:
 			n.suppressed = true
+	# A private viewport on the same world, at supersampled size, with a copy of the camera.
+	var sub := SubViewport.new()
+	sub.size = OUTPUT_SIZE * SUPERSAMPLE
+	sub.world_3d = viewport.world_3d
+	sub.transparent_bg = transparent
+	sub.msaa_3d = viewport.msaa_3d
+	sub.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	var cam2 := Camera3D.new()
+	sub.add_child(cam2)
+	viewport.add_child(sub)
+	cam2.global_transform = camera.global_transform
+	cam2.fov = camera.fov
+	cam2.projection = camera.projection
+	cam2.size = camera.size
+	cam2.near = camera.near
+	cam2.far = camera.far
+	cam2.current = true
 	# Two frames: one to apply the visibility changes, one to render the clean image.
 	await RenderingServer.frame_post_draw
 	await RenderingServer.frame_post_draw
-	var img := viewport.get_texture().get_image()
-	viewport.transparent_bg = prev_bg
+	var img := sub.get_texture().get_image()
+	sub.queue_free()
 	for i in hidden.size():
-		if hidden[i] is RotationGizmo:
-			hidden[i].suppressed = false
-		hidden[i].visible = was_visible[i]
+		if is_instance_valid(hidden[i]):
+			if hidden[i] is RotationGizmo:
+				hidden[i].suppressed = false
+			hidden[i].visible = was_visible[i]
+	_busy = false
+	if img == null:
+		return ERR_CANT_CREATE
+	img.resize(OUTPUT_SIZE.x, OUTPUT_SIZE.y, Image.INTERPOLATE_LANCZOS)
 	DirAccess.make_dir_recursive_absolute(path.get_base_dir())
 	return img.save_png(path)

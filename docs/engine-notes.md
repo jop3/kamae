@@ -28,6 +28,13 @@ is ignored, so a future change does not quietly reintroduce the problem.
   tree order, so a chain (Uke 2 grips Uke 1 who grips Tori) resolves in one frame only if targets
   come before grippers. The director topologically sorts the characters whenever the grip list
   changes, and breaks cycles by leaving the closing edge one frame behind.
+- **Two hands of one character on one weapon need a modifier between the arms.** The second
+  hand's target cannot be set from that character's `skeleton_updated` (both arms have solved
+  by then, so it trails a frame), nor predicted at frame start (the holding hand's rotation is
+  only known after its solve). `ArmBridge` is a `SkeletonModifier3D` between the two arms'
+  solvers; the director orders the holding arm first (`CharacterRig.put_arm_first`) and the
+  bridge reads that hand live, moves the weapon and places the other hand before its arm solves.
+  Verified exact (0.000 m) one frame after a 12 cm move in `tests/test_m3w.gd`.
 - **A gripping hand that misses its point is out of reach, never stretched.** The only two legitimate
   outcomes are "exactly on the point" and "short by exactly the arm's reach shortfall", which is what
   `tests/test_m3.gd` asserts rather than pinning down particular coordinates.
@@ -43,6 +50,20 @@ manifest as a silent hang with the process spinning at full CPU:
 - **The UI `CanvasLayer` must be hidden during the capture.** Capturing with it visible hangs the same
   way. This costs nothing in practice: an exported still must not contain the tool's own UI anyway, so
   the UI layer and the gizmo are always in `_hide_always()`.
+
+## Movie Maker
+
+- **Movie Maker records at the project's configured window size and ignores `--resolution`.**
+  With a `window_width_override` set it records at the override. The project viewport is
+  therefore 1920×1080 with no override, and `Main._ready()` shrinks the interactive window on
+  small screens instead. The child render is checked by `tests/check_movie.gd`.
+- **IK handles come back on every limb-mode change.** `CharacterRig.show_handles` (inherited
+  from `PosingScene.show_handles`) keeps them hidden for the whole render; hiding them once at
+  the start is not enough, since the sequence blend re-applies limb modes every frame.
+- **A coroutine that awaits `skeleton_updated` resumes inside the skeleton update.** See
+  "Write baked poses after the frame boundary" above; `PoseFile.capture_baked` awaits
+  `process_frame` before returning for this reason.
+- **Movie Maker does not create its output directory.** `MovieExport` makes it first.
 
 ## Character generation (MakeHuman / MPFB)
 
@@ -60,6 +81,37 @@ now asserts against all three, so a bad character cannot be exported silently.
   of one finger phalanx moves no vertex more than 12 cm (the correct arc is about 8.6 cm).
 - **Bone renaming is safe.** Renaming armature bones in Blender renames the matching vertex groups,
   so the humanoid rename pass does not disturb weights.
+
+## Hands and weapons
+
+- **The finger flex axis is the across-the-knuckles line, not the palm normal.** The first
+  `FingerCurl` rotated each phalanx about `finger_dir × across`, which is the palm normal, so a
+  "curl" swept the fingers sideways across the palm. Every numeric check still passed (the
+  fingertip-to-wrist distance shrinks either way) and the hands looked flat on anything they held.
+  The axis is now `across` made perpendicular to the finger, with the sign taken from the rig's
+  own slight rest-pose bend, and `tests/test_m2.gd` checks that the middle knuckle moves out
+  through the palm rather than along it. Render a close-up of a closed fist before trusting any
+  change here.
+- **A held shaft runs through the palm, not the wrist joint.** The hand bone's origin is the wrist.
+  `Weapon.palm_centre()` puts the anchor about 6 cm toward the fingers and 2 cm out from the palm,
+  inside the curled fingers; every hold and weapon grip goes through it.
+- **The thumb is not a fourth finger.** It sweeps across the palm about the palm normal and then
+  folds; `FingerCurl.calibrate()` picks the sign of both axes by simulating the chain on the rest
+  pose and keeping the combination that lands the tip over the index knuckle. Two attempts at
+  deriving the signs from geometry were wrong on this rig.
+- **Let the forearm carry the wrist twist.** `HandOrient` splits the rotation the hand still needs
+  into twist about the elbow-to-wrist axis and the rest, and gives the forearm bone 70 % of the
+  twist (`twist_share`). Rotating the forearm about its own axis moves neither joint, so this is
+  free, and without it every bit of pronation is a kink at the wrist. Twist far beyond what a real
+  forearm does still shears the mesh; that is a sign the pose or elbow pole is wrong, not the
+  modifier.
+- **A gripped wrist is a shaft too.** `GripDirector.attach_wrapped()` treats the gripped limb bone
+  as a weapon axis: nearest point along the bone, same side the hand is on now, palm centre
+  2 cm off the bone line, fingers across it. Attaching without the wrap freezes the hand wherever
+  it happens to be, which for a hand hovering above a wrist looks like nothing at all.
+- **Measure the palm axes from the rig; do not type them in.** Hand-typed palm normals had the
+  left hand's sign wrong. `FingerCurl.calibrate()` now records the palm normal and the
+  little-to-index direction per hand, and `Weapon.canonical_basis()` builds the hold from those.
 
 ## Posing pitfalls
 

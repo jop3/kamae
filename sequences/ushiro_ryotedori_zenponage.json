@@ -1,0 +1,22 @@
+{
+	"camera": "Side",
+	"format": 1,
+	"name": "Ushiro Ryotedori Zenponage",
+	"steps": [
+		{
+			"hold": 0.5,
+			"pose": "ushiro_ryotedori_zenponage_grepp",
+			"transition": 0.0
+		},
+		{
+			"hold": 0.3,
+			"pose": "ushiro_ryotedori_zenponage_kuzushi",
+			"transition": 0.6
+		},
+		{
+			"hold": 1.0,
+			"pose": "ushiro_ryotedori_zenponage_kake",
+			"transition": 0.8
+		}
+	]
+}

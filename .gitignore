@@ -3,3 +3,7 @@ exports/
 *.import.tmp
 tests/out/*.png
 tests/out/*.import
+tests/out/*.json
+tests/out/**
+!tests/out/.gdignore
+build/
