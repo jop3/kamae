@@ -73,6 +73,21 @@ func _initialize() -> void:
 	await settle(1)
 	check(grips_hold(), "second hand still tracks after another rotation (error %.4f)" % director.error_for(grip2))
 	check(hold_error(bokken) < 1e-3, "holding hand still exact")
+	# A big move of the holding hand: the second hand must be on the moved weapon in the very
+	# same frame, not one frame behind (it is placed from a prediction before the solve).
+	tori.limbs["RightArm"].target.global_position += Vector3(0.0, -0.10, 0.06)
+	await settle(1)
+	check(director.error_for(grip2) < 0.003 and tori.limbs["LeftArm"].reach_shortfall() < 0.001,
+		"second hand is on the weapon one frame after a 12 cm move (error %.4f)" % director.error_for(grip2))
+	# Undoing the second hand's grip also returns its arm to the mode it had (FK).
+	var left_mode_before: int = tori.limbs["LeftArm"].mode
+	var grip3 := director.attach_to_weapon(tori, "Left", bokken, 0.25)
+	await settle()
+	director._remove(grip3)
+	ctrl.undo.undo()   # undoes attach_to_weapon's entry
+	await settle()
+	check(director.grip_on_limb("tori", "LeftArm") == grip2, "undoing the extra grip leaves the earlier one in place")
+	check(tori.limbs["LeftArm"].mode == left_mode_before, "undoing a grip leaves the arm in the mode it had")
 
 	# --- handover to Uke ---------------------------------------------------
 	director.detach(grip2)

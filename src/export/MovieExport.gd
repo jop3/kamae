@@ -38,6 +38,7 @@ func export_sequence(sequence_path: String, poses_dir: String, out_dir: String) 
 	var use_ffmpeg := has_ffmpeg()
 	var frames_dir := out_dir.path_join(slug + "_frames")
 	make_output_dir(out_dir)
+	_remove_dir(frames_dir)   # stale frames from a longer earlier render would end up in the video
 	DirAccess.make_dir_recursive_absolute(frames_dir)
 	var movie_target := frames_dir.path_join("f.png") if use_ffmpeg else out_dir.path_join(slug + ".avi")
 	_job = {

@@ -40,10 +40,11 @@ func attach(gripper: CharacterRig, hand: String, target: GripTarget) -> Grip:
 	grip.target = target
 	grip.offset = target.world_transform().affine_inverse() * gripper.bone_world_transform(hand + "Hand")
 	_add(grip)
-	controller.undo.create_action("Grip %s" % grip.describe())
-	controller.undo.add_do_method(_add.bind(grip))
-	controller.undo.add_undo_method(_remove.bind(grip))
-	controller.undo.commit_action(false)
+	if controller:
+		controller.undo.create_action("Grip %s" % grip.describe())
+		controller.undo.add_do_method(_add.bind(grip))
+		controller.undo.add_undo_method(_remove.bind(grip))
+		controller.undo.commit_action(false)
 	return grip
 
 
@@ -72,17 +73,24 @@ func hold_weapon(gripper: CharacterRig, hand: String, weapon: Weapon, t: float, 
 	if controller:
 		var after := _weapon_state(weapon)
 		controller.undo.create_action("Hold %s" % weapon.weapon_id)
-		controller.undo.add_do_method(_restore_weapon_state.bind(weapon, after))
 		for g in dropped:
 			controller.undo.add_do_method(_remove.bind(g))
-		controller.undo.add_undo_method(_restore_weapon_state.bind(weapon, before))
+		controller.undo.add_do_method(_restore_weapon_state.bind(weapon, after))
 		for g in dropped:
 			controller.undo.add_undo_method(_add.bind(g))
+		controller.undo.add_undo_method(_restore_weapon_state.bind(weapon, before))
 		controller.undo.commit_action(false)
 
 
+## Everything a hold or drive change can touch, so undo puts all of it back: the weapon, and
+## the mode and orient flag of every arm (a hold forces the holder's arm to IK with orient on).
 func _weapon_state(weapon: Weapon) -> Dictionary:
-	return {"drive": weapon.drive, "hold": weapon.hold.duplicate(), "xf": weapon.global_transform}
+	var limbs := {}
+	for rig in scene.characters:
+		for key in ["RightArm", "LeftArm"]:
+			var limb: Limb = rig.limbs[key]
+			limbs["%s/%s" % [rig.character_id, key]] = [limb.mode, limb.orient_to_target]
+	return {"drive": weapon.drive, "hold": weapon.hold.duplicate(), "xf": weapon.global_transform, "limbs": limbs}
 
 
 func _restore_weapon_state(weapon: Weapon, state: Dictionary) -> void:
@@ -91,6 +99,12 @@ func _restore_weapon_state(weapon: Weapon, state: Dictionary) -> void:
 	weapon.drive = state["drive"]
 	weapon.hold = state["hold"].duplicate()
 	weapon.global_transform = state["xf"]
+	for key in state.get("limbs", {}):
+		var parts: PackedStringArray = key.split("/")
+		var rig := scene.get_character(parts[0])
+		if rig:
+			rig.set_limb_mode(parts[1], state["limbs"][key][0])
+			rig.limbs[parts[1]].set_orient_to_target(state["limbs"][key][1])
 	_rebuild()
 
 
@@ -200,6 +214,8 @@ func _attach_to_weapon_raw(gripper: CharacterRig, hand: String, weapon: Weapon, 
 func set_weapon_drive(weapon: Weapon, mode: String) -> void:
 	if weapon.drive == mode:
 		return
+	if mode == "hand" and weapon.hold.is_empty():
+		return   # nothing holds it; there is no hand to hang it from
 	var before := _weapon_state(weapon)
 	var grips_before := grips.duplicate()
 	_set_weapon_drive(weapon, mode)
@@ -214,16 +230,16 @@ func set_weapon_drive(weapon: Weapon, mode: String) -> void:
 			if not g in grips:
 				removed.append(g)
 		controller.undo.create_action("Drive %s by %s" % [weapon.weapon_id, mode])
-		controller.undo.add_do_method(_restore_weapon_state.bind(weapon, after))
 		for g in added:
 			controller.undo.add_do_method(_add.bind(g))
 		for g in removed:
 			controller.undo.add_do_method(_remove.bind(g))
-		controller.undo.add_undo_method(_restore_weapon_state.bind(weapon, before))
+		controller.undo.add_do_method(_restore_weapon_state.bind(weapon, after))
 		for g in added:
 			controller.undo.add_undo_method(_remove.bind(g))
 		for g in removed:
 			controller.undo.add_undo_method(_add.bind(g))
+		controller.undo.add_undo_method(_restore_weapon_state.bind(weapon, before))
 		controller.undo.commit_action(false)
 
 
@@ -356,7 +372,43 @@ func _on_characters_changed() -> void:
 func _rebuild() -> void:
 	_reorder_characters()
 	_reconnect()
+	_wire_arm_bridges()
 	grips_changed.emit()
+
+
+## A hand that grips a weapon held by its own other hand cannot be placed from skeleton_updated
+## (that fires after both arms solved). The rig's ArmBridge runs between the two arms: order the
+## holding arm first and let the bridge move the weapon and place the other hand live.
+func _wire_arm_bridges() -> void:
+	for rig in scene.characters:
+		var bridged := false
+		for weapon in scene.weapons:
+			if weapon.drive != "hand" or weapon.hold.is_empty() or weapon.hold["character"] != rig.character_id:
+				continue
+			for grip in grips:
+				if grip.gripper_id == rig.character_id and grip.target.kind == GripTarget.Kind.WEAPON and grip.target.weapon_id == weapon.weapon_id and grip.limb_key() != weapon.hold["hand"] + "Arm":
+					bridged = true
+		if bridged:
+			var hold_arm: String = ""
+			for weapon in scene.weapons:
+				if weapon.drive == "hand" and not weapon.hold.is_empty() and weapon.hold["character"] == rig.character_id:
+					hold_arm = weapon.hold["hand"] + "Arm"
+			rig.put_arm_first(hold_arm)
+			rig.arm_bridge.callback = _bridge.bind(rig.character_id)
+		elif rig.arm_bridge:
+			rig.arm_bridge.callback = Callable()
+
+
+func _bridge(character_id: String) -> void:
+	var rig := scene.get_character(character_id)
+	if rig == null:
+		return
+	for weapon in scene.weapons:
+		if weapon.drive == "hand" and not weapon.hold.is_empty() and weapon.hold["character"] == character_id:
+			weapon.global_transform = _held_transform(weapon, rig.bone_world_transform_live(weapon.hold["hand"] + "Hand"))
+			for grip in grips:
+				if grip.gripper_id == character_id and grip.target.kind == GripTarget.Kind.WEAPON and grip.target.weapon_id == weapon.weapon_id:
+					_apply(grip)
 
 
 ## Public entry for code that changed holds or drive modes behind the director's back
@@ -395,9 +447,11 @@ func _reorder_characters() -> void:
 				ids.erase(id)
 				progressed = true
 		if not progressed:
-			# A cycle: break it by taking the remaining characters in their current order.
-			ordered.append_array(ids)
-			break
+			# A cycle: break it by releasing one stuck character (its closing edge resolves a
+			# frame late) and carrying on, so characters outside the cycle keep their order.
+			ordered.append(ids[0])
+			ids.remove_at(0)
+			guard += 1
 	for i in ordered.size():
 		var rig := scene.get_character(ordered[i])
 		if rig:
@@ -458,7 +512,9 @@ func _apply_grips_targeting(character_id: String) -> void:
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_INTERNAL_PROCESS:
 		for grip in grips:
-			if grip.target.kind == GripTarget.Kind.WEAPON and _target_owner_character(grip) == "":
+			if grip.target.kind != GripTarget.Kind.WEAPON:
+				continue
+			if _target_owner_character(grip) == "":
 				_apply(grip)
 
 

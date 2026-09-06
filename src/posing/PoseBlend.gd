@@ -33,6 +33,21 @@ static func apply(scene: PosingScene, director: GripDirector, a: Dictionary, b: 
 		director.refresh_hand_driven()
 
 
+## Makes sure every character and weapon named by any of `poses` exists in the scene, so a
+## figure or weapon that first appears in a later step is there to be blended into.
+static func ensure_entities(scene: PosingScene, poses: Array) -> void:
+	for pose in poses:
+		for c in pose.get("characters", []):
+			if scene.get_character(c["id"]) == null and scene.characters.size() < PosingScene.MAX_CHARACTERS:
+				var rig := scene.add_character(c["id"], c.get("name", c["id"]), c.get("role", "Other"))
+				if c.has("skin_color"):
+					rig.set_skin_color(Color.html(c["skin_color"]))
+		for wd in pose.get("weapons", []):
+			if scene.get_weapon(wd["id"]) == null:
+				var w := scene.add_weapon(wd["id"], wd.get("type", "bokken"))
+				w.apply_dict(wd)
+
+
 ## Who holds what: when this changes the director must re-derive its order and connections.
 static func _hold_signature(scene: PosingScene) -> Array:
 	var sig := []
@@ -72,10 +87,18 @@ static func _apply_character(rig: CharacterRig, ca: Dictionary, cb: Dictionary, 
 		var in_a := grips_a.has(grip_key)
 		var in_b := grips_b.has(grip_key)
 		if in_a or in_b:
-			# The grip director drives the target. Ramp the influence for a one-sided grip.
+			# The grip director drives the target. Ramp the influence for a one-sided grip; a
+			# grip that changes target between the poses is a release and a new grip, so it
+			# ramps out and back in while the FK slerp carries the hand across.
 			rig.set_limb_mode(key, Limb.Mode.IK)
 			limb.set_orient_to_target(true)
-			limb.set_influence(1.0 if (in_a and in_b) else (1.0 - u if in_a else u))
+			var influence := 1.0
+			if in_a and in_b:
+				if not _same_target(grips_a[grip_key], grips_b[grip_key]):
+					influence = absf(2.0 * u - 1.0)
+			else:
+				influence = 1.0 - u if in_a else u
+			limb.set_influence(influence)
 			continue
 		var ea: Dictionary = ik_a.get(key, {})
 		var eb: Dictionary = ik_b.get(key, {})
@@ -125,6 +148,14 @@ static func _apply_weapons(scene: PosingScene, a: Dictionary, b: Dictionary, u: 
 			weapon.hold_influence = 1.0
 			if rig == null:
 				weapon.drive = "weapon"
+		elif held_a and held_b:
+			# Handed from one hand to another: the first hold lets go over the first half, the
+			# second takes over during the second half, the free transform bridging between.
+			var h: Dictionary = ha if u < 0.5 else hb
+			weapon.drive = "hand"
+			weapon.hold = h.duplicate()
+			weapon.hold["offset"] = PoseFile.array_to_transform(h.get("offset"))
+			weapon.hold_influence = absf(2.0 * u - 1.0)
 		elif held_a or held_b:
 			# Held in one pose only (a disarm, a hand-over to nobody): the hand's influence ramps.
 			var h: Dictionary = ha if held_a else hb

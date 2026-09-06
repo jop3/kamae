@@ -14,6 +14,7 @@ var poses: Dictionary = {}     ## slug -> pose dictionary
 var time := 0.0
 var playing := false
 var loop := false
+var _entities_ready := false
 
 
 func setup(posing_scene: PosingScene, grip_director: GripDirector) -> void:
@@ -36,6 +37,7 @@ func load_sequence(seq: Sequence, poses_dir: String) -> Array:
 		else:
 			poses[slug] = data
 	time = 0.0
+	_entities_ready = false
 	return missing
 
 
@@ -92,6 +94,9 @@ func _process(delta: float) -> void:
 func apply_time(t: float) -> void:
 	if sequence == null or sequence.steps.is_empty():
 		return
+	if not _entities_ready:
+		PoseBlend.ensure_entities(scene, poses.values())
+		_entities_ready = true
 	var st := sequence.state_at(t)
 	var a: Dictionary = poses.get(sequence.steps[st["from"]]["pose"], {})
 	var b: Dictionary = poses.get(sequence.steps[st["to"]]["pose"], a)

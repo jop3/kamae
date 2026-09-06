@@ -56,6 +56,11 @@ func anchor_transform(t: float) -> Transform3D:
 	return global_transform * Transform3D(Basis.IDENTITY, Vector3(0, t * length, 0) + _curve_offset(t))
 
 
+## The anchor in the weapon's own frame, for callers that predict where the weapon will be.
+func anchor_local(t: float) -> Transform3D:
+	return Transform3D(Basis.IDENTITY, Vector3(0, t * length, 0) + _curve_offset(t))
+
+
 func _curve_offset(t: float) -> Vector3:
 	if type != "bokken":
 		return Vector3.ZERO
@@ -130,6 +135,9 @@ func apply_dict(d: Dictionary) -> void:
 			hold["offset"] = hold_offset(rig, hold["hand"], float(hold["t"]), float(hold.get("roll_deg", 0.0))) if rig else Transform3D()
 	if d.has("transform"):
 		global_transform = PoseFile.array_to_transform(d["transform"])
+	# A loaded pose is a whole state, never the middle of a playback blend.
+	hold_influence = 1.0
+	free_transform = global_transform
 
 
 # ---------------------------------------------------------------- mesh

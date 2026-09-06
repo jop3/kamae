@@ -203,6 +203,7 @@ static func apply(data: Dictionary, scene: PosingScene, director: GripDirector, 
 			if entry.has("pole"):
 				limb.pole.global_position = array_to_vec(entry["pole"])
 			limb.set_orient_to_target(entry.get("orient", false))
+			limb.set_influence(1.0)   # a loaded pose is never mid-blend
 	# Weapons before grips, so weapon-kind grips resolve their target.
 	var weapons_data: Array = data.get("weapons", [])
 	var wanted_weapons := {}

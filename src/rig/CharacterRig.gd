@@ -14,6 +14,7 @@ var skeleton: Skeleton3D
 var body: MeshInstance3D
 var skin_material: StandardMaterial3D
 var fingers: FingerCurl
+var arm_bridge: ArmBridge
 ## Bone global poses as the modifier stack left them, refreshed every skeleton_updated.
 ## Reading Skeleton3D directly outside that signal returns the *authored* pose, not the posed one
 ## (see docs/engine-notes.md), so everything that asks "where is this bone now" goes through here.
@@ -102,6 +103,21 @@ func _build_limbs() -> void:
 		limb.build(self, skeleton, target, pole)
 		limbs[limb.key] = limb
 		_set_handles_visible(limb, false)
+		if limb.key == "RightArm":
+			arm_bridge = ArmBridge.new()
+			arm_bridge.name = "ArmBridge"
+			skeleton.add_child(arm_bridge)   # between the two arms' solvers
+
+
+## Orders the modifiers so `key`'s arm solves first, then the bridge, then the other arm.
+func put_arm_first(key: String) -> void:
+	var other := "LeftArm" if key == "RightArm" else "RightArm"
+	var first: Limb = limbs[key]
+	var second: Limb = limbs[other]
+	var i := fingers.get_index() + 1
+	for node in [first.ik, first.hand_orient, arm_bridge, second.ik, second.hand_orient]:
+		skeleton.move_child(node, i)
+		i += 1
 
 
 func set_limb_mode(limb_key: String, mode: int) -> void:

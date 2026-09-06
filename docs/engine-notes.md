@@ -28,6 +28,13 @@ is ignored, so a future change does not quietly reintroduce the problem.
   tree order, so a chain (Uke 2 grips Uke 1 who grips Tori) resolves in one frame only if targets
   come before grippers. The director topologically sorts the characters whenever the grip list
   changes, and breaks cycles by leaving the closing edge one frame behind.
+- **Two hands of one character on one weapon need a modifier between the arms.** The second
+  hand's target cannot be set from that character's `skeleton_updated` (both arms have solved
+  by then, so it trails a frame), nor predicted at frame start (the holding hand's rotation is
+  only known after its solve). `ArmBridge` is a `SkeletonModifier3D` between the two arms'
+  solvers; the director orders the holding arm first (`CharacterRig.put_arm_first`) and the
+  bridge reads that hand live, moves the weapon and places the other hand before its arm solves.
+  Verified exact (0.000 m) one frame after a 12 cm move in `tests/test_m3w.gd`.
 - **A gripping hand that misses its point is out of reach, never stretched.** The only two legitimate
   outcomes are "exactly on the point" and "short by exactly the arm's reach shortfall", which is what
   `tests/test_m3.gd` asserts rather than pinning down particular coordinates.

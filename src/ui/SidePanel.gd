@@ -106,7 +106,7 @@ func setup(ctrl: PoseController, posing_scene: PosingScene, grip_director: GripD
 		row.add_child(s); _euler.append(s)
 		var v := Label.new(); v.custom_minimum_size.x = 48; v.text = "0°"; row.add_child(v); _euler_vals.append(v)
 	var reset := Button.new(); reset.text = "Reset joint"
-	reset.pressed.connect(func(): if controller.selected_bone != "": controller.reset_bone(controller.selected_rig, controller.selected_bone))
+	reset.pressed.connect(func(): if controller.selected_rig and controller.selected_bone != "": controller.reset_bone(controller.selected_rig, controller.selected_bone))
 	vb.add_child(reset)
 
 	vb.add_child(_header("Arms and legs"))
@@ -472,7 +472,7 @@ func _refresh_values() -> void:
 
 
 func _on_euler_changed(_v: float) -> void:
-	if _updating or controller.selected_bone == "":
+	if _updating or controller.selected_rig == null or controller.selected_bone == "":
 		return
 	var q := Quaternion.from_euler(Vector3(deg_to_rad(_euler[0].value), deg_to_rad(_euler[1].value), deg_to_rad(_euler[2].value)))
 	controller.set_bone_rotation(controller.selected_rig, controller.selected_bone, q)
@@ -481,12 +481,12 @@ func _on_euler_changed(_v: float) -> void:
 
 
 func _on_euler_drag_started() -> void:
-	if controller.selected_bone != "":
+	if controller.selected_rig and controller.selected_bone != "":
 		_slider_old_q = controller.get_bone_rotation(controller.selected_rig, controller.selected_bone)
 
 
 func _on_euler_drag_ended(changed: bool) -> void:
-	if changed and controller.selected_bone != "":
+	if changed and controller.selected_rig and controller.selected_bone != "":
 		controller.commit_bone_rotation(controller.selected_rig, controller.selected_bone, _slider_old_q, controller.get_bone_rotation(controller.selected_rig, controller.selected_bone))
 
 
@@ -768,7 +768,9 @@ func _reload_player() -> void:
 func _on_play_pressed() -> void:
 	if player == null or _sequence == null:
 		return
-	_reload_player()
+	# Reload only when the player does not already hold this sequence, so Pause then Play resumes.
+	if player.sequence != _sequence or player.poses.is_empty():
+		_reload_player()
 	if player.time >= player.duration():
 		player.time = 0.0
 	player.play()
