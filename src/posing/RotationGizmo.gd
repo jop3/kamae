@@ -52,7 +52,10 @@ func _ready() -> void:
 ## Place at a world position with a world basis (axes of the joint).
 func attach(pos: Vector3, basis_world: Basis) -> void:
 	_basis_world = basis_world.orthonormalized()
-	global_transform = Transform3D(_basis_world, pos)
+	# Keep the screen-space scale _process computed; attach() is called every frame by the
+	# controller after this node's own _process, so writing scale 1 here would undo it.
+	var s := maxf(global_transform.basis.get_scale().x, 0.001)
+	global_transform = Transform3D(_basis_world.scaled(Vector3.ONE * s), pos)
 	visible = not suppressed
 
 

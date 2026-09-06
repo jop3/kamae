@@ -161,8 +161,8 @@ func _render_sequence(args: PackedStringArray) -> void:
 		get_tree().quit(1)
 		return
 	var missing: Array = player.load_sequence(seq, poses_dir)
-	if not missing.is_empty():
-		push_error("Sequence %s names poses that are not saved: %s" % [seq.name, missing])
+	if not missing.is_empty() or seq.steps.is_empty():
+		push_error("Sequence %s has no steps or names poses that are not saved: %s" % [seq.name, missing])
 		get_tree().quit(1)
 		return
 	posing_scene.show_handles = false
@@ -206,8 +206,8 @@ func _render_stills(args: PackedStringArray) -> void:
 		get_tree().quit(1)
 		return
 	var missing: Array = player.load_sequence(seq, poses_dir)
-	if not missing.is_empty():
-		push_error("Sequence %s names poses that are not saved: %s" % [seq.name, missing])
+	if not missing.is_empty() or seq.steps.is_empty():
+		push_error("Sequence %s has no steps or names poses that are not saved: %s" % [seq.name, missing])
 		get_tree().quit(1)
 		return
 	posing_scene.show_handles = false

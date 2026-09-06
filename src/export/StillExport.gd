@@ -30,6 +30,9 @@ static func slugify(text: String) -> String:
 ##    so we refuse early instead.
 ##  * The UI CanvasLayer must be among the hidden nodes. Capturing with it visible deadlocks the
 ##    same way, and a UI-free image is what the handout needs anyway.
+static var _busy := false
+
+
 static func capture(
 		viewport: Viewport,
 		path: String,
@@ -39,6 +42,11 @@ static func capture(
 	if DisplayServer.get_name() == "headless":
 		push_error("StillExport.capture needs a display; run without --headless (use xvfb-run on a server).")
 		return ERR_UNAVAILABLE
+	if _busy:
+		# Two overlapping captures would record each other's hidden state as the one to restore
+		# and leave the UI hidden for good.
+		return ERR_BUSY
+	_busy = true
 	var prev_bg := viewport.transparent_bg
 	var hidden: Array[Node] = hide_always.duplicate()
 	if transparent:
@@ -56,8 +64,12 @@ static func capture(
 	var img := viewport.get_texture().get_image()
 	viewport.transparent_bg = prev_bg
 	for i in hidden.size():
-		if hidden[i] is RotationGizmo:
-			hidden[i].suppressed = false
-		hidden[i].visible = was_visible[i]
+		if is_instance_valid(hidden[i]):
+			if hidden[i] is RotationGizmo:
+				hidden[i].suppressed = false
+			hidden[i].visible = was_visible[i]
+	_busy = false
+	if img == null:
+		return ERR_CANT_CREATE
 	DirAccess.make_dir_recursive_absolute(path.get_base_dir())
 	return img.save_png(path)

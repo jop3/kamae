@@ -15,6 +15,8 @@ var gizmo: RotationGizmo
 var undo := UndoRedo.new()
 
 var selected_rig: CharacterRig
+var _known_characters := 0
+var _mode_change_pending: Dictionary = {}   ## "id/limb" -> true while an IK/FK bake is in flight
 var selected_bone := ""
 var selected_limb := ""      ## limb key while an IK handle is selected, else ""
 var _drag_old_rot := Quaternion.IDENTITY
@@ -42,8 +44,15 @@ func _on_characters_changed() -> void:
 			pc.name = "PickCapsules"
 			rig.add_child(pc)
 			pc.build(rig)
-	if selected_rig and not is_instance_valid(selected_rig):
+	# A removed rig is only queue_free'd, so is_instance_valid still says yes here; ask the scene.
+	if selected_rig and not scene.characters.has(selected_rig):
 		select(null, "")
+	# Undo entries bind rig objects; once a rig is gone every older entry would touch a freed
+	# node, so the history is dropped with it.
+	var alive := scene.characters.size()
+	if alive < _known_characters:
+		undo.clear_history()
+	_known_characters = alive
 
 
 # ---------------------------------------------------------------- selection
@@ -72,7 +81,8 @@ func pick_handle(mouse: Vector2) -> LimbHandle:
 	if area == null:
 		return null
 	var handle := area.get_parent()
-	return handle if handle is LimbHandle else null
+	# Area3Ds collide whether or not they are drawn; a hidden ball must not steal the click.
+	return handle if handle is LimbHandle and handle.is_visible_in_tree() else null
 
 
 func _raycast_area(mouse: Vector2, layer: int) -> Node:
@@ -274,13 +284,20 @@ func set_limb_mode(rig: CharacterRig, limb_key: String, mode: int) -> void:
 	var limb: Limb = rig.limbs[limb_key]
 	if limb.mode == mode:
 		return
+	var pending_key := "%s/%s" % [rig.character_id, limb_key]
+	if _mode_change_pending.get(pending_key, false):
+		return   # a bake for this limb is already in flight; a second click must not double it
 	var before := limb.capture_solved_rotations()
 	if mode == Limb.Mode.FK:
+		_mode_change_pending[pending_key] = true
 		var solved := await capture_solved_rotations(limb)
 		# The solved values are captured inside skeleton_updated, but writing them there is
 		# pointless: Skeleton3D restores the authored pose right after the modifiers run. Wait for
 		# the frame boundary, then write, so the baked rotations survive.
 		await get_tree().process_frame
+		_mode_change_pending.erase(pending_key)
+		if not is_instance_valid(rig) or not scene.characters.has(rig) or limb.mode == mode:
+			return   # the rig went away, or the mode already changed, while we waited
 		rig.set_limb_mode(limb_key, Limb.Mode.FK)
 		limb.apply_rotations(solved)
 		_record_mode_change(rig, limb_key, Limb.Mode.IK, Limb.Mode.FK, before, solved)

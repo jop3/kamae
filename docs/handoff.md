@@ -203,7 +203,14 @@ playback blend state, a second hand on a weapon trailing a frame, and so on; the
 lists them). The two-handed fix introduced `ArmBridge`, a modifier between the arms' solvers; see
 `docs/engine-notes.md`.
 
-Next: a second review pass over the rig and posing code written in the first session; 2×
+A second review pass over the first-session rig and posing code found eight more (undo history
+binding freed rigs after a pose load, a stale selection after character removal, the IK/FK bake
+unguarded across its awaits, overlapping still captures leaving the UI hidden, the gizmo never
+getting its screen-space size, hidden IK balls stealing clicks, uncalibrated finger bones
+rotated about a default axis, empty sequences crashing the render children); all fixed in
+"Fix eight findings from the second review".
+
+Next: hand the drafts to the instructor; 2×
 supersampled stills if the Compatibility renderer allows it; tooltips and keyboard shortcuts;
 the pose panel's confirm-before-overwrite; then wait for the instructor's corrections and the
 open questions in `docs/spec-v2.md` §9. M9 (gi) remains optional.

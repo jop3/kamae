@@ -156,7 +156,11 @@ static func _assemble(scene: PosingScene, director: GripDirector, camera, name: 
 
 ## Rebuilds the scene from `data`. Must be called from ordinary code (not inside
 ## skeleton_updated), since bone writes made during the signal are undone by the pose restore.
-static func apply(data: Dictionary, scene: PosingScene, director: GripDirector, _controller: PoseController = null, camera = null) -> void:
+static func apply(data: Dictionary, scene: PosingScene, director: GripDirector, controller: PoseController = null, camera = null) -> void:
+	# Undo entries bind the rigs that exist now; a loaded pose replaces them, so the history goes.
+	if controller:
+		controller.undo.clear_history()
+		controller.select(null, "")
 	if camera != null and camera.has_method("apply_state") and data.get("camera") is Dictionary:
 		camera.apply_state(data["camera"])
 	var chars: Array = data.get("characters", [])

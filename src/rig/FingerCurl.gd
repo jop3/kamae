@@ -30,6 +30,7 @@ var _axes: Dictionary = {}
 var _palm_normals: Dictionary = {}
 ## side -> little-finger-to-index direction in the hand bone's rest frame.
 var _palm_widths: Dictionary = {}
+var _calibrated := false
 
 
 func _init() -> void:
@@ -74,6 +75,7 @@ func calibrate() -> void:
 	var sk := get_skeleton()
 	if sk == null:
 		return
+	_calibrated = true
 	_axes.clear()
 	_palm_normals.clear()
 	_palm_widths.clear()
@@ -184,7 +186,7 @@ func _process_modification_with_delta(_delta: float) -> void:
 	var sk := get_skeleton()
 	if sk == null:
 		return
-	if _axes.is_empty():
+	if not _calibrated:
 		calibrate()
 	for side in SIDES:
 		for finger in FINGERS:
@@ -199,7 +201,9 @@ func _process_modification_with_delta(_delta: float) -> void:
 				if is_zero_approx(amount):
 					sk.set_bone_pose_rotation(bone, rest)
 					continue
+				if not _axes.has(bone):
+					continue   # a finger calibrate() could not work out; leave it at rest
 				var weight: float = SEGMENT_WEIGHT[i]
 				var angle := deg_to_rad(FULL_CURL_DEG) * amount * weight * scale
-				var axis: Vector3 = _axes.get(bone, Vector3(0, 0, 1))
+				var axis: Vector3 = _axes[bone]
 				sk.set_bone_pose_rotation(bone, rest * Quaternion(axis, angle))
