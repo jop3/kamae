@@ -17,6 +17,9 @@ on the right. The panel scrolls. Everything you do is undoable with Ctrl+Z / Ctr
 The Camera section has **Front** and **Side** buttons that frame every figure; Side is the default
 view, Front looks from Tori's side of the line, swung a little so that Tori does not hide Uke.
 
+**Keyboard:** `1` Front view, `2` Side view, `Home` frame everything, `Space` play or pause the
+sequence, `Ctrl+Z` / `Ctrl+Y` undo and redo, `Shift` while dragging a ring snaps to 15°.
+
 ## Posing a figure
 
 1. **Click a body part.** Three coloured rings appear at the joint. Drag a ring to rotate about

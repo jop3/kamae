@@ -82,6 +82,31 @@ func _ready() -> void:
 			get_tree().quit()
 
 
+## Keyboard shortcuts: 1 Front, 2 Side, Space play/pause the sequence, Home frames everything.
+## Ctrl+Z / Ctrl+Y are handled by the pose controller.
+func _unhandled_key_input(event: InputEvent) -> void:
+	if not (event is InputEventKey and event.pressed and not event.echo):
+		return
+	match event.keycode:
+		KEY_1:
+			camera.fov = CameraPresets.FOV_DEG
+			camera.apply_preset(CameraPresets.front(posing_scene))
+		KEY_2:
+			camera.fov = CameraPresets.FOV_DEG
+			camera.apply_preset(CameraPresets.side(posing_scene))
+		KEY_HOME:
+			frame_all()
+		KEY_SPACE:
+			if player and player.sequence:
+				if player.playing:
+					player.pause()
+				else:
+					player.play()
+		_:
+			return
+	get_viewport().set_input_as_handled()
+
+
 func frame_all() -> void:
 	camera.fov = CameraPresets.FOV_DEG
 	camera.apply_preset(CameraPresets.side(posing_scene))
