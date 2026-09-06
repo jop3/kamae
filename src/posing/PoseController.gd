@@ -367,6 +367,16 @@ func _apply_curls(rig: CharacterRig, side: String, values: Dictionary) -> void:
 	pose_changed.emit()
 
 
+# ---------------------------------------------------------------- camera
+
+## One undo entry per orbit or pan gesture (spec §5.2 lists the camera among undoable things).
+func record_camera_move(cam: Node, before: Dictionary, after: Dictionary) -> void:
+	undo.create_action("Move camera")
+	undo.add_do_method(cam.apply_state.bind(after))
+	undo.add_undo_method(cam.apply_state.bind(before))
+	undo.commit_action(false)
+
+
 # ---------------------------------------------------------------- copy and mirror (spec §5.5)
 
 ## Copies every bone rotation, finger curl and limb state from one character to another. Both

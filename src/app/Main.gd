@@ -24,6 +24,7 @@ func _ready() -> void:
 			get_window().size = Vector2i(1600, 900)
 	posing_scene.setup_default()
 	controller.setup(posing_scene, camera, gizmo)
+	camera.moved.connect(func(before: Dictionary, after: Dictionary): controller.record_camera_move(camera, before, after))
 	grip_director.setup(posing_scene, controller)
 	player = SequencePlayer.new()
 	player.name = "SequencePlayer"

@@ -8,6 +8,9 @@ var yaw := 0.0
 var pitch := -0.25
 var orbiting := false
 var panning := false
+## Emitted when a mouse gesture ends, with the state before it and after it, for undo.
+signal moved(before: Dictionary, after: Dictionary)
+var _gesture_start: Dictionary = {}
 
 
 func _ready() -> void:
@@ -17,10 +20,19 @@ func _ready() -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton:
 		match event.button_index:
-			MOUSE_BUTTON_LEFT:
-				orbiting = event.pressed
-			MOUSE_BUTTON_MIDDLE:
-				panning = event.pressed
+			MOUSE_BUTTON_LEFT, MOUSE_BUTTON_MIDDLE:
+				if event.pressed:
+					if _gesture_start.is_empty():
+						_gesture_start = state()
+				elif not _gesture_start.is_empty():
+					var after := state()
+					if after != _gesture_start:
+						moved.emit(_gesture_start, after)
+					_gesture_start = {}
+				if event.button_index == MOUSE_BUTTON_LEFT:
+					orbiting = event.pressed
+				else:
+					panning = event.pressed
 			MOUSE_BUTTON_WHEEL_UP:
 				distance = maxf(0.5, distance * 0.9)
 				_apply()

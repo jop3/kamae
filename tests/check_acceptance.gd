@@ -68,6 +68,13 @@ func _initialize() -> void:
 		else:
 			check(worst < 0.012, "%s: every gripping hand is on its point (worst %.3f m, %s)" % [slug, worst, worst_desc])
 		check(colours_ok, "%s: gripping hand and gripped limb have different colours" % slug)
+		# Nobody floats or sinks: every foot within a few centimetres of the floor.
+		var worst_foot := 0.0
+		for rig in scene.characters:
+			for side in ["Right", "Left"]:
+				var toe_y: float = rig.bone_world_transform(side + "Toes").origin.y
+				worst_foot = maxf(worst_foot, absf(toe_y - 0.02))
+		check(worst_foot < 0.06, "%s: feet stay on the floor (worst %.3f m)" % [slug, worst_foot])
 		# Hand-driven weapons sit in their holder's palm.
 		for w in scene.weapons:
 			if w.drive == "hand" and not w.hold.is_empty():

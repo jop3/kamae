@@ -99,6 +99,35 @@ func bend_forward(id: String, bone: String, deg: float) -> void:
 	ctrl.select(null, "")
 
 
+## A hanmi stance: `front` foot a step forward and turned out a little, rear foot back and
+## turned out more, knees bent by dropping the hips. Feet are planted with leg IK, so later
+## root moves (the step-in in save_pose) slide the figure without lifting a foot off the floor
+## only if the targets move with it: they hang under the rig root, so they do.
+func hanmi(id: String, front: String = "Right", depth: float = 0.32, width: float = 0.16, drop: float = 0.06) -> void:
+	var r := rig(id)
+	var rear := "Left" if front == "Right" else "Right"
+	for side in ["Right", "Left"]:
+		if r.limbs[side + "Leg"].mode != Limb.Mode.IK:
+			await ctrl.set_limb_mode(r, side + "Leg", Limb.Mode.IK)
+	await settle()
+	var b := r.global_transform.basis
+	var lateral := func(side: String) -> float: return -width if side == "Right" else width   # right is -x
+	var foot := func(side: String, forward: float, turn_deg: float) -> void:
+		var limb: Limb = r.limbs[side + "Leg"]
+		var pos: Vector3 = r.global_position + b * Vector3(lateral.call(side), 0.0, forward)
+		var foot_now: Transform3D = r.bone_world_transform(side + "Foot")
+		var ankle_height: float = foot_now.origin.y - r.global_position.y
+		# Keep the foot's own orientation (its bone axis is not level) and only turn it about the
+		# vertical; forcing the rig's basis onto the foot bone points the toes at the sky.
+		limb.target.global_transform = Transform3D(foot_now.basis.rotated(Vector3.UP, deg_to_rad(turn_deg)), pos + Vector3(0, ankle_height, 0))
+		limb.set_orient_to_target(true)
+		limb.reset_pole()
+	foot.call(front, depth * 0.5, 0.0)
+	foot.call(rear, -depth * 0.5, 40.0 if rear == "Left" else -40.0)
+	r.position.y = -drop
+	await settle(3)
+
+
 func fingers(id: String, side: String, curl: float) -> void:
 	rig(id).fingers.set_hand_curl(side, curl)
 
@@ -181,6 +210,8 @@ func katatedori_ikkyo() -> void:
 	stance("tori", 0, -0.22, 0)
 	stance("uke1", 0, 0.22, 180)
 	await settle()
+	await hanmi("tori", "Right")
+	await hanmi("uke1", "Left")
 	await hand_at("tori", "Right", Vector3(0, -0.14, 0.22))
 	await settle(3)
 	await grab("uke1", "Left", "tori", "RightLowerArm")
@@ -209,6 +240,8 @@ func ushiro_ryotedori_zenponage() -> void:
 	stance("tori", 0, 0, 0)
 	stance("uke1", 0, -0.36, 0)   # behind Tori, facing the same way
 	await settle()
+	await hanmi("tori", "Right")
+	await hanmi("uke1", "Right")
 	await hand_at("tori", "Right", Vector3(0.04, -0.36, -0.06))
 	await hand_at("tori", "Left", Vector3(-0.04, -0.36, -0.06))
 	await settle(3)
@@ -262,6 +295,9 @@ func three_person() -> void:
 	stance("uke1", -0.40, 0.40, 180)
 	stance("uke2", 0.40, 0.40, 180)
 	await settle()
+	await hanmi("tori", "Right")
+	await hanmi("uke1", "Left")
+	await hanmi("uke2", "Right")
 	await hand_at("tori", "Right", Vector3(0.05, -0.14, 0.25))
 	await hand_at("tori", "Left", Vector3(-0.05, -0.14, 0.25))
 	await settle(3)
@@ -305,6 +341,8 @@ func tachi_dori() -> void:
 	stance("uke1", 0, 0.55, 180)
 	stance("tori", 0, -0.75, 0)
 	await settle()
+	await hanmi("uke1", "Right")
+	await hanmi("tori", "Left")
 	var bokken := scene.add_weapon("bokken1", "bokken")
 	await chudan("uke1", bokken, 0.17, 0.04)
 	await save_pose("Tachi dori Kamae")
@@ -335,6 +373,8 @@ func jo_dori() -> void:
 	stance("uke1", 0, 0.75, 180)
 	stance("tori", 0, -0.75, 0)
 	await settle()
+	await hanmi("uke1", "Right")
+	await hanmi("tori", "Left")
 	var jo := scene.add_weapon("jo1", "jo")
 	var u := rig("uke1")
 	# Thrust: jo level at chest height, tip toward Tori, hands at 0.30 and 0.55 along it.
@@ -367,6 +407,8 @@ func kumitachi() -> void:
 	stance("tori", 0, -0.62, 0)
 	stance("uke1", 0, 0.62, 180)
 	await settle()
+	await hanmi("tori", "Right")
+	await hanmi("uke1", "Right")
 	var a := scene.add_weapon("bokken1", "bokken")
 	var b := scene.add_weapon("bokken2", "bokken")
 	await chudan("tori", a, 0.17, 0.04)
@@ -391,6 +433,8 @@ func kumijo() -> void:
 	stance("tori", 0, -0.75, 0)
 	stance("uke1", 0, 0.75, 180)
 	await settle()
+	await hanmi("tori", "Right")
+	await hanmi("uke1", "Right")
 	var a := scene.add_weapon("jo1", "jo")
 	var b := scene.add_weapon("jo2", "jo")
 	for entry in [["tori", a], ["uke1", b]]:
