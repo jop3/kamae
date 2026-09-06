@@ -28,7 +28,11 @@ const OUTSTANDING := {
 	"katatedori_ikkyo": 6,
 	"katatedori_shihonage_irimi": 12,
 	"tachi_dori": 10,
-	"ushiro_ryotedori_zenponage": 4,
+	## Uke now goes round Tori instead of through him, which is the technique; what is left is
+	## his arms tangling with Tori's body as he is led round still holding both wrists. That is
+	## the authoring question this fixture has never answered: when the grip goes, and whether
+	## Uke goes down (docs/handoff.md).
+	"ushiro_ryotedori_zenponage": 11,
 }
 
 var scene: PosingScene

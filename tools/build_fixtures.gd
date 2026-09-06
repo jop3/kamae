@@ -28,14 +28,26 @@ func _initialize() -> void:
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(POSES))
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(SEQUENCES))
 
-	await katatedori_ikkyo()
-	await ushiro_ryotedori_zenponage()
-	await katatedori_shihonage_irimi()
-	await three_person()
-	await tachi_dori()
-	await jo_dori()
-	await kumitachi()
-	await kumijo()
+	# ONLY=<technique> rebuilds one technique and leaves the other files alone. The poses have
+	# been corrected by hand since this script last ran, so a full rebuild would throw that away:
+	# rebuild the one being worked on, look at what it renders, and leave the rest committed.
+	var only := OS.get_environment("ONLY")
+	if only == "" or only == "katatedori_ikkyo":
+		await katatedori_ikkyo()
+	if only == "" or only == "ushiro_ryotedori_zenponage":
+		await ushiro_ryotedori_zenponage()
+	if only == "" or only == "katatedori_shihonage_irimi":
+		await katatedori_shihonage_irimi()
+	if only == "" or only == "three_person":
+		await three_person()
+	if only == "" or only == "tachi_dori":
+		await tachi_dori()
+	if only == "" or only == "jo_dori":
+		await jo_dori()
+	if only == "" or only == "kumitachi":
+		await kumitachi()
+	if only == "" or only == "kumijo":
+		await kumijo()
 
 	print("wrote %d files" % written.size())
 	for w in written:
@@ -254,18 +266,40 @@ func ushiro_ryotedori_zenponage() -> void:
 	await grab("uke1", "Left", "tori", "LeftLowerArm", Vector3(0, 0.05, -0.04))
 	await save_pose("Ushiro Ryotedori Zenponage Grepp")
 
+	# Kuzushi: Tori lifts and turns a little, breaking Uke's balance forward. Uke is still square
+	# behind him here — he is off balance, not yet going anywhere.
 	await hand_at("tori", "Right", Vector3(-0.04, 0.12, 0.30))
 	await hand_at("tori", "Left", Vector3(0.04, 0.12, 0.30))
+	stance("tori", 0, 0, 0)
 	stance("uke1", 0, -0.40, 0)
+	await settle(3)
 	await save_pose("Ushiro Ryotedori Zenponage Kuzushi")
 
-	# Kake: Tori extends forward-down; Uke, still holding, is thrown well beyond arm's reach,
-	# which is exactly what the reach warning is for (spec 8.2).
-	await hand_at("tori", "Right", Vector3(-0.05, -0.35, 0.42))
-	await hand_at("tori", "Left", Vector3(0.05, -0.35, 0.42))
-	stance("uke1", 0, 1.3, 0)
+	# Tenkan: Tori turns away to his left and leads Uke round to that side. This is the pose the
+	# technique cannot do without: with only a Kuzushi and a Kake, the straight line between them
+	# runs Uke through the place Tori is standing, which is what tests/check_motion.gd measures
+	# and no blend can correct (a gripping hand cannot be pushed aside).
+	# Tori faces +Z, so his left is +X: that is the side Uke goes round and is thrown past, the
+	# side on which his own arms reach forward to keep hold rather than crossing his chest.
+	await hand_at("tori", "Right", Vector3(-0.02, 0.06, 0.34))
+	await hand_at("tori", "Left", Vector3(0.10, 0.02, 0.26))
+	stance("tori", 0, 0, 25)
+	stance("uke1", 0.85, 0.35, 25)
+	await settle(3)
+	await save_pose("Ushiro Ryotedori Zenponage Tenkan")
+
+	# Kake: Uke is projected forward past that same side, turning with the direction he is thrown,
+	# and still holding — well beyond arm's reach, which is what the reach warning is for
+	# (spec 8.2).
+	await hand_at("tori", "Right", Vector3(-0.05, -0.30, 0.44))
+	await hand_at("tori", "Left", Vector3(0.05, -0.30, 0.44))
+	stance("tori", 0, 0, 35)
+	stance("uke1", 1.05, 0.75, 55)
+	await settle(3)
 	await save_pose("Ushiro Ryotedori Zenponage Kake", true)
-	save_sequence("Ushiro Ryotedori Zenponage", [["Ushiro Ryotedori Zenponage Grepp", 0.0, 0.5], ["Ushiro Ryotedori Zenponage Kuzushi", 0.6, 0.3], ["Ushiro Ryotedori Zenponage Kake", 0.8, 1.0]])
+	save_sequence("Ushiro Ryotedori Zenponage", [["Ushiro Ryotedori Zenponage Grepp", 0.0, 0.5],
+		["Ushiro Ryotedori Zenponage Kuzushi", 0.6, 0.25], ["Ushiro Ryotedori Zenponage Tenkan", 0.45, 0.1],
+		["Ushiro Ryotedori Zenponage Kake", 0.5, 1.0]])
 
 
 # ---------------------------------------------------------------- 8.3 Katatedori Shihonage irimi

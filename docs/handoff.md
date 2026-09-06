@@ -430,3 +430,35 @@ only go down — beating it fails the check and asks for the number to be lowere
 - **Nobody's head ever moves.** Measuring the poses turned up Neck, Head, Chest and both clavicles
   at exactly 0° in every committed pose. The figures stare straight ahead through every technique,
   which is a large part of why they read as mannequins rather than people.
+
+
+### Ushiro ryotedori zenponage: Uke went through Tori, not past him (same session)
+
+The instructor's words: "one person passes straight through the other, while he should be thrown
+on the side of the nage." He was right, and it was in the fixture, not in the rendering.
+`ushiro_ryotedori_zenponage_kake` put Uke at `pos [0, 0, 1.30]` and Kuzushi at `[0, 0, -0.28]` —
+both on x = 0, with Tori standing at the origin and the same root and yaw in all three keyframes.
+Uke was scripted to travel from behind Tori to 1.3 m in front along a line through Tori's body,
+and Tori never moved or turned at all. `MotionClearance` had only pushed the pair apart far enough
+to clear the tolerance, which is why it still read as passing through: a clearance pass cannot
+correct a technique that is specified wrong.
+
+The technique now goes round. Uke is led out past Tori's left (Tori faces +Z, so +X), and Tori
+turns through the throw, 0 -> 25 -> 35 degrees, instead of standing still. It needed a fourth
+keyframe, **Tenkan**: with only a Kuzushi and a Kake the straight line between them still grazes
+Tori, and a polyline through a waypoint beside him does not.
+
+`tools/build_fixtures.gd` takes `ONLY=<technique>` now. A plain rebuild rewrites all 21 poses —
+the committed ones have been corrected by hand since the script last ran, so a full rebuild throws
+that work away. Rebuild the technique being worked on, look at what it renders, leave the rest.
+
+Two things that need the instructor before this phase is finished, and that I did not invent:
+
+- **Uke is thrown standing up.** The fixture only ever moved his *position*; his posture is a man
+  standing, translated along a path. No lean, no fall, no ukemi. That is now the main reason it
+  does not read as a throw, and it is a bigger problem than the trajectory was.
+- **When does the grip go?** The 11 frames `check_motion.gd` still reports for this technique are
+  all Uke's arms tangling with Tori as he is led round still holding both wrists. He cannot simply
+  be placed further out while he holds: `save_pose` steps a gripper back until its hands reach,
+  which is correct. So the question is where in the movement Uke lets go, and whether he goes down.
+  Answer those two and the phase can be finished; guessing at them would be inventing aikido.

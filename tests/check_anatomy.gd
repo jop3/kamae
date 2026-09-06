@@ -31,6 +31,8 @@ const OUTSTANDING := {
 	"tachi_dori_irimi": ["uke1: RightHand swung", "uke1: LeftHand swung"],
 	"tachi_dori_kamae": ["uke1: RightHand swung", "uke1: LeftHand swung"],
 	"ushiro_ryotedori_zenponage_grepp": ["uke1: RightHand swung", "uke1: LeftHand swung"],
+	"ushiro_ryotedori_zenponage_tenkan": ["uke1: RightHand swung"],
+	"ushiro_ryotedori_zenponage_kake": ["uke1: RightHand swung"],
 }
 
 var scene: PosingScene

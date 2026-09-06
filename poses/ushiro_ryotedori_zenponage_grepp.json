@@ -342,6 +342,7 @@
 					"Thumb": 0.0
 				}
 			},
+			"gi": false,
 			"id": "tori",
 			"ik": {
 				"LeftArm": {
@@ -781,6 +782,7 @@
 					"Thumb": 0.6
 				}
 			},
+			"gi": false,
 			"id": "uke1",
 			"ik": {
 				"LeftArm": {
