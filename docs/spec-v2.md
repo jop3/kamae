@@ -262,6 +262,14 @@ See `spec-review.md` §"Questions" for the nine earlier items (background defaul
 12. ~~Is a tanto needed~~ — **answered:** yes. Included in §5.9 at 0.30 m.
 13. Is blade contact as a measured indicator with a "close the gap" action enough, or is a hard constraint that keeps two weapons touching while either figure moves actually wanted?
 
+Decisions taken during the build without waiting (all reversible, all flagged in `docs/handoff.md`):
+
+14. **Front preset is a three-quarter front.** Exactly on the Tori→Uke line (§5.7) the nearer figure hides the other completely, so Front is swung 35° off the line, still from Tori's side. Change `CameraPresets.FRONT_OFFSET_DEG` if a true frontal view is wanted after all.
+15. **The three-person fixture is called Ryotemochi** until a syllabus form is named (§8.4).
+16. **Still export supersamples through a private viewport.** The Compatibility renderer ignores `scaling_3d_scale`, so stills are rendered at 3840×2160 in a SubViewport sharing the world and downscaled to 1920×1080 with a Lanczos filter (§5.8), which also makes them independent of the window size.
+17. **Poses and sequences live in the repository** (`poses/`, `sequences/`) rather than the user folder, so the acceptance techniques ship with the tool and the instructor's work is versioned with it. The panel asks before replacing a pose file.
+18. **Phase names in export files** are the pose slug with the technique slug stripped (`katatedori_ikkyo_grepp` → `grepp`); a reused pose from another technique keeps its own last word.
+
 ## 10. Reference material
 Unchanged from v1.
 

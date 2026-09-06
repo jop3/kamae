@@ -58,7 +58,9 @@ func _ready() -> void:
 		await _render_stills(args)
 		return
 	if args.has("--screenshot-ui"):
-		# Development aid: the last drawn frame with the panel visible (exports never include it).
+		# Development aid: the last drawn frame with the panel visible (exports never include it),
+		# with a joint selected so the gizmo shows too.
+		controller.select(posing_scene.get_character("tori"), "RightUpperArm")
 		for i in 6:
 			await get_tree().process_frame
 		get_viewport().get_texture().get_image().save_png(args[args.find("--screenshot-ui") + 1])
