@@ -101,6 +101,18 @@ selected figure's hand, which falls short by exactly its reach if the point is t
 they touch, and is undoable; **Record contact** saves the pair with the pose. The
 contact is a measurement, never a constraint: nothing stops you moving the figures apart again.
 
+## Starting from a video
+
+If a technique was filmed, `tools/video_pipeline/` (four Python scripts, see its README) turns
+the clip into a *draft* JSON of body landmarks per phase. **Import video draft…** in the Poses
+section reads such a file and builds rough poses and a sequence from it: each figure's facing
+and limbs from the landmarks, feet planted, the grip the file names, and the file's timings.
+It is a starting point, never a finished pose: the phase where the bodies overlap is usually
+missing from the data (the figure keeps its previous pose and the file's description is
+shown), leg positions under a hakama are guesses, and fingers, weapons and hand angles are
+not in the data at all. Look at each pose, correct it, save it. The notes under the Export
+section tell you what the importer decided for you.
+
 ## Poses and techniques
 
 - **Save pose**: type a name and press "Save pose". The pose is a JSON file in the project's

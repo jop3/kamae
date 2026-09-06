@@ -11,7 +11,7 @@ const WHITE := Color(0.90, 0.89, 0.85)
 ## How far the cloth stands off the skin, metres. The jacket is the loose one.
 const JACKET_OFFSET := 0.022
 const SLEEVE_OFFSET := 0.040
-const TROUSER_OFFSET := 0.014
+const TROUSER_OFFSET := 0.024
 ## Rest-pose heights, metres, on this mannequin (hips joint at 0.91, waist just above it).
 const BELT_Y := 0.985
 const BELT_HEIGHT := 0.045
@@ -24,7 +24,7 @@ const SLEEVE_END := 0.55
 const LEG_END := 0.82
 ## The jacket's V: half-width of the opening at the collar bone, closing at the belt.
 const V_TOP_Y := 1.40
-const V_HALF_WIDTH := 0.075
+const V_HALF_WIDTH := 0.060
 ## The lapel band (eri): a thick stitched strip along both fronts and round the neck. The
 ## fronts overlap below the sternum, the character's left over the right as a gi is worn.
 const LAPEL_WIDTH := 0.060
@@ -170,7 +170,7 @@ const COLLAR_Y := 1.43
 ## Trousers reach this far up under the jacket.
 const TROUSER_TOP_Y := BELT_Y + 0.03
 ## The V closes at the sternum; below it the jacket fronts overlap.
-const V_BOTTOM_Y := 1.16
+const V_BOTTOM_Y := 1.20
 
 ## Which bone owns most of each vertex, by name.
 func _dominant_bones(arrays: Array) -> PackedStringArray:
@@ -283,7 +283,7 @@ const DRAPE_AXIS_Z := 0.0
 ## How fast hanging cloth may narrow below a wide point, metres of radius per metre of height.
 const DRAPE_TAPER := 0.35
 ## Below the belt the jacket's skirt hangs free of the body, widening a little toward the hem.
-const SKIRT_FLARE := 0.12
+const SKIRT_FLARE := 0.0
 ## Above this the jacket narrows to the neck and is not draped; below it the trousers are legs.
 const DRAPE_TOP_Y := 1.30
 const DRAPE_BOTTOM_Y := 0.70
@@ -473,11 +473,12 @@ func _nearest(p: Vector3) -> int:
 
 ## The skin surface under a point on the front of the chest: the frontmost vertex near (x, y).
 func _front_z(x: float, y: float) -> float:
-	var verts: PackedVector3Array = _grid_arrays[Mesh.ARRAY_VERTEX]
+	# On the jacket shell (built before the lapel), so the band lies on the draped cloth.
+	var verts: PackedVector3Array = jacket.mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX] if jacket else _grid_arrays[Mesh.ARRAY_VERTEX]
 	var z := -INF
 	for i in verts.size():
 		var v := verts[i]
-		if v.z > 0.0 and absf(v.x - x) < 0.02 and absf(v.y - y) < 0.015 and v.z > z:
+		if v.z > 0.0 and absf(v.x - x) < 0.025 and absf(v.y - y) < 0.015 and v.z > z:
 			z = v.z
 	return z if z > -INF else 0.1
 
@@ -513,12 +514,20 @@ func _lapel(arrays: Array, dominant: PackedStringArray) -> MeshInstance3D:
 	var steps := 14
 	var left: Array = []
 	var right: Array = []
+	# The overlapping front (the character's left, worn on top) runs from the hem up: straight
+	# up the skirt beside the centre, under the belt, then across the chest to the collar. The
+	# other front shows only above the belt, where it disappears under the first.
+	var skirt_steps := 5
+	for i in skirt_steps:
+		var y := lerpf(JACKET_HEM_Y + 0.005, BELT_Y - BELT_HEIGHT * 0.5, float(i) / skirt_steps)
+		var x := -LAPEL_OVERLAP_X
+		left.append([Vector3(x, y, _front_z(x, y)), Vector3(1, 0, 0), 0.006])
 	for i in steps + 1:
 		# Up to just under the collar rim, which takes over from there round the neck.
 		var y := lerpf(BELT_Y + BELT_HEIGHT * 0.5, V_TOP_Y - 0.04, float(i) / steps)
 		var x := _front_edge_x(y)
-		left.append([Vector3(x, y, _front_z(x, y)), Vector3(1, 0, 0), JACKET_OFFSET + 0.006])
-		right.append([Vector3(-x, y, _front_z(-x, y)), Vector3(-1, 0, 0), JACKET_OFFSET + 0.002])
+		left.append([Vector3(x, y, _front_z(x, y)), Vector3(1, 0, 0), 0.006])
+		right.append([Vector3(-x, y, _front_z(-x, y)), Vector3(-1, 0, 0), 0.002])
 	return _ribbon([left, right], [], arrays)
 
 

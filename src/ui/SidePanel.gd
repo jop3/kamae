@@ -378,6 +378,10 @@ func setup(ctrl: PoseController, posing_scene: PosingScene, grip_director: GripD
 	var load_pose := Button.new(); load_pose.text = "Load pose"
 	load_pose.pressed.connect(_on_load_pose_pressed)
 	vb.add_child(load_pose)
+	var import_btn := Button.new(); import_btn.text = "Import video draft…"
+	import_btn.tooltip_text = "A draft from tools/video_pipeline (MediaPipe landmarks) becomes rough poses and a sequence to correct"
+	import_btn.pressed.connect(_on_import_draft_pressed)
+	vb.add_child(import_btn)
 
 	vb.add_child(_header("Sequence"))
 	var seq_hint := Label.new()
@@ -857,6 +861,39 @@ func _confirm_overwrite(path: String) -> bool:
 		await dialog.visibility_changed
 	dialog.queue_free()
 	return box["ok"]
+
+
+func _on_import_draft_pressed() -> void:
+	var dialog := FileDialog.new()
+	dialog.file_mode = FileDialog.FILE_MODE_OPEN_FILE
+	dialog.access = FileDialog.ACCESS_FILESYSTEM
+	dialog.filters = PackedStringArray(["*.json ; Video draft"])
+	dialog.title = "Import a video draft"
+	dialog.file_selected.connect(func(path: String):
+		_import_draft(path)
+		dialog.queue_free())
+	dialog.canceled.connect(dialog.queue_free)
+	add_child(dialog)
+	dialog.popup_centered_ratio(0.6)
+
+
+func _import_draft(path: String) -> void:
+	set_export_status("Importing %s…" % path.get_file())
+	var result: Dictionary = await PoseImport.import_draft(path, scene, grips, controller, camera,
+		ProjectSettings.globalize_path(POSES_DIR), ProjectSettings.globalize_path(SEQUENCES_DIR))
+	if result.has("error"):
+		set_export_status(str(result["error"]))
+		return
+	_refresh_poses()
+	_refresh_sequence_files()
+	_refresh_characters()
+	_sequence = result["sequence"]
+	_refresh_sequence()
+	_reload_player()
+	var lines := PackedStringArray(["Imported %d poses and the sequence \"%s\". A draft: correct every pose." % [result["poses"].size(), result["sequence"].name]])
+	for note in result["notes"]:
+		lines.append("• " + str(note))
+	set_export_status("\n".join(lines))
 
 
 func _on_load_pose_pressed() -> void:

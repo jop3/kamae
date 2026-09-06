@@ -353,3 +353,23 @@ on the neck does not pass through the neck; and a first look at the gi.
   the shell self-intersects a little in the armpit of a raised arm, no hakama by decision, and the
   cloth has no wrinkles or thickness of its own. A modelled gi (spec §7.1's transferred-weight
   mesh from Blender) would replace this file without touching anything else.
+
+### Video draft import (same day, on request)
+
+The instructor's `pose_pipeline` (MediaPipe on video; now in `tools/video_pipeline/` with its
+README and status notes, and the two in-scope drafts in `imports/`) is worth exactly one
+thing to this tool: 33 world landmarks per figure and phase. `src/data/PoseImport.gd` turns a
+draft into poses and a sequence: facing from the shoulder line, partners placed to face each
+other (the data has no inter-figure distance), arms and legs as IK rebuilt from the landmark
+directions with the mannequin's own bone lengths, feet planted at the data's stance with the
+hips lowered until the legs reach (leg heights under a hakama are noise), spine and neck as FK
+tilts, the grip the file names attached with the nearest hand/forearm pair and the gripper
+stepping in until it reaches (every phase, since the distance is not in the data), a figure
+without landmarks keeping its previous pose with the file's description as a note, timings
+from the file. MediaPipe's frame is y-down, z-away; flipping both keeps the handedness. The
+schema-format file (direction vectors only) is also read, without facing. `--import-draft` in
+`Main.gd` runs it headless and renders a Side still per pose; the panel has "Import video
+draft…"; `tests/test_import.gd` and three goldens cover the katatedori tenkan draft. The
+imported Grepp is a recognisable katatedori; Kuzushi and Kake are rougher, as the pipeline's
+own log predicts for contact phases. Not done: weapons for the jo draft (not in the data), and
+using the image landmarks for the distance between partners.

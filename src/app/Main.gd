@@ -68,6 +68,9 @@ func _ready() -> void:
 		print("ui screenshot saved")
 		get_tree().quit()
 		return
+	if args.has("--import-draft"):
+		await _import_draft(args)
+		return
 	if args.has("--demo-gi"):
 		await _render_demo_gi(args[args.find("--demo-gi") + 1])
 		return
@@ -432,4 +435,38 @@ func _render_demo_gi(path: String) -> void:
 		var p: String = path.get_basename() + str(suffix) + ".png"
 		await StillExport.capture(get_viewport(), p, false, _hide_always(), _hide_for_transparent())
 		print("gi demo saved: ", p)
+	get_tree().quit()
+
+
+## Child mode: turn a video draft (tools/video_pipeline) into poses and a sequence, and render
+## a Side still of every pose so the result can be looked at:
+##   --import-draft <draft.json> --poses-dir <dir> --sequences-dir <dir> [--stills-dir <dir>]
+func _import_draft(args: PackedStringArray) -> void:
+	var path: String = args[args.find("--import-draft") + 1]
+	var poses_dir: String = args[args.find("--poses-dir") + 1] if args.has("--poses-dir") else ProjectSettings.globalize_path(SidePanel.POSES_DIR)
+	var seq_dir: String = args[args.find("--sequences-dir") + 1] if args.has("--sequences-dir") else ProjectSettings.globalize_path(SidePanel.SEQUENCES_DIR)
+	var stills_dir: String = args[args.find("--stills-dir") + 1] if args.has("--stills-dir") else ""
+	posing_scene.show_handles = false
+	for rig in posing_scene.characters:
+		rig.set_show_handles(false)
+	var result: Dictionary = await PoseImport.import_draft(path, posing_scene, grip_director, controller, camera, poses_dir, seq_dir)
+	if result.has("error"):
+		push_error(result["error"])
+		get_tree().quit(1)
+		return
+	for note in result["notes"]:
+		print("note: ", note)
+	if stills_dir != "":
+		for pose_path in result["poses"]:
+			PoseFile.apply(PoseFile.load(pose_path), posing_scene, grip_director)
+			for rig in posing_scene.characters:
+				rig.set_show_handles(false)
+			for i in 3:
+				await get_tree().process_frame
+			camera.fov = CameraPresets.FOV_DEG
+			camera.apply_preset(CameraPresets.side(posing_scene))
+			var out := stills_dir.path_join(pose_path.get_file().get_basename() + ".png")
+			await StillExport.capture(get_viewport(), out, false, _hide_always(), _hide_for_transparent())
+			print("draft still saved: ", out)
+	print("draft imported: %d poses, sequence %s" % [result["poses"].size(), result["sequence_path"]])
 	get_tree().quit()
