@@ -16,6 +16,9 @@ var _char_role: OptionButton
 var _char_name: LineEdit
 var _char_color: ColorPickerButton
 var _copy_to: OptionButton
+var _primary_uke: OptionButton
+var _char_visible: CheckBox
+var _seq_camera: OptionButton
 var _contact_a: OptionButton
 var _contact_b: OptionButton
 var _contact_ta: SpinBox
@@ -66,8 +69,26 @@ var _export_status: Label
 ## Poses and sequences live in the project folder, next to the code, so the acceptance
 ## techniques ship with the repository and the instructor's own work is versioned with it.
 ## An exported build cannot write into res://, so it falls back to the user folder.
-const POSES_DIR := "res://poses"
-const SEQUENCES_DIR := "res://sequences"
+static var POSES_DIR := "res://poses"
+static var SEQUENCES_DIR := "res://sequences"
+
+
+## Picks writable data folders: the project's own when running from source, the user folder in
+## an exported build where res:// is read-only. Called once at startup.
+static func choose_data_dirs() -> void:
+	var probe := "res://poses/.write_probe"
+	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path("res://poses"))
+	var f := FileAccess.open(probe, FileAccess.WRITE)
+	if f:
+		f.close()
+		DirAccess.remove_absolute(ProjectSettings.globalize_path(probe))
+		POSES_DIR = "res://poses"
+		SEQUENCES_DIR = "res://sequences"
+	else:
+		POSES_DIR = "user://poses"
+		SEQUENCES_DIR = "user://sequences"
+	for d in [POSES_DIR, SEQUENCES_DIR]:
+		DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(d))
 
 
 func setup(ctrl: PoseController, posing_scene: PosingScene, grip_director: GripDirector = null, orbit_camera: OrbitCamera = null, sequence_player: SequencePlayer = null) -> void:
@@ -76,6 +97,7 @@ func setup(ctrl: PoseController, posing_scene: PosingScene, grip_director: GripD
 	grips = grip_director
 	camera = orbit_camera
 	player = sequence_player
+	choose_data_dirs()
 	custom_minimum_size.x = 300
 	var scroll := ScrollContainer.new()
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
@@ -112,6 +134,12 @@ func setup(ctrl: PoseController, posing_scene: PosingScene, grip_director: GripD
 			controller.selected_rig.set_skin_color(c)
 			_refresh_characters())
 	name_row.add_child(_char_color)
+	_char_visible = CheckBox.new(); _char_visible.text = "shown"; _char_visible.button_pressed = true
+	_char_visible.tooltip_text = "Hide a figure without removing it (saved with the pose)"
+	_char_visible.toggled.connect(func(on: bool):
+		if not _updating and controller.selected_rig:
+			controller.selected_rig.visible = on)
+	name_row.add_child(_char_visible)
 	var pose_row := HBoxContainer.new(); vb.add_child(pose_row)
 	var mirror := Button.new(); mirror.text = "Mirror pose"; mirror.tooltip_text = "Swap left and right on the selected character"
 	mirror.pressed.connect(func(): if controller.selected_rig: controller.mirror_pose(controller.selected_rig))
@@ -312,6 +340,12 @@ func setup(ctrl: PoseController, posing_scene: PosingScene, grip_director: GripD
 	var cam_side := Button.new(); cam_side.text = "Side"
 	cam_side.pressed.connect(func(): if camera: camera.apply_preset(CameraPresets.side(scene)))
 	crow.add_child(cam_side)
+	var puke_label := Label.new(); puke_label.text = "line up on"; crow.add_child(puke_label)
+	_primary_uke = OptionButton.new()
+	_primary_uke.tooltip_text = "Which Uke the Front and Side presets line up on"
+	_primary_uke.item_selected.connect(func(i: int):
+		scene.primary_uke_id = _primary_uke.get_item_metadata(i) if i >= 0 else "")
+	crow.add_child(_primary_uke)
 
 	vb.add_child(_header("Poses"))
 	_pose_name = LineEdit.new(); _pose_name.placeholder_text = "Pose name"
@@ -341,6 +375,12 @@ func setup(ctrl: PoseController, posing_scene: PosingScene, grip_director: GripD
 	new_seq.tooltip_text = "Three steps: Grepp, Kuzushi, Kake"
 	new_seq.pressed.connect(_on_new_sequence_pressed)
 	seq_name_row.add_child(new_seq)
+	_seq_camera = OptionButton.new()
+	for mode in ["Side", "Front", "per_pose"]:
+		_seq_camera.add_item(mode)
+	_seq_camera.tooltip_text = "Camera for the video: a fixed preset, or each pose's own saved camera"
+	_seq_camera.item_selected.connect(func(i: int): if _sequence: _sequence.camera = _seq_camera.get_item_text(i))
+	seq_name_row.add_child(_seq_camera)
 	_seq_list = ItemList.new()
 	_seq_list.custom_minimum_size.y = 80
 	_seq_list.item_selected.connect(func(_i): _refresh_sequence_step())
@@ -445,6 +485,14 @@ func _refresh_characters() -> void:
 		_copy_to.clear()
 		for c in scene.characters:
 			_copy_to.add_item(c.display_name)
+	if _primary_uke:
+		_primary_uke.clear()
+		for c in scene.characters:
+			if c.role == "Uke":
+				_primary_uke.add_item(c.display_name)
+				_primary_uke.set_item_metadata(_primary_uke.item_count - 1, c.character_id)
+				if c.character_id == scene.primary_uke_id:
+					_primary_uke.select(_primary_uke.item_count - 1)
 	_refresh_character_fields()
 	if _grip_who:
 		_grip_who.clear()
@@ -781,6 +829,9 @@ func _refresh_sequence() -> void:
 		var have := FileAccess.file_exists(POSES_DIR.path_join(str(st["pose"]) + ".json"))
 		_seq_list.add_item("%d. %s%s   →%.1f s  hold %.1f s" % [i + 1, st["pose"], "" if have else " (no pose saved)", float(st.get("transition", 0.0)), float(st.get("hold", 0.0))])
 	_seq_scrub.max_value = maxf(_sequence.duration(), 0.01)
+	for i in _seq_camera.item_count:
+		if _seq_camera.get_item_text(i) == _sequence.camera:
+			_seq_camera.select(i)
 	_refresh_sequence_step()
 
 
@@ -944,6 +995,7 @@ func _refresh_character_fields() -> void:
 	var rig := controller.selected_rig
 	_char_name.text = rig.display_name if rig else ""
 	_char_color.color = rig.get_skin_color() if rig else Color.GRAY
+	_char_visible.button_pressed = rig.visible if rig else true
 	_updating = false
 
 

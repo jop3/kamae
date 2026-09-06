@@ -36,6 +36,14 @@ The character asset is generated, not hand-modelled: see `tools/README.md`.
 - Godot 4.6.x.
 - `ffmpeg` on PATH for MP4 video export (`sudo apt install ffmpeg`). Without it the tool falls back to AVI.
 
+## Standalone build
+
+`export_presets.cfg` defines Linux and Windows presets. With the matching export templates
+installed (Editor → Manage Export Templates, or `godot --headless --export-release Linux` after
+placing the templates in the editor data folder), a build lands in `build/`. The poses and
+sequences folders are included so the acceptance techniques travel with the build; an exported
+build saves new poses under the user folder because `res://` is read-only there.
+
 ## Godot version
 
 Pinned to **Godot 4.6.x** (tested with 4.6-stable, official build). The IK stack (`TwoBoneIK3D`, `SkeletonModifier3D`) does not exist before 4.6. Documentation for this version: https://docs.godotengine.org/en/4.6/

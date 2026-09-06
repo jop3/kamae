@@ -93,10 +93,15 @@ func setup_default() -> void:
 	uke.rotation.y = PI
 
 
+## The Uke the camera presets line up on (spec §5.7). Empty means the first character with the
+## Uke role; the Camera panel lets the instructor pick another.
+var primary_uke_id: String = ""
+
+
 ## Line from Tori to the primary Uke, used by camera presets. Falls back to world Z.
 func tori_uke_axis() -> Dictionary:
 	var tori: CharacterRig = null
-	var uke: CharacterRig = null
+	var uke: CharacterRig = get_character(primary_uke_id) if primary_uke_id != "" else null
 	for c in characters:
 		if c.role == "Tori" and tori == null:
 			tori = c

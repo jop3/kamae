@@ -210,6 +210,14 @@ getting its screen-space size, hidden IK balls stealing clicks, uncalibrated fin
 rotated about a default axis, empty sequences crashing the render children); all fixed in
 "Fix eight findings from the second review".
 
+After that: 2× supersampled stills through a private viewport (the Compatibility renderer
+ignores `scaling_3d_scale`), the Characters panel (add, duplicate, remove with a grip
+confirmation, rename, colour, visibility), mirror and copy pose (exact, tested), weapon-contact
+controls, a primary-Uke picker, the sequence's camera mode, keyboard shortcuts, confirm before
+overwriting a pose, `export_presets.cfg` for Linux and Windows builds (templates not fetched
+here), and a user-folder fallback for poses in exported builds. Every spec §2.1 item is now
+present in some form except undo for camera moves and the optional M9 gi.
+
 Next: hand the drafts to the instructor; 2×
 supersampled stills if the Compatibility renderer allows it; tooltips and keyboard shortcuts;
 the pose panel's confirm-before-overwrite; then wait for the instructor's corrections and the
