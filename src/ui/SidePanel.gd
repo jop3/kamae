@@ -718,7 +718,7 @@ func _on_attach_weapon_pressed() -> void:
 	var other := "Left" if _weapon_hand.selected == 0 else "Right"
 	if not w.hold.is_empty() and w.hold.get("character", "") == rig.character_id:
 		other = "Left" if w.hold.get("hand", "Right") == "Right" else "Right"
-	grips.attach_to_weapon(rig, other, w, _weapon_t.value)
+	grips.attach_to_weapon(rig, other, w, _weapon_t.value, true, _weapon_roll.value)
 	controller.pose_changed.emit()
 
 

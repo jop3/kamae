@@ -1,7 +1,7 @@
 extends SceneTree
 ## M4 headless test: pose save/load round trip — baked bones, root, skin, grips, limbs, fingers.
 
-const OUT := "/home/user/kamae/tests/out/pose_roundtrip.json"
+var OUT := ProjectSettings.globalize_path("res://tests/out/pose_roundtrip.json")
 
 var failures := 0
 func check(cond: bool, msg: String) -> void:

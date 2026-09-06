@@ -9,7 +9,8 @@ where the work stands, how to run it, and what the next session should pick up.
 | Branch | Contents | State |
 |---|---|---|
 | `main` | Spec v2.3, build plan, feasibility, the application M0–M3 | PRs #1–#3 merged |
-| `claude/handoff-continuation-8iw00t` | M3W weapons, M4 save/load, camera presets, CI workflow (see "Follow-up session" below) | this branch |
+| `claude/handoff-continuation-8iw00t` | M3W weapons, M4 save/load, camera presets, CI workflow (see "Follow-up session" below) | PR #4 merged |
+| `claude/project-continuation-46gatk` | CI fix (absolute paths in tests), undo for close-the-gap, roll for the second hand | this branch |
 
 Milestones done: **M0** project and character, **M1** click-to-select FK posing with a gizmo and PNG
 export, **M2** IK arms and legs with finger curls, **M3** grip attachments. Next up is **M3W**
@@ -227,3 +228,23 @@ Next: hand the drafts to the instructor; 2×
 supersampled stills if the Compatibility renderer allows it; tooltips and keyboard shortcuts;
 the pose panel's confirm-before-overwrite; then wait for the instructor's corrections and the
 open questions in `docs/spec-v2.md` §9. M9 (gi) remains optional.
+
+## Session 2026-09-06
+
+The CI workflow had never gone green: five test scripts carried the absolute path
+`/home/user/kamae/...`, which does not exist on the GitHub runner, so test_m4 could not save its
+round-trip file and everything downstream of it (m5, the movie check, the acceptance exports)
+failed. Test paths now derive from `res://` through `ProjectSettings.globalize_path`. Never write
+an absolute path into a test again; `tests/check_exports.gd` shows the pattern.
+
+Two loose ends from the list above closed: **close the gap** is undoable (it records the moved
+weapon's position, or the holder's arm mode, orient flag and IK target), and the hand-driven
+branch of it now works at all: the target is first reset onto the hand and orient-to-target is
+switched on, otherwise the re-solved arm changes the hand's rotation and swings the weapon's far
+end away. If the point is out of reach the gap ends up equal to the reach shortfall, which the
+test asserts. **attach_to_weapon** takes a `roll_deg` and the panel passes the roll box to the
+second hand too.
+
+Still open from before: the left elbow riding high in the two-handed bokken hold (elbow pole
+versus hold orientation, see the weapon demo render), the instructor's corrections to the
+acceptance drafts, spec §9 questions, and the optional M9 gi.

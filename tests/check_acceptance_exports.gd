@@ -8,7 +8,7 @@ func check(cond: bool, msg: String) -> void:
 	if cond: print("PASS ", msg)
 	else: failures += 1; print("FAIL ", msg)
 
-const EXPORTS := "/home/user/kamae/exports"
+var EXPORTS := ProjectSettings.globalize_path("res://exports")
 ## Main.gd has no class_name (it is the scene root script); its phase-naming rule is static.
 const MAIN := preload("res://src/app/Main.gd")
 
