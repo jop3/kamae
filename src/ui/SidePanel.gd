@@ -12,6 +12,15 @@ var grips: GripDirector
 var camera: OrbitCamera
 
 var _char_list: ItemList
+var _char_role: OptionButton
+var _char_name: LineEdit
+var _char_color: ColorPickerButton
+var _copy_to: OptionButton
+var _contact_a: OptionButton
+var _contact_b: OptionButton
+var _contact_ta: SpinBox
+var _contact_tb: SpinBox
+var _contact_gap: Label
 var _joint_label: Label
 var _euler: Array[HSlider] = []
 var _euler_vals: Array[Label] = []
@@ -81,6 +90,35 @@ func setup(ctrl: PoseController, posing_scene: PosingScene, grip_director: GripD
 	_char_list.custom_minimum_size.y = 110
 	_char_list.item_selected.connect(func(i): controller.select(scene.characters[i], ""))
 	vb.add_child(_char_list)
+	var char_row := HBoxContainer.new(); vb.add_child(char_row)
+	_char_role = OptionButton.new()
+	for role in ["Uke", "Tori", "Other"]:
+		_char_role.add_item(role)
+	char_row.add_child(_char_role)
+	var add_char := Button.new(); add_char.text = "Add"; add_char.tooltip_text = "Add a character with this role (at most 5)"
+	add_char.pressed.connect(_on_add_character_pressed); char_row.add_child(add_char)
+	var dup_char := Button.new(); dup_char.text = "Duplicate"; dup_char.tooltip_text = "A copy of the selected character, same pose"
+	dup_char.pressed.connect(_on_duplicate_character_pressed); char_row.add_child(dup_char)
+	var rem_char := Button.new(); rem_char.text = "Remove"; rem_char.tooltip_text = "Remove the selected character; its grips are released"
+	rem_char.pressed.connect(_on_remove_character_pressed); char_row.add_child(rem_char)
+	var name_row := HBoxContainer.new(); vb.add_child(name_row)
+	_char_name = LineEdit.new(); _char_name.placeholder_text = "Name"; _char_name.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_char_name.text_submitted.connect(func(t: String): _rename_selected(t))
+	name_row.add_child(_char_name)
+	_char_color = ColorPickerButton.new(); _char_color.custom_minimum_size.x = 44
+	_char_color.tooltip_text = "Skin colour"
+	_char_color.color_changed.connect(func(c: Color):
+		if not _updating and controller.selected_rig:
+			controller.selected_rig.set_skin_color(c)
+			_refresh_characters())
+	name_row.add_child(_char_color)
+	var pose_row := HBoxContainer.new(); vb.add_child(pose_row)
+	var mirror := Button.new(); mirror.text = "Mirror pose"; mirror.tooltip_text = "Swap left and right on the selected character"
+	mirror.pressed.connect(func(): if controller.selected_rig: controller.mirror_pose(controller.selected_rig))
+	pose_row.add_child(mirror)
+	_copy_to = OptionButton.new(); pose_row.add_child(_copy_to)
+	var copy := Button.new(); copy.text = "Copy pose to"; copy.tooltip_text = "Give that character the selected character's pose"
+	copy.pressed.connect(_on_copy_pose_pressed); pose_row.add_child(copy)
 
 	vb.add_child(_header("Place character"))
 	var g := GridContainer.new(); g.columns = 2; vb.add_child(g)
@@ -245,6 +283,27 @@ func setup(ctrl: PoseController, posing_scene: PosingScene, grip_director: GripD
 		if w: scene.remove_weapon(w.weapon_id))
 	vb.add_child(remove_w)
 
+	vb.add_child(_header("Weapon contact"))
+	var contact_hint := Label.new()
+	contact_hint.text = "Two weapons meeting: the gap between two points is measured, not forced."
+	contact_hint.add_theme_font_size_override("font_size", 11)
+	contact_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	vb.add_child(contact_hint)
+	var c_row := HBoxContainer.new(); vb.add_child(c_row)
+	_contact_a = OptionButton.new(); c_row.add_child(_contact_a)
+	_contact_ta = SpinBox.new(); _contact_ta.min_value = 0; _contact_ta.max_value = 1; _contact_ta.step = 0.01; _contact_ta.value = 0.7; c_row.add_child(_contact_ta)
+	var c_row2 := HBoxContainer.new(); vb.add_child(c_row2)
+	_contact_b = OptionButton.new(); c_row2.add_child(_contact_b)
+	_contact_tb = SpinBox.new(); _contact_tb.min_value = 0; _contact_tb.max_value = 1; _contact_tb.step = 0.01; _contact_tb.value = 0.7; c_row2.add_child(_contact_tb)
+	_contact_gap = Label.new(); _contact_gap.text = ""; vb.add_child(_contact_gap)
+	var c_buttons := HBoxContainer.new(); vb.add_child(c_buttons)
+	var close_gap := Button.new(); close_gap.text = "Close the gap"
+	close_gap.tooltip_text = "Moves the weapon-driven weapon (or the selected character's hand) until the two points touch"
+	close_gap.pressed.connect(_on_close_gap_pressed); c_buttons.add_child(close_gap)
+	var record := Button.new(); record.text = "Record contact"
+	record.tooltip_text = "Saves this pair of points with the pose so the gap is shown again on load"
+	record.pressed.connect(_on_record_contact_pressed); c_buttons.add_child(record)
+
 	vb.add_child(_header("Camera"))
 	var crow := HBoxContainer.new(); vb.add_child(crow)
 	var cam_front := Button.new(); cam_front.text = "Front"
@@ -382,6 +441,11 @@ func _refresh_characters() -> void:
 	for c in scene.characters:
 		_char_list.add_item("%s  (%s)" % [c.display_name, c.role])
 		_char_list.set_item_icon_modulate(_char_list.item_count - 1, c.get_skin_color())
+	if _copy_to:
+		_copy_to.clear()
+		for c in scene.characters:
+			_copy_to.add_item(c.display_name)
+	_refresh_character_fields()
 	if _grip_who:
 		_grip_who.clear()
 		for c in scene.characters:
@@ -431,6 +495,7 @@ func _on_selection_changed(rig: CharacterRig, bone_name: String) -> void:
 		_grip_target_label.text = ("Selected: %s %s" % [rig.display_name, _pretty(bone_name)]) if (rig and bone_name != "") else "No body part selected"
 	_joint_label.text = ("%s: %s" % [rig.display_name, _pretty(bone_name)]) if (rig and bone_name != "") else ("%s: whole body" % rig.display_name if rig else "Click a body part")
 	_set_joint_enabled(rig != null and bone_name != "")
+	_refresh_character_fields()
 	_refresh_values()
 
 
@@ -440,6 +505,13 @@ func _set_joint_enabled(on: bool) -> void:
 
 
 func _process(_delta: float) -> void:
+	if _contact_gap and grips:
+		var pair := _contact_pair()
+		if pair.is_empty():
+			_contact_gap.text = "Add two weapons to measure a contact." if scene.weapons.size() < 2 else ""
+		else:
+			var gap: float = grips.contact_gap(pair[0], pair[1], pair[2], pair[3])
+			_contact_gap.text = ("Touching (%.1f cm)" if gap < 0.01 else "Gap %.1f cm") % (gap * 100.0)
 	# Reach warnings change as the instructor drags a target, so they are polled rather than
 	# recomputed only on discrete edits.
 	var rig := controller.selected_rig
@@ -544,6 +616,7 @@ func _selected_weapon() -> Weapon:
 
 
 func _refresh_weapons() -> void:
+	_refresh_contact_options()
 	if _weapon_list == null:
 		return
 	var prev := _weapon_list.get_selected_items()
@@ -860,3 +933,127 @@ func _on_load_sequence_pressed() -> void:
 func set_export_status(text: String) -> void:
 	if _export_status:
 		_export_status.text = text
+
+
+# ---------------------------------------------------------------- characters
+
+func _refresh_character_fields() -> void:
+	if _char_name == null:
+		return
+	_updating = true
+	var rig := controller.selected_rig
+	_char_name.text = rig.display_name if rig else ""
+	_char_color.color = rig.get_skin_color() if rig else Color.GRAY
+	_updating = false
+
+
+func _on_add_character_pressed() -> void:
+	if scene.characters.size() >= PosingScene.MAX_CHARACTERS:
+		return
+	var role: String = _char_role.get_item_text(_char_role.selected)
+	var prefix := role.to_lower()
+	var id := scene.next_free_id(prefix)
+	var count := 0
+	for c in scene.characters:
+		if c.role == role:
+			count += 1
+	var rig := scene.add_character(id, "%s %d" % [role, count + 1] if count > 0 else role, role)
+	rig.position = Vector3(0.6 * (scene.characters.size() - 2), 0, 0.5)
+	rig.rotation.y = PI
+	controller.select(rig, "")
+
+
+func _on_duplicate_character_pressed() -> void:
+	var src := controller.selected_rig
+	if src == null or scene.characters.size() >= PosingScene.MAX_CHARACTERS:
+		return
+	var rig := scene.add_character(scene.next_free_id(src.role.to_lower()), src.display_name + " copy", src.role)
+	rig.position = src.position + Vector3(0.6, 0, 0)
+	rig.rotation = src.rotation
+	controller.copy_pose(src, rig)
+	controller.select(rig, "")
+
+
+func _on_remove_character_pressed() -> void:
+	var rig := controller.selected_rig
+	if rig == null or scene.characters.size() <= PosingScene.MIN_CHARACTERS:
+		return
+	var involved := 0
+	if grips:
+		for grip in grips.grips:
+			if grip.gripper_id == rig.character_id or (grip.target.kind == GripTarget.Kind.BONE and grip.target.character_id == rig.character_id):
+				involved += 1
+	if involved > 0:
+		var dialog := ConfirmationDialog.new()
+		dialog.title = "Remove %s?" % rig.display_name
+		dialog.dialog_text = "%s is part of %d grip(s). Removing the character releases them." % [rig.display_name, involved]
+		dialog.ok_button_text = "Remove"
+		add_child(dialog)
+		var box := {"ok": false}
+		dialog.confirmed.connect(func(): box["ok"] = true)
+		dialog.popup_centered()
+		await dialog.visibility_changed
+		if dialog.visible:
+			await dialog.visibility_changed
+		dialog.queue_free()
+		if not box["ok"]:
+			return
+	controller.select(null, "")
+	scene.remove_character(rig.character_id)
+
+
+func _rename_selected(text: String) -> void:
+	var rig := controller.selected_rig
+	if rig == null or text.strip_edges() == "":
+		return
+	rig.display_name = text.strip_edges()
+	_refresh_characters()
+
+
+func _on_copy_pose_pressed() -> void:
+	var src := controller.selected_rig
+	if src == null or _copy_to.selected < 0 or _copy_to.selected >= scene.characters.size():
+		return
+	var dst: CharacterRig = scene.characters[_copy_to.selected]
+	if dst != src:
+		controller.copy_pose(src, dst)
+
+
+# ---------------------------------------------------------------- weapon contact
+
+func _refresh_contact_options() -> void:
+	if _contact_a == null:
+		return
+	for opt in [_contact_a, _contact_b]:
+		var keep: int = opt.selected
+		opt.clear()
+		for w in scene.weapons:
+			opt.add_item(w.weapon_id)
+		if keep >= 0 and keep < opt.item_count:
+			opt.select(keep)
+	if _contact_b.item_count > 1 and _contact_b.selected == _contact_a.selected:
+		_contact_b.select(1)
+
+
+func _contact_pair() -> Array:
+	if _contact_a == null or _contact_a.selected < 0 or _contact_b.selected < 0:
+		return []
+	var a: Weapon = scene.get_weapon(_contact_a.get_item_text(_contact_a.selected))
+	var b: Weapon = scene.get_weapon(_contact_b.get_item_text(_contact_b.selected))
+	if a == null or b == null or a == b:
+		return []
+	return [a, _contact_ta.value, b, _contact_tb.value]
+
+
+func _on_close_gap_pressed() -> void:
+	var pair := _contact_pair()
+	if pair.is_empty() or grips == null:
+		return
+	grips.close_gap(pair[0], pair[1], pair[2], pair[3])
+
+
+func _on_record_contact_pressed() -> void:
+	var pair := _contact_pair()
+	if pair.is_empty():
+		return
+	scene.weapon_contacts = [{"a": pair[0].weapon_id, "t_a": pair[1], "b": pair[2].weapon_id, "t_b": pair[3]}]

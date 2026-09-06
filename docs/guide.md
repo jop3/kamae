@@ -20,6 +20,14 @@ view, Front looks from Tori's side of the line, swung a little so that Tori does
 **Keyboard:** `1` Front view, `2` Side view, `Home` frame everything, `Space` play or pause the
 sequence, `Ctrl+Z` / `Ctrl+Y` undo and redo, `Shift` while dragging a ring snaps to 15°.
 
+## Characters
+
+The Characters list shows who is in the scene. **Add** puts in another Uke, Tori or observer (up
+to five), **Duplicate** copies the selected figure with its pose, **Remove** takes it out (asking
+first if it is part of a grip). Type a name and press Enter to rename; the colour button picks
+the skin colour, which is what tells the hands apart in a printed grip. **Mirror pose** swaps the
+selected figure's left and right; **Copy pose to** gives another figure the same pose.
+
 ## Posing a figure
 
 1. **Click a body part.** Three coloured rings appear at the joint. Drag a ring to rotate about
@@ -63,6 +71,11 @@ technique, release it ("Release selected grip") and attach the other way round i
   point of the weapons is what matters and the arms should follow.
 
 A weapon changes owner between poses by pressing **Hold** for the new holder in the later pose.
+
+**Weapon contact** (kumitachi, kumijo): choose two weapons and a point along each; the panel
+shows the gap between the points live. **Close the gap** moves the weapon-driven weapon (or the
+selected figure's hand) until they touch; **Record contact** saves the pair with the pose. The
+contact is a measurement, never a constraint: nothing stops you moving the figures apart again.
 
 ## Poses and techniques
 

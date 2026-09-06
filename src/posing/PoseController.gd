@@ -365,3 +365,109 @@ func _apply_curls(rig: CharacterRig, side: String, values: Dictionary) -> void:
 	for finger in values:
 		rig.fingers.set_curl(side, finger, values[finger])
 	pose_changed.emit()
+
+
+# ---------------------------------------------------------------- copy and mirror (spec §5.5)
+
+## Copies every bone rotation, finger curl and limb state from one character to another. Both
+## share the rig, so names map one to one. Grips are left alone: they belong to the pair.
+func copy_pose(from: CharacterRig, to: CharacterRig) -> void:
+	var before := _snapshot(to)
+	_apply_snapshot(to, _snapshot(from))
+	var after := _snapshot(to)
+	_record_snapshot_change("Copy pose to %s" % to.display_name, to, before, after)
+
+
+## Mirrors a character's pose across its own left-right plane: Left and Right bones swap, and
+## each rotation is reflected. Works on the world-space rotation relative to rest, so it holds
+## for any rig whose left and right bones are mirror images in the character's frame.
+func mirror_pose(rig: CharacterRig) -> void:
+	var before := _snapshot(rig)
+	var mirrored := _mirror_snapshot(rig, before)
+	_apply_snapshot(rig, mirrored)
+	_record_snapshot_change("Mirror %s" % rig.display_name, rig, before, _snapshot(rig))
+
+
+func _snapshot(rig: CharacterRig) -> Dictionary:
+	var sk := rig.skeleton
+	var bones := {}
+	for i in sk.get_bone_count():
+		bones[sk.get_bone_name(i)] = sk.get_bone_pose_rotation(i)
+	var limbs := {}
+	for key in rig.limbs:
+		var limb: Limb = rig.limbs[key]
+		limbs[key] = {"mode": limb.mode, "target": rig.global_transform.affine_inverse() * limb.target.global_transform,
+			"pole": rig.to_local(limb.pole.global_position), "orient": limb.orient_to_target}
+	var fingers := {}
+	for side in FingerCurl.SIDES:
+		fingers[side] = rig.fingers.curls[side].duplicate()
+	return {"bones": bones, "limbs": limbs, "fingers": fingers}
+
+
+func _apply_snapshot(rig: CharacterRig, snap: Dictionary) -> void:
+	var sk := rig.skeleton
+	for bone in snap["bones"]:
+		var idx := sk.find_bone(bone)
+		if idx >= 0:
+			sk.set_bone_pose_rotation(idx, snap["bones"][bone])
+	for key in snap["limbs"]:
+		if not rig.limbs.has(key):
+			continue
+		var limb: Limb = rig.limbs[key]
+		var entry: Dictionary = snap["limbs"][key]
+		rig.set_limb_mode(key, entry["mode"])
+		limb.target.global_transform = rig.global_transform * entry["target"]
+		limb.pole.global_position = rig.to_global(entry["pole"])
+		limb.set_orient_to_target(entry["orient"])
+	for side in snap["fingers"]:
+		for finger in snap["fingers"][side]:
+			rig.fingers.set_curl(side, finger, snap["fingers"][side][finger])
+	pose_changed.emit()
+
+
+static func _mirror_name(bone: String) -> String:
+	if bone.begins_with("Left"):
+		return "Right" + bone.trim_prefix("Left")
+	if bone.begins_with("Right"):
+		return "Left" + bone.trim_prefix("Right")
+	return bone
+
+
+func _mirror_snapshot(rig: CharacterRig, snap: Dictionary) -> Dictionary:
+	var sk := rig.skeleton
+	var mirror := Basis(Vector3(-1, 0, 0), Vector3(0, 1, 0), Vector3(0, 0, 1))   # x -> -x in the rig frame
+	var bones := {}
+	for bone in snap["bones"]:
+		var src_idx := sk.find_bone(bone)
+		var dst_name := _mirror_name(bone)
+		var dst_idx := sk.find_bone(dst_name)
+		if src_idx < 0 or dst_idx < 0:
+			continue
+		# Rotation relative to rest, taken to the rig frame, reflected, brought into the mirror
+		# bone's rest frame. G = global rest basis of the bone (rig frame).
+		var g_src: Basis = sk.get_bone_global_rest(src_idx).basis
+		var g_dst: Basis = sk.get_bone_global_rest(dst_idx).basis
+		var rest_src: Basis = sk.get_bone_rest(src_idx).basis
+		var rest_dst: Basis = sk.get_bone_rest(dst_idx).basis
+		var delta_local: Basis = rest_src.inverse() * Basis(snap["bones"][bone])
+		var delta_rig: Basis = g_src * delta_local * g_src.inverse()
+		var delta_mirrored: Basis = mirror * delta_rig * mirror
+		var delta_dst: Basis = g_dst.inverse() * delta_mirrored * g_dst
+		bones[dst_name] = (rest_dst * delta_dst).orthonormalized().get_rotation_quaternion()
+	var limbs := {}
+	for key in snap["limbs"]:
+		var entry: Dictionary = snap["limbs"][key]
+		var t: Transform3D = entry["target"]
+		var mt := Transform3D((mirror * t.basis * mirror).orthonormalized(), mirror * t.origin)
+		limbs[_mirror_name(key)] = {"mode": entry["mode"], "target": mt, "pole": mirror * entry["pole"], "orient": entry["orient"]}
+	var fingers := {}
+	for side in snap["fingers"]:
+		fingers[_mirror_name(side)] = snap["fingers"][side].duplicate()
+	return {"bones": bones, "limbs": limbs, "fingers": fingers}
+
+
+func _record_snapshot_change(label: String, rig: CharacterRig, before: Dictionary, after: Dictionary) -> void:
+	undo.create_action(label)
+	undo.add_do_method(_apply_snapshot.bind(rig, after))
+	undo.add_undo_method(_apply_snapshot.bind(rig, before))
+	undo.commit_action(false)

@@ -78,5 +78,28 @@ func _initialize() -> void:
 
 	check(StillExport.slugify("Katatedori Ikkyo — Grepp") == "katatedori_ikkyo_grepp", "slugify handles dash")
 	check(StillExport.slugify("Ushiro Ryōtedori Zenpōnage / Kake") == "ushiro_ry_tedori_zenp_nage_kake" or StillExport.slugify("Övning åäö") == "ovning_aao", "slugify transliterates Swedish letters (%s)" % StillExport.slugify("Övning åäö"))
+	# --- mirror and copy (spec §5.5) -----------------------------------------
+	ctrl.select(tori, "RightUpperArm")
+	ctrl.rotate_selected_world(Vector3.FORWARD, 1.0)
+	ctrl.set_finger_curl(tori, "Right", "Index", 0.8)
+	await process_frame; await process_frame
+	var right_hand: Vector3 = tori.to_local(tori.bone_world_transform("RightHand").origin)
+	var left_hand_rest: Vector3 = tori.to_local(tori.bone_world_transform("LeftHand").origin)
+	ctrl.mirror_pose(tori)
+	await process_frame; await process_frame
+	var left_hand: Vector3 = tori.to_local(tori.bone_world_transform("LeftHand").origin)
+	var right_after: Vector3 = tori.to_local(tori.bone_world_transform("RightHand").origin)
+	var mirrored_expected := Vector3(-right_hand.x, right_hand.y, right_hand.z)
+	check(left_hand.distance_to(mirrored_expected) < 0.01, "mirror puts the left hand where the raised right hand was, reflected (%.3f m off)" % left_hand.distance_to(mirrored_expected))
+	check(right_after.distance_to(Vector3(-left_hand_rest.x, left_hand_rest.y, left_hand_rest.z)) < 0.01, "and the right arm takes the left arm's rest place")
+	check(is_equal_approx(tori.fingers.get_curl("Left", "Index"), 0.8) and is_zero_approx(tori.fingers.get_curl("Right", "Index")), "finger curls swap sides")
+	ctrl.undo.undo(); await process_frame; await process_frame
+	check(tori.to_local(tori.bone_world_transform("RightHand").origin).distance_to(right_hand) < 1e-3, "undo restores the unmirrored pose")
+	var uke_rig: CharacterRig = scene.get_character("uke1")
+	ctrl.copy_pose(tori, uke_rig)
+	await process_frame; await process_frame
+	var uke_hand: Vector3 = uke_rig.to_local(uke_rig.bone_world_transform("RightHand").origin)
+	check(uke_hand.distance_to(right_hand) < 1e-3, "copy pose gives Uke the same raised arm (%.4f m off in local frame)" % uke_hand.distance_to(right_hand))
+
 	print("RESULT %s (%d failures)" % ["OK" if failures == 0 else "FAILED", failures])
 	quit(1 if failures > 0 else 0)
