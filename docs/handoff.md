@@ -342,6 +342,12 @@ on the neck does not pass through the neck; and a first look at the gi.
   neck ended up either inside the jacket or as a shelf out at the shoulders, and quads must be
   wound toward an explicit "outside" (`_rq(..., want)`) or half of them render unlit grey.
   `gi_collar.png` and `gi_collar_back.png` are the views to look at.
+  Then "the breasts and bulge are distracting, the gi should be looser": the cloth is now
+  draped, not shrink-wrapped (`_drape`): for the torso and hips the shell's radius in each
+  direction is at least the body's widest radius above it (less a slow taper, cinched at the
+  belt), so the front falls straight from the chest and the jacket skirt hides the crotch.
+  The mannequin itself is untouched; flattening it would be a `generate_mannequin.py`
+  parameter change and a re-export if ever wanted. The belt is measured on the draped shell.
   Known limits to raise with the instructor: the V still shows skin to the sternum (the
   overlap starts below it),
   the shell self-intersects a little in the armpit of a raised arm, no hakama by decision, and the

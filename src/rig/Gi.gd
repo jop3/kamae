@@ -277,6 +277,66 @@ func _in_collar(p: Vector3, bone: String) -> bool:
 	return false
 
 
+const DRAPE_SECTORS := 32
+const DRAPE_BIN := 0.02
+const DRAPE_AXIS_Z := 0.0
+## How fast hanging cloth may narrow below a wide point, metres of radius per metre of height.
+const DRAPE_TAPER := 0.35
+## Above this the jacket narrows to the neck and is not draped; below it the trousers are legs.
+const DRAPE_TOP_Y := 1.30
+const DRAPE_BOTTOM_Y := 0.80
+
+## Per shell vertex on the torso (jacket) or hips (trousers): its draped rest position, on a
+## radius no smaller than the body's widest radius in the same direction anywhere above it
+## (up to the chest), plus the cloth offset. Vertices that already stand outside are left.
+func _drape(piece: String, verts: PackedVector3Array, dominant: PackedStringArray, clamped: PackedVector3Array) -> Dictionary:
+	var out := {}
+	var draped_bones := ["Hips", "Spine", "Chest", "UpperChest"] if piece == "jacket" else ["Hips"]
+	var n := DRAPE_SECTORS
+	var bins := int(ceil((DRAPE_TOP_Y - DRAPE_BOTTOM_Y) / DRAPE_BIN)) + 1
+	var profile: Array = []
+	for b in bins:
+		var row := PackedFloat32Array(); row.resize(n); row.fill(0.0)
+		profile.append(row)
+	for i in verts.size():
+		var v := verts[i]
+		if v.y < DRAPE_BOTTOM_Y or v.y > DRAPE_TOP_Y or not (dominant[i] in TORSO):
+			continue
+		var d := Vector2(v.x, v.z - DRAPE_AXIS_Z)
+		var k := int(floor(wrapf(d.angle(), 0.0, TAU) / TAU * n)) % n
+		var b := int((v.y - DRAPE_BOTTOM_Y) / DRAPE_BIN)
+		profile[b][k] = maxf(profile[b][k], d.length())
+	# Hang: each bin takes the widest of itself and the bin above less a taper, so the cloth
+	# falls from the chest and hips but narrows slowly rather than dropping as a barrel; at the
+	# belt it is cinched to the body. Then smooth round.
+	for b in range(bins - 2, -1, -1):
+		var y := DRAPE_BOTTOM_Y + b * DRAPE_BIN
+		var cinch := absf(y - BELT_Y) < BELT_HEIGHT * 0.5 + 0.01
+		for k in n:
+			if not cinch:
+				profile[b][k] = maxf(profile[b][k], profile[b + 1][k] - DRAPE_TAPER * DRAPE_BIN)
+	for b in bins:
+		var row: PackedFloat32Array = profile[b]
+		var smooth := PackedFloat32Array(); smooth.resize(n)
+		for k in n:
+			smooth[k] = (row[(k + n - 1) % n] + row[k] * 2.0 + row[(k + 1) % n]) / 4.0
+		profile[b] = smooth
+	for i in verts.size():
+		var p := clamped[i]
+		if is_nan(p.x) or p.y < DRAPE_BOTTOM_Y or p.y > DRAPE_TOP_Y or not (dominant[i] in draped_bones):
+			continue
+		var d := Vector2(p.x, p.z - DRAPE_AXIS_Z)
+		if d.length() < 1e-4:
+			continue
+		var k := int(floor(wrapf(d.angle(), 0.0, TAU) / TAU * n)) % n
+		var b := int((p.y - DRAPE_BOTTOM_Y) / DRAPE_BIN)
+		var want: float = profile[b][k] + _offset_for(piece, dominant[i])
+		if d.length() < want:
+			var dir := d.normalized() * want
+			out[i] = Vector3(dir.x, p.y, DRAPE_AXIS_Z + dir.y)
+	return out
+
+
 func _offset_for(piece: String, bone: String) -> float:
 	if piece == "trousers":
 		return TROUSER_OFFSET
@@ -299,6 +359,10 @@ func _shell(arrays: Array, dominant: PackedStringArray, piece: String, material:
 		var c := _clamp_to(piece, verts[v], dominant[v])
 		clamped[v] = c
 		inside[v] = 1 if (not is_nan(c.x) and c.distance_squared_to(verts[v]) < 1e-10) else 0
+	# Loose cloth hangs from the widest point above it: the shell's radius at any height on the
+	# torso and hips is at least the body's widest radius above, so the front falls straight
+	# from the chest and the hips hide the crotch instead of the cloth tracing every curve.
+	var draped := _drape(piece, verts, dominant, clamped)
 	# The jacket's collar (eri) is the shell itself along the neck and the V, standing proud of
 	# the rest by the band's thickness, in the band's cloth: a rim that follows the body exactly.
 	var collar := PackedByteArray()
@@ -335,8 +399,14 @@ func _shell(arrays: Array, dominant: PackedStringArray, piece: String, material:
 				if remap[v] < 0:
 					remap[v] = nv.size()
 					var offset := _offset_for(piece, dominant[v]) + (LAPEL_THICKNESS if collar[v] == 1 else 0.0)
-					nv.append(clamped[v] + normals[v] * offset)
-					nn.append(normals[v])
+					if draped.has(v):
+						var d: Vector3 = draped[v]   # already stands off the body; keep the band's extra
+						nv.append(d + normals[v] * (LAPEL_THICKNESS if collar[v] == 1 else 0.0))
+						var radial := Vector3(d.x, 0.0, d.z - DRAPE_AXIS_Z).normalized()
+						nn.append((normals[v] * 0.35 + radial).normalized())
+					else:
+						nv.append(clamped[v] + normals[v] * offset)
+						nn.append(normals[v])
 					for k in per:
 						nb.append(bones[v * per + k])
 						nw.append(weights[v * per + k])
@@ -556,18 +626,19 @@ func _belt(arrays: Array, dominant: PackedStringArray) -> MeshInstance3D:
 	var radii := PackedFloat32Array()
 	radii.resize(n)
 	radii.fill(0.0)
-	for i in verts.size():
-		var v := verts[i]
-		if absf(v.y - BELT_Y) < BELT_HEIGHT * 0.75 and dominant[i] in TORSO:
-			var d := Vector2(v.x - centre.x, v.z - centre.z)
+	# Measured on the jacket shell, so the belt sits over the draped cloth.
+	var shell: PackedVector3Array = jacket.mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX]
+	for v in shell:
+		var d := Vector2(v.x - centre.x, v.z - centre.z)
+		if absf(v.y - BELT_Y) < BELT_HEIGHT * 0.75 and d.length() < 0.22:
 			var k := int(floor(wrapf(d.angle(), 0.0, TAU) / TAU * n)) % n
 			radii[k] = maxf(radii[k], d.length())
-	# Fill sectors that no vertex fell into from their neighbours, then pad for the trousers.
+	# Fill sectors that no vertex fell into from their neighbours, then pad a little.
 	for k in n:
 		if radii[k] <= 0.0:
 			radii[k] = maxf(radii[(k + n - 1) % n], radii[(k + 1) % n])
 	for k in n:
-		radii[k] += JACKET_OFFSET + 0.004   # over the jacket skirt
+		radii[k] += 0.006
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	var hips := _bind_index("Hips")
