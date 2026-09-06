@@ -23,6 +23,8 @@ var _connected: Dictionary = {}   ## character id -> Callable connected to its s
 func setup(posing_scene: PosingScene, pose_controller: PoseController) -> void:
 	scene = posing_scene
 	controller = pose_controller
+	if controller:
+		controller.director = self   # wrist edits on a gripping hand re-capture the grip offset
 	scene.characters_changed.connect(_on_characters_changed)
 	scene.weapons_changed.connect(_on_weapons_changed)
 	# Weapon-driven grips are applied at frame start, before any skeleton solves.
@@ -111,12 +113,30 @@ func _restore_weapon_state(weapon: Weapon, state: Dictionary) -> void:
 ## How far the palm centre sits off a gripped limb's axis: a fist closes to about 2.5 cm from
 ## its own axis and a wrist is about 4 cm across, so the palm rides just off the bone line.
 const WRAP_RADIUS := 0.02
+## The gripping hand as a sphere at its palm centre, for keeping it out of the gripped body.
+const HAND_RADIUS := 0.03
 
-## Attaches a hand to a limb bone of another character with the hand wrapped around it, the
-## way a real katatedori takes the wrist: the bone is treated as a shaft, the hand is placed at
-## the point of the bone nearest to where it is now, on the same side of the bone it is on now,
-## with the shaft across its palm and the fingers closing round it. With `snap` false this is
-## an ordinary `attach` that freezes the hand wherever it is.
+
+## Where the palm centre sits off the axis of `bone`: a thin limb is wrapped (WRAP_RADIUS), a
+## thick one (neck, thigh, torso, head) has the palm laid on its skin, the palm centre being
+## PALM_OUT inside the fingers. So a hand on the neck is on the neck, not through it.
+static func hold_radius(bone: String) -> float:
+	return maxf(WRAP_RADIUS, BodyCapsules.radius(bone) - Weapon.PALM_OUT)
+
+
+## How far the fingers close on `bone`: a wrist is gripped in a fist, the neck or a thigh is
+## held with the fingers spread on the surface.
+static func curl_for_bone(bone: String) -> float:
+	var r := BodyCapsules.radius(bone)
+	return clampf(remap(r, 0.045, 0.11, 0.6, 0.25), 0.25, 0.6)
+
+
+## Attaches a hand to a bone of another character with the hand wrapped around it, the way a
+## real katatedori takes the wrist: the bone is treated as a shaft, the hand is placed at the
+## point of the bone nearest to where it is now, on the same side of the bone it is on now,
+## with the shaft across its palm and the fingers closing round it. Any bone will do: on the
+## neck, the torso or a thigh the palm lands on the skin at that bone's radius (hold_radius).
+## With `snap` false this is an ordinary `attach` that freezes the hand wherever it is.
 func attach_wrapped(gripper: CharacterRig, hand: String, target_rig: CharacterRig, bone: String, snap := true) -> Grip:
 	var target := GripTarget.for_bone(scene, target_rig.character_id, bone)
 	if not snap:
@@ -163,7 +183,7 @@ func wrapped_hand_transform(gripper: CharacterRig, hand: String, target_rig: Cha
 	var y := axis if width_now.dot(axis) >= 0.0 else -axis
 	var z := radial
 	var x := y.cross(z).normalized()
-	var shaft := Transform3D(Basis(x, y, z).orthonormalized(), on_axis + radial * WRAP_RADIUS)
+	var shaft := Transform3D(Basis(x, y, z).orthonormalized(), on_axis + radial * hold_radius(bone))
 	var hold := Transform3D(Weapon.canonical_basis(gripper, hand), Weapon.palm_centre(gripper, hand))
 	return shaft * hold.affine_inverse()
 
@@ -603,7 +623,27 @@ func _apply(grip: Grip) -> void:
 	var limb: Limb = gripper.limbs.get(grip.limb_key())
 	if limb == null:
 		return
-	limb.target.global_transform = grip.desired_hand_transform()
+	limb.target.global_transform = resolved_hand_transform(grip)
+
+
+## Where the hand goes this frame: the grip's own transform, then pushed out of the gripped
+## body where the two have moved into each other. The gripped bone and its neighbours are
+## where the hand overlaps by design (a fist round a wrist, a palm on the neck under the jaw);
+## every other bone of that body is solid, so a hand on the neck stays out of the shoulder
+## when Uke turns, and a hand on the wrist out of the upper arm when the elbow folds. The
+## correction is a translation: the wrist angle the instructor set is kept.
+func resolved_hand_transform(grip: Grip) -> Transform3D:
+	var want := grip.desired_hand_transform()
+	if grip.target.kind != GripTarget.Kind.BONE:
+		return want
+	var target_rig := scene.get_character(grip.target.character_id)
+	var gripper := scene.get_character(grip.gripper_id)
+	if target_rig == null or gripper == null:
+		return want
+	var palm: Vector3 = want * Weapon.palm_centre(gripper, grip.hand)
+	var moved := BodyCapsules.push_out(palm, HAND_RADIUS, target_rig, BodyCapsules.neighbours(target_rig, grip.target.bone_name))
+	want.origin += moved - palm
+	return want
 
 
 # ---------------------------------------------------------------- reporting
@@ -614,7 +654,7 @@ func error_for(grip: Grip) -> float:
 	var gripper := scene.get_character(grip.gripper_id)
 	if gripper == null:
 		return 0.0
-	return grip.desired_hand_transform().origin.distance_to(gripper.bone_world_transform(grip.hand + "Hand").origin)
+	return resolved_hand_transform(grip).origin.distance_to(gripper.bone_world_transform(grip.hand + "Hand").origin)
 
 
 ## The worst such error across every grip.

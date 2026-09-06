@@ -281,3 +281,47 @@ there. `GripDirector.attach_default_hands` applies it, the panel has a "Both han
 hold" button and pre-fills t and roll, the builder and the weapon demo use it, and test_m3w
 asserts the geometry. Look at `tests/out/demo/weapon_hands.png` after any change to the hold
 mapping.
+
+## Session 2026-09-06 (afternoon): wrists, fingers, collision, first gi
+
+Instructor's asks: wrists fully posable as well as grips and fingers; proper collision so a grip
+on the neck does not pass through the neck; and a first look at the gi.
+
+- **Wrists.** In FK and in plain IK the wrist was already an ordinary bone (`TwoBoneIK3D` leaves
+  the end bone alone, measured). A gripping hand was not: `HandOrient` overwrote it every frame
+  from the IK target. `PoseController.target_driven_limb()` now recognises that case and routes
+  the gizmo and the sliders to the target's orientation instead, re-capturing the grip's offset
+  (`_set_target_basis`), so the new wrist angle is what the grip keeps. `get_bone_rotation`
+  returns the solved wrist for such a hand so the sliders show the truth, and undo works through
+  the same path. `GripDirector.setup` hands itself to the controller for this.
+- **Fingers.** `FingerCurl` composes the curl on top of the authored phalanx rotation instead
+  of overwriting it, so single finger joints are posable with the gizmo. Two engine facts came
+  out of it (both in `docs/engine-notes.md`): a modifier must write every bone every pass, and
+  a coroutine resumed after `skeleton_updated` reads the modified pose. `PoseFile` stores finger
+  bones authored; the committed `poses/` were rebuilt with `tools/build_fixtures.gd` because the
+  old files carried baked (curled) finger rotations that would now curl twice.
+- **Collision.** `src/rig/BodyCapsules.gd` is the body as capsules with Anatomy's radii:
+  `push_out`, `penetration`, `neighbours`. `GripDirector.attach_wrapped` works on any bone,
+  placing the palm at `hold_radius(bone)` (a wrist wrapped at 2 cm, a neck held at its 5 cm
+  surface less the palm depth), with `curl_for_bone` closing the fingers as far as the part
+  allows; the panel always wraps now. `resolved_hand_transform` pushes a gripping hand out of
+  the gripped body every frame (the gripped bone and its neighbours excepted, where the hand
+  overlaps by design), and `error_for` measures against that. A dragged hand target stops at
+  other figures' skin (`PoseController.keep_out_of_other_bodies`; a figure's own body is not
+  solid to its own hands). The panel shows `Anatomy.scene_problems` live, three times a second.
+  `tests/test_wrist.gd` covers all of it; the fixture poses render the same as before.
+- **Gi (M9, first look).** `src/rig/Gi.gd` builds it at runtime from the mannequin: the body
+  mesh pushed out along its normals (jacket 2.2 cm, sleeves 3 cm, trousers 1.4 cm), cut into a
+  jacket (hem at 0.76 m, collar at 1.43 m, a V to the sternum, sleeves to 62 % of the forearm)
+  and trousers (waist to 82 % of the shin), triangles across an edge kept with their outside
+  vertices moved onto it so the edges are straight; skinned through the body's own binds. The
+  belt is a ring measured on the torso vertices at 0.985 m (the first version measured the
+  hanging hands too and came out as a hoop), over the jacket, with a knot and two ends, in the
+  character's colour and following colour changes. `CharacterRig.set_gi_visible`, saved as
+  `"gi"` per character, a **gi** checkbox next to "shown". Off by default so nothing rendered
+  changes unless asked. `--demo-gi <path>` renders five views, now part of `tests/run.sh` and the
+  goldens (`gi_front`, `gi_side`, `gi_belt`, `gi_sleeve`); look at `tests/out/demo/gi_*.png`.
+  Known limits to raise with the instructor: no lapel overlap (the V shows skin to the sternum),
+  the shell self-intersects a little in the armpit of a raised arm, no hakama by decision, and the
+  cloth has no wrinkles or thickness of its own. A modelled gi (spec §7.1's transferred-weight
+  mesh from Blender) would replace this file without touching anything else.

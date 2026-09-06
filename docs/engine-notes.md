@@ -134,6 +134,16 @@ now asserts against all three, so a bad character cannot be exported silently.
 - **Write baked poses after the frame boundary.** Rotations captured inside `skeleton_updated` must
   be written back on a later frame; writing them during the signal is undone by Skeleton3D's pose
   restore.
+- **A modifier must write every bone it owns, every pass.** Inside `_process_modification`,
+  `get_bone_pose_rotation()` returns the authored value (the previous modifiers' output for bones
+  they touched), so a modifier can compose with the authored pose (`FingerCurl` adds the curl on
+  top of a hand-posed phalanx). But a modifier that writes nothing for a bone leaves that bone
+  as the last thing the skeleton had for it: setting a finger's curl back to 0 and skipping the
+  write left the finger curled. Write the unchanged authored value instead.
+- **A coroutine that awaited `skeleton_updated` reads the solved pose afterwards.** It resumes
+  inside the update, so a "synchronous" `get_bone_pose_rotation()` after the await returns the
+  modified value, not the authored one. `PoseFile.capture_baked` reads the authored finger
+  rotations before its first await for this reason.
 - **GDScript lambdas capture locals by value.** A callback that assigns to a local variable of the
   enclosing function changes only its own copy. Write into a Dictionary or Array instead.
 

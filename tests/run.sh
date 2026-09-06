@@ -19,6 +19,9 @@ RUN="$GODOT"; if [ -z "${DISPLAY:-}" ] && command -v xvfb-run >/dev/null; then R
 echo "== rendered stills"
 timeout "$TIMEOUT" $RUN --resolution 1600x900 -- --screenshot "$PWD/tests/out/m1_flat.png" 2>&1 | grep -E "screenshot|SCRIPT ERROR" || true
 timeout "$TIMEOUT" $RUN --resolution 1600x900 -- --screenshot-transparent "$PWD/tests/out/m1_transparent.png" 2>&1 | grep -E "screenshot|SCRIPT ERROR" || true
+echo "== gi demo (both figures dressed, checked against tests/golden)"
+mkdir -p tests/out/demo
+timeout "$TIMEOUT" $RUN --resolution 1600x900 -- --demo-gi "$PWD/tests/out/demo/gi.png" 2>&1 | grep -E "SCRIPT ERROR" || true
 run "$GODOT" --headless -s tests/check_exports.gd 2>&1 | grep -E "^(PASS|FAIL|RESULT)" || true
 run "$GODOT" --headless -s tests/check_exports.gd >/dev/null 2>&1 || status=1
 echo "== video export (Movie Maker child on the test_m5 sequence)"

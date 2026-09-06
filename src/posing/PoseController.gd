@@ -12,6 +12,8 @@ const BONE_PICK_LAYER := 2
 var scene: PosingScene
 var camera: Camera3D
 var gizmo: RotationGizmo
+## Set by whoever owns the grips; a wrist edit on a gripping hand re-captures the grip's offset.
+var director: GripDirector
 var undo := UndoRedo.new()
 
 var selected_rig: CharacterRig
@@ -97,10 +99,9 @@ func _raycast_area(mouse: Vector2, layer: int) -> Node:
 
 
 func _place_gizmo() -> void:
-	var sk := selected_rig.skeleton
-	var idx := sk.find_bone(selected_bone)
-	var g := sk.global_transform * sk.get_bone_global_pose(idx)
-	gizmo.attach(g.origin, g.basis)
+	# The solved pose, so the gizmo sits on an IK-placed hand rather than on its authored pose.
+	var g := selected_rig.bone_world_transform(selected_bone)
+	gizmo.attach(g.origin, g.basis.orthonormalized())
 
 
 # ---------------------------------------------------------------- input
@@ -161,19 +162,63 @@ func _refresh_gizmo() -> void:
 
 # ---------------------------------------------------------------- FK editing
 
+## The limb whose IK target owns this bone's rotation, or null. A hand on an IK arm with
+## "turn" on (every gripping hand) is oriented by HandOrient every frame, so a rotation written
+## to the bone itself would be overwritten; the edit has to go to the target instead. In FK,
+## and in IK without orientation, the wrist is an ordinary bone (TwoBoneIK3D never touches it).
+func target_driven_limb(rig: CharacterRig, bone_name: String) -> Limb:
+	for key in rig.limbs:
+		var limb: Limb = rig.limbs[key]
+		if limb.end_bone == bone_name and limb.mode == Limb.Mode.IK and limb.orient_to_target:
+			return limb
+	return null
+
+
+## The bone's local rotation as it is on screen: the authored value, or for a target-driven
+## wrist the solved one (the target's orientation against the solved forearm).
 func get_bone_rotation(rig: CharacterRig, bone_name: String) -> Quaternion:
+	var limb := target_driven_limb(rig, bone_name)
+	if limb:
+		var sk := rig.skeleton
+		var parent := sk.get_bone_parent(sk.find_bone(bone_name))
+		var parent_basis := rig.bone_world_transform(sk.get_bone_name(parent)).basis.orthonormalized()
+		var hand_basis := rig.bone_world_transform(bone_name).basis.orthonormalized()
+		return (parent_basis.inverse() * hand_basis).orthonormalized().get_rotation_quaternion()
 	return rig.skeleton.get_bone_pose_rotation(rig.skeleton.find_bone(bone_name))
 
 
 func set_bone_rotation(rig: CharacterRig, bone_name: String, q: Quaternion) -> void:
-	rig.skeleton.set_bone_pose_rotation(rig.skeleton.find_bone(bone_name), q.normalized())
+	var limb := target_driven_limb(rig, bone_name)
+	if limb:
+		# Wanted world orientation against the solved forearm; the target carries it from here.
+		var sk := rig.skeleton
+		var parent := sk.get_bone_parent(sk.find_bone(bone_name))
+		var parent_basis := rig.bone_world_transform(sk.get_bone_name(parent)).basis.orthonormalized()
+		_set_target_basis(rig, limb, (parent_basis * Basis(q.normalized())).orthonormalized())
+	else:
+		rig.skeleton.set_bone_pose_rotation(rig.skeleton.find_bone(bone_name), q.normalized())
 	pose_changed.emit()
+
+
+## Turns a target-driven hand: the IK target takes the orientation, and a grip on that hand
+## re-captures its offset so the new wrist angle is what the grip keeps from now on.
+func _set_target_basis(rig: CharacterRig, limb: Limb, basis: Basis) -> void:
+	limb.target.global_basis = basis
+	if director:
+		var grip := director.grip_on_limb(rig.character_id, limb.key)
+		if grip:
+			grip.offset = grip.target.world_transform().affine_inverse() * limb.target.global_transform
 
 
 ## Rotate the selected bone about a world-space axis (used by the gizmo).
 func rotate_selected_world(axis_world: Vector3, angle: float) -> void:
 	var sk := selected_rig.skeleton
 	var idx := sk.find_bone(selected_bone)
+	var limb := target_driven_limb(selected_rig, selected_bone)
+	if limb:
+		_set_target_basis(selected_rig, limb, (Basis(axis_world.normalized(), angle) * limb.target.global_basis).orthonormalized())
+		pose_changed.emit()
+		return
 	var axis_skel := (sk.global_transform.basis.inverse() * axis_world).normalized()
 	var g := sk.get_bone_global_pose(idx)
 	var new_basis := Basis(axis_skel, angle) * g.basis
@@ -251,8 +296,24 @@ func drag_handle_to(mouse: Vector2) -> void:
 	var dir := camera.project_ray_normal(mouse)
 	var hit = _drag_plane.intersects_ray(from, dir)
 	if hit != null:
-		_dragging_handle.global_position = hit
+		var pos: Vector3 = hit
+		if not _dragging_handle.is_pole:
+			pos = keep_out_of_other_bodies(_dragging_handle, pos)
+		_dragging_handle.global_position = pos
 		pose_changed.emit()
+
+
+## A hand or foot target dragged into another figure stops at that figure's skin instead of
+## going through it. The character's own body is not solid to its own hands (arms cross the
+## chest all the time); a grip decides what a hand may overlap on the other body.
+func keep_out_of_other_bodies(handle: LimbHandle, pos: Vector3) -> Vector3:
+	var own_id: String = handle.get_child(1).get_meta("character_id")
+	var out := pos
+	for rig in scene.characters:
+		if rig.character_id == own_id or not rig.visible:
+			continue
+		out = BodyCapsules.push_out(out, GripDirector.HAND_RADIUS, rig)
+	return out
 
 
 func end_handle_drag() -> void:

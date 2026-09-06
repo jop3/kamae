@@ -68,6 +68,9 @@ func _ready() -> void:
 		print("ui screenshot saved")
 		get_tree().quit()
 		return
+	if args.has("--demo-gi"):
+		await _render_demo_gi(args[args.find("--demo-gi") + 1])
+		return
 	if args.has("--demo-hand"):
 		await _render_demo_hand(args[args.find("--demo-hand") + 1])
 		return
@@ -386,4 +389,41 @@ func _render_demo_hand(path: String) -> void:
 			var p: String = "%s_%s_%.0f.png" % [path.get_basename(), view[0], curl]
 			await StillExport.capture(get_viewport(), p, false, _hide_always(), _hide_for_transparent())
 			print("hand demo saved: ", p)
+	get_tree().quit()
+
+
+## Test hook: both figures in gi, standing and in a katatedori with one arm raised, so the
+## jacket, sleeves, trousers and belt can be looked at from the front, the side and up close.
+func _render_demo_gi(path: String) -> void:
+	var tori: CharacterRig = posing_scene.get_character("tori")
+	var uke: CharacterRig = posing_scene.get_character("uke1")
+	controller.set_root(tori, Vector3(-0.35, 0, -0.1), deg_to_rad(20))
+	controller.set_root(uke, Vector3(0.35, 0, 0.1), deg_to_rad(-160))
+	tori.set_gi_visible(true)
+	uke.set_gi_visible(true)
+	await get_tree().process_frame
+	await controller.set_limb_mode(tori, "RightArm", Limb.Mode.IK)
+	tori.limbs["RightArm"].target.global_position = tori.bone_world_transform("RightUpperArm").origin + Vector3(0.1, 0.35, 0.25)
+	tori.limbs["RightArm"].reset_pole()
+	await controller.set_limb_mode(uke, "LeftArm", Limb.Mode.IK)
+	uke.limbs["LeftArm"].target.global_position = uke.bone_world_transform("LeftUpperArm").origin + Vector3(0.0, -0.2, 0.3)
+	uke.limbs["LeftArm"].reset_pole()
+	for i in 4:
+		await get_tree().process_frame
+	var mid := Vector3(0, 0.95, 0)
+	var views := {
+		"_front": [Vector3(0.0, 0.3, 1.0), mid, 3.2],
+		"_side": [Vector3(1.0, 0.3, 0.2), mid, 3.2],
+		"_back": [Vector3(0.0, 0.3, -1.0), mid, 3.2],
+		"_belt": [Vector3(0.3, 0.2, 1.0), tori.global_position + Vector3(0, 0.98, 0), 0.9],
+		"_sleeve": [Vector3(0.2, 0.6, 1.0), tori.bone_world_transform("RightLowerArm").origin, 0.8],
+	}
+	for suffix in views:
+		var v: Array = views[suffix]
+		camera.look_from(v[0], v[1], v[2])
+		for i in 3:
+			await get_tree().process_frame
+		var p: String = path.get_basename() + str(suffix) + ".png"
+		await StillExport.capture(get_viewport(), p, false, _hide_always(), _hide_for_transparent())
+		print("gi demo saved: ", p)
 	get_tree().quit()
