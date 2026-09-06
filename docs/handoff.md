@@ -196,7 +196,14 @@ renders every technique's Front+Side stills and a video into `exports/` (about 6
 total) and checks them; set `RENDER_ACCEPTANCE=0` to skip that part. `docs/guide.md` is the
 instructor guide.
 
-Next: read the agent-written and script-written code line by line (still not done); 2×
+A read-only review agent then went through GripDirector, Weapon, PoseFile, PoseBlend,
+SequencePlayer, MovieExport and SidePanel and found twelve real problems, all fixed in commit
+"Fix twelve review findings" (undo of holds not restoring arm modes, loaded poses keeping
+playback blend state, a second hand on a weapon trailing a frame, and so on; the commit message
+lists them). The two-handed fix introduced `ArmBridge`, a modifier between the arms' solvers; see
+`docs/engine-notes.md`.
+
+Next: a second review pass over the rig and posing code written in the first session; 2×
 supersampled stills if the Compatibility renderer allows it; tooltips and keyboard shortcuts;
 the pose panel's confirm-before-overwrite; then wait for the instructor's corrections and the
 open questions in `docs/spec-v2.md` §9. M9 (gi) remains optional.
