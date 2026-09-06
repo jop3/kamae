@@ -90,6 +90,7 @@ func setup(ctrl: PoseController, posing_scene: PosingScene, grip_director: GripD
 	for sb in [_root_x, _root_z, _root_yaw]:
 		sb.value_changed.connect(_on_root_changed)
 	var turn := Button.new(); turn.text = "Turn 180°"
+	turn.tooltip_text = "Face the other way"
 	turn.pressed.connect(func(): if controller.selected_rig: _root_yaw.value = wrapf(_root_yaw.value + 180.0, -180.0, 180.0))
 	vb.add_child(turn)
 
@@ -106,6 +107,7 @@ func setup(ctrl: PoseController, posing_scene: PosingScene, grip_director: GripD
 		row.add_child(s); _euler.append(s)
 		var v := Label.new(); v.custom_minimum_size.x = 48; v.text = "0°"; row.add_child(v); _euler_vals.append(v)
 	var reset := Button.new(); reset.text = "Reset joint"
+	reset.tooltip_text = "Back to the rest rotation (Ctrl+Z undoes)"
 	reset.pressed.connect(func(): if controller.selected_rig and controller.selected_bone != "": controller.reset_bone(controller.selected_rig, controller.selected_bone))
 	vb.add_child(reset)
 
@@ -153,6 +155,7 @@ func setup(ctrl: PoseController, posing_scene: PosingScene, grip_director: GripD
 	_grip_hand.add_item("right hand"); _grip_hand.add_item("left hand")
 	grip_row.add_child(_grip_hand)
 	var attach := Button.new(); attach.text = "Attach"
+	attach.tooltip_text = "Keeps the chosen hand on the selected body part while either figure moves"
 	attach.pressed.connect(_on_attach_pressed)
 	vb.add_child(attach)
 	_grip_list = ItemList.new()
@@ -643,11 +646,34 @@ func _on_save_pose_pressed() -> void:
 	var name := _pose_name.text.strip_edges()
 	if name == "":
 		name = "pose"
+	var path := PoseFile.pose_path(POSES_DIR, name)
+	if not await _confirm_overwrite(path):
+		return
 	var data: Dictionary = await PoseFile.capture_baked(scene, grips, camera, name)
-	var err := PoseFile.save(PoseFile.pose_path(POSES_DIR, name), data)
+	var err := PoseFile.save(path, data)
 	if err != OK:
 		push_error("SidePanel: could not save pose (%s)" % error_string(err))
 	_refresh_poses()
+
+
+## Asks before an existing pose file is replaced (spec §4). True when there is nothing to
+## overwrite or the instructor confirmed.
+func _confirm_overwrite(path: String) -> bool:
+	if not FileAccess.file_exists(path):
+		return true
+	var dialog := ConfirmationDialog.new()
+	dialog.title = "Replace pose?"
+	dialog.dialog_text = "%s already exists.\nReplace it with the current scene?" % path.get_file()
+	dialog.ok_button_text = "Replace"
+	add_child(dialog)
+	var box := {"ok": false}
+	dialog.confirmed.connect(func(): box["ok"] = true)
+	dialog.popup_centered()
+	await dialog.visibility_changed   # closes on either button
+	if dialog.visible:
+		await dialog.visibility_changed
+	dialog.queue_free()
+	return box["ok"]
 
 
 func _on_load_pose_pressed() -> void:
@@ -749,8 +775,11 @@ func _on_save_step_pose_pressed() -> void:
 	if _sequence == null or i < 0 or grips == null:
 		return
 	var slug: String = _sequence.steps[i]["pose"]
+	var path := POSES_DIR.path_join(slug + ".json")
+	if not await _confirm_overwrite(path):
+		return
 	var data: Dictionary = await PoseFile.capture_baked(scene, grips, camera, slug)
-	var err := PoseFile.save(POSES_DIR.path_join(slug + ".json"), data)
+	var err := PoseFile.save(path, data)
 	if err != OK:
 		push_error("Could not save pose %s: %s" % [slug, error_string(err)])
 	_refresh_poses()
