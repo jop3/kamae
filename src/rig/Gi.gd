@@ -16,7 +16,7 @@ const TROUSER_OFFSET := 0.014
 const BELT_Y := 0.985
 const BELT_HEIGHT := 0.045
 const BELT_THICKNESS := 0.010
-const JACKET_HEM_Y := 0.76
+const JACKET_HEM_Y := 0.74
 const TROUSER_HEM_Y := 0.15
 ## The sleeve ends this far along the forearm (elbow 0 → wrist 1); the trouser leg this far
 ## along the shin (knee 0 → ankle 1).
@@ -282,16 +282,18 @@ const DRAPE_BIN := 0.02
 const DRAPE_AXIS_Z := 0.0
 ## How fast hanging cloth may narrow below a wide point, metres of radius per metre of height.
 const DRAPE_TAPER := 0.35
+## Below the belt the jacket's skirt hangs free of the body, widening a little toward the hem.
+const SKIRT_FLARE := 0.12
 ## Above this the jacket narrows to the neck and is not draped; below it the trousers are legs.
 const DRAPE_TOP_Y := 1.30
-const DRAPE_BOTTOM_Y := 0.80
+const DRAPE_BOTTOM_Y := 0.70
 
 ## Per shell vertex on the torso (jacket) or hips (trousers): its draped rest position, on a
 ## radius no smaller than the body's widest radius in the same direction anywhere above it
 ## (up to the chest), plus the cloth offset. Vertices that already stand outside are left.
 func _drape(piece: String, verts: PackedVector3Array, dominant: PackedStringArray, clamped: PackedVector3Array) -> Dictionary:
 	var out := {}
-	var draped_bones := ["Hips", "Spine", "Chest", "UpperChest"] if piece == "jacket" else ["Hips"]
+	var draped_bones := ["Hips", "Spine", "Chest", "UpperChest", "LeftUpperLeg", "RightUpperLeg"] if piece == "jacket" else ["Hips"]
 	var n := DRAPE_SECTORS
 	var bins := int(ceil((DRAPE_TOP_Y - DRAPE_BOTTOM_Y) / DRAPE_BIN)) + 1
 	var profile: Array = []
@@ -309,11 +311,15 @@ func _drape(piece: String, verts: PackedVector3Array, dominant: PackedStringArra
 	# Hang: each bin takes the widest of itself and the bin above less a taper, so the cloth
 	# falls from the chest and hips but narrows slowly rather than dropping as a barrel; at the
 	# belt it is cinched to the body. Then smooth round.
+	var belt_bin := int((BELT_Y - DRAPE_BOTTOM_Y) / DRAPE_BIN)
 	for b in range(bins - 2, -1, -1):
 		var y := DRAPE_BOTTOM_Y + b * DRAPE_BIN
 		var cinch := absf(y - BELT_Y) < BELT_HEIGHT * 0.5 + 0.01
 		for k in n:
-			if not cinch:
+			if piece == "jacket" and y < BELT_Y - BELT_HEIGHT * 0.5:
+				# The skirt: a loose tube hanging from the belt, not the shape of the hips.
+				profile[b][k] = maxf(profile[b][k], profile[belt_bin][k] + SKIRT_FLARE * (BELT_Y - y))
+			elif not cinch:
 				profile[b][k] = maxf(profile[b][k], profile[b + 1][k] - DRAPE_TAPER * DRAPE_BIN)
 	for b in bins:
 		var row: PackedFloat32Array = profile[b]
