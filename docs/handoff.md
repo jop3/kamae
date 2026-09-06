@@ -218,6 +218,11 @@ overwriting a pose, `export_presets.cfg` for Linux and Windows builds (templates
 here), and a user-folder fallback for poses in exported builds. Every spec §2.1 item is now
 present in some form except undo for camera moves and the optional M9 gi.
 
+Last in this session: hanmi stances in every acceptance draft (`hanmi()` in the builder plants
+the feet with leg IK; the acceptance check asserts every toe is within 6 cm of the floor) and
+undo for camera gestures. `tests/run.sh` exits 0 with all twelve sections green, acceptance
+renders included, on the pinned Godot 4.6-stable.
+
 Next: hand the drafts to the instructor; 2×
 supersampled stills if the Compatibility renderer allows it; tooltips and keyboard shortcuts;
 the pose panel's confirm-before-overwrite; then wait for the instructor's corrections and the
