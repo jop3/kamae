@@ -23,6 +23,10 @@ func _initialize() -> void:
 	check(jm.get_surface_count() == 1 and jm.surface_get_array_len(0) > 1000, "the jacket is a real mesh (%d vertices)" % (jm.surface_get_array_len(0) if jm.get_surface_count() > 0 else 0))
 	check(tm.get_surface_count() == 1 and tm.surface_get_array_len(0) > 1000, "the trousers are a real mesh (%d vertices)" % (tm.surface_get_array_len(0) if tm.get_surface_count() > 0 else 0))
 	check(tori.gi.jacket.skin == tori.body.skin, "the cloth shares the body's skin binds")
+	# What the renderer actually uses: the mesh instance's skeleton path must resolve, or the
+	# cloth is drawn in its rest pose whatever the bones do (a first version had it empty).
+	for piece in [tori.gi.jacket, tori.gi.trousers, tori.gi.belt]:
+		check(piece.get_node_or_null(piece.skeleton) == tori.skeleton, "%s is bound to the skeleton (path '%s')" % [piece.name, piece.skeleton])
 	# Every jacket vertex stands off the body: within the cloth offsets of the mannequin's
 	# rest surface, never below the hem or above the collar.
 	var jv: PackedVector3Array = jm.surface_get_arrays(0)[Mesh.ARRAY_VERTEX]

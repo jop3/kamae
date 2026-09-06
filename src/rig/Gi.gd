@@ -49,9 +49,12 @@ func build(for_rig: CharacterRig) -> void:
 	trousers = _shell(arrays, dominant, "trousers", trouser_material)
 	belt = _belt(arrays, dominant)
 	for m in [jacket, trousers, belt]:
-		m.skin = body.skin
 		m.cast_shadow = body.cast_shadow
 		rig.skeleton.add_child(m)
+		# A MeshInstance3D made in code has an empty skeleton path, not the ".." the importer
+		# writes, so without this the cloth stays in its rest pose while the body moves.
+		m.skeleton = m.get_path_to(rig.skeleton)
+		m.skin = body.skin
 
 
 # ---------------------------------------------------------------- cloth

@@ -144,6 +144,10 @@ now asserts against all three, so a bad character cannot be exported silently.
   inside the update, so a "synchronous" `get_bone_pose_rotation()` after the await returns the
   modified value, not the authored one. `PoseFile.capture_baked` reads the authored finger
   rotations before its first await for this reason.
+- **A `MeshInstance3D` made in code has an empty `skeleton` path.** The importer writes `..`;
+  `MeshInstance3D.new()` does not, and setting `skin` alone is not enough. Without the path the
+  mesh draws in its rest pose whatever the bones do, silently. `Gi` sets the path after adding
+  the mesh under the skeleton; `tests/test_gi.gd` checks that it resolves.
 - **GDScript lambdas capture locals by value.** A callback that assigns to a local variable of the
   enclosing function changes only its own copy. Write into a Dictionary or Array instead.
 

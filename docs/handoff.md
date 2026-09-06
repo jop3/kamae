@@ -327,6 +327,11 @@ on the neck does not pass through the neck; and a first look at the gi.
   normal map, mapped triplanar in world metres (8 cm tiles) so the shell needs no UVs; base
   colour a warm off-white so the cloth separates from the white background. Tuned by looking
   at `gi_belt.png`: the first pass was invisible, the second too bold.
+  Then "the jacket doesn't seem connected to the arms": the cloth was drawn in its rest pose
+  because a code-made MeshInstance3D has an empty skeleton path (engine note); the sleeve
+  had looked attached only because the demo's other arm hung at rest. Fixed, with a test on
+  the resolved path, and the demo now bends Uke's spine so the render itself shows the cloth
+  following (`gi_shoulder.png` is the raised arm's sleeve up close).
   Known limits to raise with the instructor: no lapel overlap (the V shows skin to the sternum),
   the shell self-intersects a little in the armpit of a raised arm, no hakama by decision, and the
   cloth has no wrinkles or thickness of its own. A modelled gi (spec §7.1's transferred-weight

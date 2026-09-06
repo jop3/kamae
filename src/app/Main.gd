@@ -401,6 +401,9 @@ func _render_demo_gi(path: String) -> void:
 	controller.set_root(uke, Vector3(0.35, 0, 0.1), deg_to_rad(-160))
 	tori.set_gi_visible(true)
 	uke.set_gi_visible(true)
+	# Uke bends forward at the waist, so the render shows the cloth following the spine too.
+	var uke_sk := uke.skeleton
+	uke_sk.set_bone_pose_rotation(uke_sk.find_bone("Spine"), Quaternion(Vector3(1, 0, 0), deg_to_rad(35)) * uke_sk.get_bone_rest(uke_sk.find_bone("Spine")).basis.get_rotation_quaternion())
 	await get_tree().process_frame
 	await controller.set_limb_mode(tori, "RightArm", Limb.Mode.IK)
 	tori.limbs["RightArm"].target.global_position = tori.bone_world_transform("RightUpperArm").origin + Vector3(0.1, 0.35, 0.25)
@@ -417,6 +420,7 @@ func _render_demo_gi(path: String) -> void:
 		"_back": [Vector3(0.0, 0.3, -1.0), mid, 3.2],
 		"_belt": [Vector3(0.3, 0.2, 1.0), tori.global_position + Vector3(0, 0.98, 0), 0.9],
 		"_sleeve": [Vector3(0.2, 0.6, 1.0), tori.bone_world_transform("RightLowerArm").origin, 0.8],
+		"_shoulder": [Vector3(-0.3, 0.1, 1.0), tori.bone_world_transform("RightUpperArm").origin, 0.7],
 	}
 	for suffix in views:
 		var v: Array = views[suffix]
