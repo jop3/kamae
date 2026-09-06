@@ -332,7 +332,18 @@ on the neck does not pass through the neck; and a first look at the gi.
   had looked attached only because the demo's other arm hung at rest. Fixed, with a test on
   the resolved path, and the demo now bends Uke's spine so the render itself shows the cloth
   following (`gi_shoulder.png` is the raised arm's sleeve up close).
-  Known limits to raise with the instructor: no lapel overlap (the V shows skin to the sternum),
+  Then, against two photos of a real keikogi ("something like this"): the weave is now fine
+  (6 mm rice grains), the sleeves wider and shorter, and the jacket has an **eri**: the collar
+  is the jacket shell itself along the neck and the V edges raised by `LAPEL_THICKNESS` as a
+  second surface in a canvas cloth (`_in_collar`; triangles touching the band belong to it and
+  bevel down, or a slit shows skin), and the two fronts are stitched ribbons (`_ribbon_path`,
+  skinned from the nearest skin vertex) that cross below the sternum, the character's left on
+  top. Two dead ends worth not repeating: a collar built as a ring of measured radii round the
+  neck ended up either inside the jacket or as a shelf out at the shoulders, and quads must be
+  wound toward an explicit "outside" (`_rq(..., want)`) or half of them render unlit grey.
+  `gi_collar.png` and `gi_collar_back.png` are the views to look at.
+  Known limits to raise with the instructor: the V still shows skin to the sternum (the
+  overlap starts below it),
   the shell self-intersects a little in the armpit of a raised arm, no hakama by decision, and the
   cloth has no wrinkles or thickness of its own. A modelled gi (spec §7.1's transferred-weight
   mesh from Blender) would replace this file without touching anything else.

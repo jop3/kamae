@@ -20,12 +20,15 @@ func _initialize() -> void:
 	check(tori.gi != null and tori.gi.jacket.visible, "asking for the gi builds and shows it")
 	var jm: ArrayMesh = tori.gi.jacket.mesh
 	var tm: ArrayMesh = tori.gi.trousers.mesh
-	check(jm.get_surface_count() == 1 and jm.surface_get_array_len(0) > 1000, "the jacket is a real mesh (%d vertices)" % (jm.surface_get_array_len(0) if jm.get_surface_count() > 0 else 0))
+	check(jm.get_surface_count() >= 1 and jm.surface_get_array_len(0) > 1000, "the jacket is a real mesh (%d vertices)" % (jm.surface_get_array_len(0) if jm.get_surface_count() > 0 else 0))
 	check(tm.get_surface_count() == 1 and tm.surface_get_array_len(0) > 1000, "the trousers are a real mesh (%d vertices)" % (tm.surface_get_array_len(0) if tm.get_surface_count() > 0 else 0))
 	check(tori.gi.jacket.skin == tori.body.skin, "the cloth shares the body's skin binds")
+	check(jm.get_surface_count() == 2, "the jacket carries its collar band as a second surface (%d)" % jm.get_surface_count())
+	var lm: ArrayMesh = tori.gi.lapel.mesh
+	check(lm.get_surface_count() == 1 and lm.surface_get_array_len(0) > 100, "the lapel ribbons are a real mesh (%d vertices)" % (lm.surface_get_array_len(0) if lm.get_surface_count() > 0 else 0))
 	# What the renderer actually uses: the mesh instance's skeleton path must resolve, or the
 	# cloth is drawn in its rest pose whatever the bones do (a first version had it empty).
-	for piece in [tori.gi.jacket, tori.gi.trousers, tori.gi.belt]:
+	for piece in [tori.gi.jacket, tori.gi.trousers, tori.gi.belt, tori.gi.lapel]:
 		check(piece.get_node_or_null(piece.skeleton) == tori.skeleton, "%s is bound to the skeleton (path '%s')" % [piece.name, piece.skeleton])
 	# Every jacket vertex stands off the body: within the cloth offsets of the mannequin's
 	# rest surface, never below the hem or above the collar.
@@ -81,7 +84,7 @@ func _initialize() -> void:
 		check(posed.distance_to(forearm) < 0.35 and posed.y > 1.3, "the sleeve follows the raised forearm (vertex at y %.2f, %.2f m from the elbow)" % [posed.y, posed.distance_to(forearm)])
 	# Toggle and save/load.
 	tori.set_gi_visible(false)
-	check(not tori.gi.jacket.visible and not tori.gi.belt.visible, "the gi can be hidden again")
+	check(not tori.gi.jacket.visible and not tori.gi.belt.visible and not tori.gi.lapel.visible, "the gi can be hidden again")
 	tori.set_gi_visible(true)
 	var data: Dictionary = await PoseFile.capture_baked(scene, director, null, "gi test")
 	check(data["characters"][0]["gi"] == true and data["characters"][1]["gi"] == false, "the gi flag is saved per character")

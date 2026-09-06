@@ -421,6 +421,8 @@ func _render_demo_gi(path: String) -> void:
 		"_belt": [Vector3(0.3, 0.2, 1.0), tori.global_position + Vector3(0, 0.98, 0), 0.9],
 		"_sleeve": [Vector3(0.2, 0.6, 1.0), tori.bone_world_transform("RightLowerArm").origin, 0.8],
 		"_shoulder": [Vector3(-0.3, 0.1, 1.0), tori.bone_world_transform("RightUpperArm").origin, 0.7],
+		"_collar": [Vector3(0.4, 0.6, 1.0), tori.bone_world_transform("Neck").origin + Vector3(0, -0.05, 0), 0.5],
+		"_collar_back": [Vector3(0.2, 0.6, -1.0), tori.bone_world_transform("Neck").origin, 0.5],
 	}
 	for suffix in views:
 		var v: Array = views[suffix]
