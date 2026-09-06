@@ -31,6 +31,9 @@ static func apply(scene: PosingScene, director: GripDirector, a: Dictionary, b: 
 		director.rebuild()
 	if director:
 		director.refresh_hand_driven()
+	# Strictly between two poses only: on a keyframe (u == 0) the saved pose is shown untouched.
+	if u > 0.0 and u < 1.0:
+		MotionClearance.resolve(scene, director)
 
 
 ## Makes sure every character and weapon named by any of `poses` exists in the scene, so a

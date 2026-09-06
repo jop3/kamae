@@ -33,9 +33,34 @@ const BEND_CHECK_FROM := 12.0
 ## The head and neck: angle between the neck bone direction and the chest direction.
 const NECK_MAX := 70.0
 
+## How far a joint may swing away from where the rest pose points it, in degrees, measured from
+## the parent's frame so a raised arm does not spend the shoulder's budget on the spine's. These
+## are the outer edge of a healthy adult's passive range, not what a technique should use:
+## anything past them is not a hard pose, it is a broken joint.
+const SWING := {
+	"RightUpperArm": 170.0, "LeftUpperArm": 170.0,   ## shoulder, arm raised overhead or behind
+	"RightUpperLeg": 125.0, "LeftUpperLeg": 125.0,   ## hip
+	"RightHand": 90.0, "LeftHand": 90.0,             ## wrist: flexion, extension and deviation
+	"RightFoot": 55.0, "LeftFoot": 55.0,             ## ankle
+	"Spine": 45.0, "Chest": 35.0, "UpperChest": 30.0,
+	"Neck": 60.0, "Head": 45.0,
+	"RightShoulder": 30.0, "LeftShoulder": 30.0,     ## the clavicle shrugs, it does not rotate
+}
+## How far a bone may be rolled about its own direction, in degrees. The forearm carries the
+## wrist's rotation (docs/engine-notes.md), so its budget is pronation plus supination.
+const TWIST := {
+	"RightUpperArm": 95.0, "LeftUpperArm": 95.0,
+	"RightLowerArm": 100.0, "LeftLowerArm": 100.0,
+	"RightUpperLeg": 50.0, "LeftUpperLeg": 50.0,
+	"RightHand": 45.0, "LeftHand": 45.0,
+	"Neck": 70.0, "Head": 45.0,
+}
+
 ## Named limb pairs that may legitimately touch and are not tested against each other:
 ## adjacent bones, both bones of a hand on its own forearm, both legs at the crotch.
-static func _skip_pair(a: String, b: String, parent_of: Dictionary) -> bool:
+## True for two capsules that are neighbours in the skeleton and touch by design: a bone
+## against its own parent, a shoulder against the chest, a thigh against the spine.
+static func touching_by_design(a: String, b: String, parent_of: Dictionary) -> bool:
 	if parent_of.get(a, "") == b or parent_of.get(b, "") == a:
 		return true
 	if parent_of.get(a, "") == parent_of.get(b, "x"):
@@ -154,12 +179,62 @@ static func joint_problems(rig: CharacterRig) -> PackedStringArray:
 			var d := bend_direction(rig, key).dot(allowed_bend_direction(rig, key))
 			if d < -0.2:
 				out.append("%s bends the wrong way (%.0f°, alignment %.2f)" % [key, f, d])
+	for bone: String in SWING:
+		var m := swing_twist(rig, bone)
+		if m.is_empty():
+			continue
+		if m["swing"] > SWING[bone] + 1.0:
+			out.append("%s swung %.0f° off rest, past %.0f°" % [bone, m["swing"], SWING[bone]])
+		if TWIST.has(bone) and absf(m["twist"]) > TWIST[bone] + 1.0:
+			out.append("%s twisted %.0f°, past %.0f°" % [bone, m["twist"], TWIST[bone]])
 	var neck := rig.bone_world_transform("Head").origin - rig.bone_world_transform("Neck").origin
 	var chest := rig.bone_world_transform("Neck").origin - rig.bone_world_transform("Chest").origin
 	var neck_deg := rad_to_deg(neck.angle_to(chest))
 	if neck_deg > NECK_MAX:
 		out.append("neck folded %.0f° against the chest" % neck_deg)
 	return out
+
+
+## How far a joint is from its rest pose: {"swing": degrees away from the rest direction,
+## "twist": degrees rolled about that direction}. Both are measured from bone directions in the
+## parent's frame, so neither depends on the rig's local axis conventions and neither counts a
+## parent's own pose. Empty for a bone with no parent or no child to point at.
+static func swing_twist(rig: CharacterRig, bone: String) -> Dictionary:
+	var sk := rig.skeleton
+	var i := sk.find_bone(bone)
+	if i < 0:
+		return {}
+	var p := sk.get_bone_parent(i)
+	var kids := sk.get_bone_children(i)
+	if p < 0 or kids.is_empty():
+		return {}
+	var here: Transform3D = rig.bone_world_transform(bone)
+	var rest_here := sk.get_bone_global_rest(i)
+	var now_dir := Vector3.ZERO
+	var rest_dir := Vector3.ZERO
+	for c in kids:
+		now_dir += rig.bone_world_transform(sk.get_bone_name(c)).origin - here.origin
+		rest_dir += sk.get_bone_global_rest(c).origin - rest_here.origin
+	if now_dir.length() < 1e-6 or rest_dir.length() < 1e-6:
+		return {}
+	var parent_now: Basis = rig.bone_world_transform(sk.get_bone_name(p)).basis
+	var parent_rest: Basis = sk.get_bone_global_rest(p).basis
+	var a := (parent_now.inverse() * now_dir.normalized()).normalized()
+	var b := (parent_rest.inverse() * rest_dir.normalized()).normalized()
+	var swing := rad_to_deg(a.angle_to(b))
+	# Roll left over once the swing is taken out: turn the rest orientation onto the current
+	# direction, and whatever rotation still separates it from the current one is the twist.
+	var aligned := Basis(Quaternion(b, a)) * (parent_rest.inverse() * rest_here.basis)
+	var q := (aligned.inverse() * (parent_now.inverse() * here.basis)).get_rotation_quaternion().normalized()
+	if q.w < 0.0:
+		q = -q
+	var axis := Vector3(q.x, q.y, q.z)
+	var twist := 0.0
+	if axis.length() > 1e-6:
+		twist = rad_to_deg(2.0 * atan2(axis.dot(a), q.w))
+	if absf(twist) > 180.0:
+		twist -= signf(twist) * 360.0
+	return {"swing": swing, "twist": twist}
 
 
 static func _chain(limb_key: String) -> Array:
@@ -186,28 +261,33 @@ static func bone_scale_problems(rig: CharacterRig) -> PackedStringArray:
 
 ## Segments (start, end, radius) for the bones in RADII. A bone runs from its origin to its
 ## child's origin (mean of children), leaves get a short stub along their axis.
-static func segments(rig: CharacterRig) -> Dictionary:
+## Every capsule of a body: bone name -> [end a, end b, radius]. With `fk` the capsules are
+## built from the pose alone, ignoring every modifier (see CharacterRig.fk_bone_transform);
+## the checks use the solved pose, a correction to a blend uses the FK one.
+static func segments(rig: CharacterRig, fk := false) -> Dictionary:
 	var sk := rig.skeleton
 	var out := {}
 	for name: String in RADII:
 		var i := sk.find_bone(name)
 		if i < 0:
 			continue
-		var a := rig.bone_world_transform(name).origin
+		var here := rig.fk_bone_transform(name) if fk else rig.bone_world_transform(name)
+		var a := here.origin
 		var children := sk.get_bone_children(i)
 		var b: Vector3
 		if children.size() > 0:
 			b = Vector3.ZERO
 			for c in children:
-				b += rig.bone_world_transform(sk.get_bone_name(c)).origin
+				var cn := sk.get_bone_name(c)
+				b += (rig.fk_bone_transform(cn) if fk else rig.bone_world_transform(cn)).origin
 			b /= children.size()
 		else:
-			b = a + rig.bone_world_transform(name).basis.y * 0.08
+			b = a + here.basis.y * 0.08
 		out[name] = [a, b, RADII[name]]
 	return out
 
 
-static func _parents(rig: CharacterRig) -> Dictionary:
+static func parents_of(rig: CharacterRig) -> Dictionary:
 	var sk := rig.skeleton
 	var out := {}
 	for name: String in RADII:
@@ -219,17 +299,27 @@ static func _parents(rig: CharacterRig) -> Dictionary:
 
 static func self_intersections(rig: CharacterRig) -> PackedStringArray:
 	var out := PackedStringArray()
+	for o in self_overlaps(rig):
+		out.append("%s passes through %s (%.1f cm deep)" % [o["a"], o["b"], o["depth"] * 100.0])
+	return out
+
+
+## The same overlaps with their geometry: {a, b, depth, pa, pb} where pa and pb are the closest
+## points on the two capsule axes, so a caller can push them apart along pa - pb.
+static func self_overlaps(rig: CharacterRig) -> Array:
+	var out := []
 	var segs := segments(rig)
-	var parents := _parents(rig)
+	var parents := parents_of(rig)
 	var names := segs.keys()
 	for i in names.size():
 		for j in range(i + 1, names.size()):
 			var a: String = names[i]; var b: String = names[j]
-			if _skip_pair(a, b, parents):
+			if touching_by_design(a, b, parents):
 				continue
-			var depth := _penetration(segs[a], segs[b])
-			if depth > PENETRATION:
-				out.append("%s passes through %s (%.1f cm deep)" % [a, b, depth * 100.0])
+			var hit := _overlap(segs[a], segs[b])
+			if hit["depth"] > PENETRATION:
+				hit["a"] = a; hit["b"] = b
+				out.append(hit)
 	return out
 
 
@@ -237,7 +327,17 @@ static func self_intersections(rig: CharacterRig) -> PackedStringArray:
 ## gripping hand against the limb it grips (a hand closed on a wrist overlaps it by design).
 static func body_intersections(a: CharacterRig, b: CharacterRig, director: GripDirector = null) -> PackedStringArray:
 	var out := PackedStringArray()
-	var sa := segments(a); var sb := segments(b)
+	for o in body_overlaps(a, b, director):
+		out.append("%s %s passes through %s %s (%.1f cm deep)"
+			% [a.character_id, o["a"], b.character_id, o["b"], o["depth"] * 100.0])
+	return out
+
+
+## The same overlaps with their geometry: {a, b, depth, pa, pb}, pa on `a`'s capsule axis and
+## pb on `b`'s, so a caller can push the two bodies apart along pa - pb.
+static func body_overlaps(a: CharacterRig, b: CharacterRig, director: GripDirector = null, fk := false) -> Array:
+	var out := []
+	var sa := segments(a, fk); var sb := segments(b, fk)
 	var exempt := {}
 	if director:
 		for g in director.grips:
@@ -258,9 +358,10 @@ static func body_intersections(a: CharacterRig, b: CharacterRig, director: GripD
 		for nb in sb:
 			if exempt.has("%s/%s|%s/%s" % [a.character_id, na, b.character_id, nb]) or exempt.has("%s/%s|%s/%s" % [b.character_id, nb, a.character_id, na]):
 				continue
-			var depth := _penetration(sa[na], sb[nb])
-			if depth > PENETRATION:
-				out.append("%s %s passes through %s %s (%.1f cm deep)" % [a.character_id, na, b.character_id, nb, depth * 100.0])
+			var hit := _overlap(sa[na], sb[nb])
+			if hit["depth"] > PENETRATION:
+				hit["a"] = na; hit["b"] = nb
+				out.append(hit)
 	return out
 
 
@@ -298,12 +399,24 @@ static func _penetration(s1: Array, s2: Array) -> float:
 	return (s1[2] + s2[2]) - d
 
 
+## The same with the contact geometry: {"depth": metres, "pa": point on s1, "pb": point on s2}.
+static func _overlap(s1: Array, s2: Array) -> Dictionary:
+	var pts := _closest_points(s1[0], s1[1], s2[0], s2[1])
+	return {"depth": (s1[2] + s2[2]) - pts[0].distance_to(pts[1]), "pa": pts[0], "pb": pts[1]}
+
+
 static func _segment_distance(p1: Vector3, q1: Vector3, p2: Vector3, q2: Vector3) -> float:
+	var pts := _closest_points(p1, q1, p2, q2)
+	return pts[0].distance_to(pts[1])
+
+
+## The closest pair of points on two segments, as [point on p1-q1, point on p2-q2].
+static func _closest_points(p1: Vector3, q1: Vector3, p2: Vector3, q2: Vector3) -> Array:
 	var d1 := q1 - p1; var d2 := q2 - p2; var r := p1 - p2
 	var a := d1.dot(d1); var e := d2.dot(d2); var f := d2.dot(r)
 	var s := 0.0; var t := 0.0
 	if a <= 1e-9 and e <= 1e-9:
-		return r.length()
+		return [p1, p2]
 	if a <= 1e-9:
 		t = clampf(f / e, 0.0, 1.0)
 	else:
@@ -320,7 +433,7 @@ static func _segment_distance(p1: Vector3, q1: Vector3, p2: Vector3, q2: Vector3
 				t = 0.0; s = clampf(-c / a, 0.0, 1.0)
 			elif t > 1.0:
 				t = 1.0; s = clampf((b - c) / a, 0.0, 1.0)
-	return (p1 + d1 * s).distance_to(p2 + d2 * t)
+	return [p1 + d1 * s, p2 + d2 * t]
 
 
 # --- skinned mesh ----------------------------------------------------------------------------

@@ -373,3 +373,60 @@ draft…"; `tests/test_import.gd` and three goldens cover the katatedori tenkan 
 imported Grepp is a recognisable katatedori; Kuzushi and Kake are rougher, as the pipeline's
 own log predicts for contact phases. Not done: weapons for the jo draft (not in the data), and
 using the image landmarks for the distance between partners.
+
+
+### The motion, not just the poses (this session)
+
+The videos were plausible pose by pose and not plausible in between. `tests/check_anatomy.gd`
+checks every committed pose; nothing checked the frames a blend puts between them, and those are
+most of the video. `tests/check_motion.gd` now walks every sequence at the export frame rate and
+runs the same checks on every frame. On the first run 50 of the 707 rendered frames broke a body,
+from three separate causes:
+
+1. **A root position lerps in a straight line.** In `ushiro_ryotedori_zenponage` Tori ended up on
+   the far side of Uke, so the straight line took him *through* Uke — 17 cm deep at worst, one
+   whole body inside another.
+2. **A bone rotation slerps the short way round**, which walks an arm through a chest rather than
+   round it, and rolls an IK-driven humerus 178° between two poses that are both fine.
+3. **A gripping hand is carried to its next hold in a straight line** when a grip is released and
+   re-taken, and that line runs through the partner.
+
+`src/posing/MotionClearance.gd` fixes the first two and the part of the third that does not
+involve a grip: after every blend, trunks that overlap are pushed apart horizontally by their
+roots so one figure goes round another, and a limb inside a body is solved by IK to a cleared
+target with the influence ramped by how far it had to move. Every correction is derived from
+`CharacterRig.fk_bone_transform` — the pose before any modifier runs — which is what keeps it from
+feeding back into its own input, and what makes it exactly zero on a keyframe, so a hold still
+shows the saved pose and every golden still is unchanged. That took the bad frames from 50 to 40.
+
+What is left is recorded, per sequence, in `check_motion.gd`'s `OUTSTANDING`, and the count may
+only go down — beating it fails the check and asks for the number to be lowered.
+
+**Still open, in the order I would take them:**
+
+- **The wrists in weapon holds.** New swing and twist limits in `Anatomy` (`SWING`, `TWIST`,
+  measured from bone directions in the parent's frame, so they do not depend on the rig's axis
+  conventions) pass on every committed pose except the wrists: 13 poses bend a wrist 93°–151° off
+  rest where a real one manages about 90°, worst in `jo_dori_uke`. They are listed in
+  `check_anatomy.gd`'s `OUTSTANDING` so nothing new can join them. The cause is one thing, not
+  thirteen: a hand is placed on a weapon or a grip while the forearm points somewhere else, and
+  the wrist takes up the difference. The fix is to choose the elbow that leaves the wrist neutral
+  when a hand is placed — with the hand's position and orientation fixed, the pole is what decides
+  the forearm's direction — and then rebuild the fixtures. That changes every weapon pose, so it
+  wants the instructor's eye before the goldens are refreshed.
+- **The IK-driven shoulder roll.** One frame of `jo_dori` rolls the humerus 178°. The arm is in
+  IK there, so it comes from the solver and its interpolated target, not from the blend.
+  Interpolating the blend's rotations as swing and twist separately was tried and reverted: it
+  did not touch this (the rotation is not the blend's) and it made intersections worse, 39 frames
+  to 51.
+- **Where a gripping hand travels.** The remaining 40 frames are all a gripping arm mid re-grip.
+  A blend cannot fix them — `MotionClearance` will not move a gripping hand, because that would
+  tear it off what it holds — so each one needs a pose that says where the hand goes.
+  `tools/add_step.gd <slug> <seconds>` bakes the pose the technique is already showing at that
+  moment, clearance included, and splits the transition around it without changing the technique's
+  length; open it in the tool, move the offending limb, save. `MOTION_VERBOSE=1` on
+  `check_motion.gd` lists every offending frame with its time, which is where the seconds come
+  from.
+- **Nobody's head ever moves.** Measuring the poses turned up Neck, Head, Chest and both clavicles
+  at exactly 0° in every committed pose. The figures stare straight ahead through every technique,
+  which is a large part of why they read as mannequins rather than people.

@@ -8,6 +8,31 @@ func check(cond: bool, msg: String) -> void:
 	if cond: print("PASS ", msg)
 	else: failures += 1; print("FAIL ", msg)
 
+## Wrists bent far past a real one, in poses that are committed today. Every entry is a hand
+## forced onto a weapon or a grip while the forearm points somewhere else, so the wrist takes up
+## the difference; the fix is to choose the elbow that leaves the wrist neutral when a hand is
+## placed, and to rebuild the fixtures, which changes every weapon pose and wants the
+## instructor's eye first (docs/handoff.md, "The wrists in weapon holds"). Listed here so the
+## measurement stays on and nothing new or worse can slip in: an entry that stops happening is
+## itself a failure, so this list cannot rot.
+const OUTSTANDING := {
+	"jo_dori_tsuki": ["uke1: LeftHand swung"],
+	"jo_dori_uke": ["tori: RightHand swung", "uke1: LeftHand swung"],
+	"katatedori_ikkyo_kake": ["tori: LeftHand swung"],
+	"katatedori_shihonage_kake": ["tori: LeftHand swung"],
+	"katatedori_shihonage_kuzushi": ["uke1: LeftHand swung"],
+	"kumijo_kamae": ["tori: LeftHand swung", "uke1: LeftHand swung"],
+	"kumijo_tsuki": ["tori: LeftHand swung", "uke1: LeftHand swung"],
+	"kumitachi_awase": ["tori: RightHand swung", "tori: LeftHand swung",
+		"uke1: RightHand swung", "uke1: LeftHand swung"],
+	"kumitachi_uchi": ["tori: RightHand swung", "tori: LeftHand swung",
+		"uke1: RightHand swung", "uke1: LeftHand swung"],
+	"ryotemochi_grepp": ["uke1: RightHand swung", "uke2: LeftHand swung"],
+	"tachi_dori_irimi": ["uke1: RightHand swung", "uke1: LeftHand swung"],
+	"tachi_dori_kamae": ["uke1: RightHand swung", "uke1: LeftHand swung"],
+	"ushiro_ryotedori_zenponage_grepp": ["uke1: RightHand swung", "uke1: LeftHand swung"],
+}
+
 var scene: PosingScene
 var ctrl: PoseController
 var director: GripDirector
@@ -31,7 +56,7 @@ func _initialize() -> void:
 			continue
 		PoseFile.apply(data, scene, director, ctrl)
 		await settle(4)
-		var probs := Anatomy.scene_problems(scene, director)
+		var probs := _unresolved(slug, Anatomy.scene_problems(scene, director))
 		check(probs.is_empty(), "%s: bodies plausible%s" % [slug, "" if probs.is_empty() else " — " + "; ".join(probs)])
 		var skin := PackedStringArray()
 		for rig in scene.characters:
@@ -45,6 +70,28 @@ func _initialize() -> void:
 		check(skin.is_empty(), "%s: skin keeps its shape%s" % [slug, "" if skin.is_empty() else " — " + "; ".join(skin)])
 	print("RESULT %s (%d failures)" % ["OK" if failures == 0 else "FAILED", failures])
 	quit(1 if failures > 0 else 0)
+
+
+## Drops the problems this pose is known to have and still fails if one of them has gone away,
+## so a fix lands with its entry removed rather than silently.
+func _unresolved(slug: String, probs: PackedStringArray) -> PackedStringArray:
+	var known: Array = OUTSTANDING.get(slug, [])
+	var out := PackedStringArray()
+	var seen := {}
+	for p in probs:
+		var matched := ""
+		for k: String in known:
+			if p.begins_with(k):
+				matched = k
+				break
+		if matched == "":
+			out.append(p)
+		else:
+			seen[matched] = true
+	for k: String in known:
+		if not seen.has(k):
+			out.append("'%s' no longer happens: drop it from OUTSTANDING" % k)
+	return out
 
 
 func _files(dir: String) -> Array:
