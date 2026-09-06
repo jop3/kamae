@@ -1,0 +1,17 @@
+{
+	"camera": "Side",
+	"format": 1,
+	"name": "Ryotemochi",
+	"steps": [
+		{
+			"hold": 0.5,
+			"pose": "ryotemochi_grepp",
+			"transition": 0.0
+		},
+		{
+			"hold": 1.0,
+			"pose": "ryotemochi_kuzushi",
+			"transition": 0.7
+		}
+	]
+}

@@ -219,7 +219,9 @@ static func _phase_names(seq: Sequence) -> Array:
 	var prefix: String = seq.slug() + "_"
 	for i in seq.steps.size():
 		var pose_slug: String = seq.steps[i]["pose"]
-		var phase := pose_slug.trim_prefix(prefix) if pose_slug.begins_with(prefix) else pose_slug
+		# A pose reused from another technique (Shihonage starts from the Ikkyo Grepp) keeps
+		# only its last word, so the file is <technique>_grepp.png like the others.
+		var phase := pose_slug.trim_prefix(prefix) if pose_slug.begins_with(prefix) else pose_slug.get_slice("_", pose_slug.get_slice_count("_") - 1)
 		if phase == "" or phase in out:
 			phase = "%d" % (i + 1)
 		out.append(phase)

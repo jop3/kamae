@@ -9,6 +9,9 @@ const MAX_CHARACTERS := 5
 const MIN_CHARACTERS := 1
 
 var characters: Array[CharacterRig] = []
+## Weapon-to-weapon contacts (spec §5.9): measured indicators, saved with the pose, never a
+## constraint. [{a, t_a, b, t_b}]
+var weapon_contacts: Array = []
 ## Inherited by every character added; off while rendering for export.
 var show_handles := true
 var weapons: Array[Weapon] = []

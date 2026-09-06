@@ -1,0 +1,17 @@
+{
+	"camera": "Side",
+	"format": 1,
+	"name": "Kumijo",
+	"steps": [
+		{
+			"hold": 0.5,
+			"pose": "kumijo_kamae",
+			"transition": 0.0
+		},
+		{
+			"hold": 1.0,
+			"pose": "kumijo_tsuki",
+			"transition": 0.8
+		}
+	]
+}

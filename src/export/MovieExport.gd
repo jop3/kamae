@@ -37,7 +37,7 @@ func export_sequence(sequence_path: String, poses_dir: String, out_dir: String) 
 	var slug := seq.slug()
 	var use_ffmpeg := has_ffmpeg()
 	var frames_dir := out_dir.path_join(slug + "_frames")
-	DirAccess.make_dir_recursive_absolute(out_dir)
+	make_output_dir(out_dir)
 	DirAccess.make_dir_recursive_absolute(frames_dir)
 	var movie_target := frames_dir.path_join("f.png") if use_ffmpeg else out_dir.path_join(slug + ".avi")
 	_job = {
@@ -72,7 +72,7 @@ func export_stills(sequence_path: String, poses_dir: String, out_dir: String, tr
 	var seq := Sequence.load(sequence_path)
 	if seq == null:
 		return {}
-	DirAccess.make_dir_recursive_absolute(out_dir)
+	make_output_dir(out_dir)
 	_job = {"slug": seq.slug(), "sequence": sequence_path, "poses_dir": poses_dir, "out_dir": out_dir,
 		"frames_dir": "", "movie_target": "", "ffmpeg": false, "stills_only": true,
 		"output": out_dir, "stills": [], "ok": false, "message": ""}
@@ -139,6 +139,17 @@ func _process(_delta: float) -> void:
 		job["message"] = ("AVI written to %s (ffmpeg not found, so no MP4; install ffmpeg for H.264)" % job["output"]) if job["ok"] else "The render produced no file"
 	job["stills"] = _list_pngs(job["out_dir"], job["slug"])
 	finished.emit(job)
+
+
+## Creates an output directory that Godot's importer will leave alone: exports live under the
+## project folder, and without a .gdignore every PNG written there gets an .import sidecar.
+static func make_output_dir(dir: String) -> void:
+	DirAccess.make_dir_recursive_absolute(dir)
+	var marker := dir.path_join(".gdignore")
+	if not FileAccess.file_exists(marker):
+		var f := FileAccess.open(marker, FileAccess.WRITE)
+		if f:
+			f.close()
 
 
 static func _list_pngs(dir: String, prefix: String) -> Array:

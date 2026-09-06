@@ -1,0 +1,27 @@
+{
+	"camera": "Side",
+	"format": 1,
+	"name": "Tachi dori",
+	"steps": [
+		{
+			"hold": 0.5,
+			"pose": "tachi_dori_kamae",
+			"transition": 0.0
+		},
+		{
+			"hold": 0.2,
+			"pose": "tachi_dori_furikaburi",
+			"transition": 0.6
+		},
+		{
+			"hold": 0.4,
+			"pose": "tachi_dori_irimi",
+			"transition": 0.6
+		},
+		{
+			"hold": 1.0,
+			"pose": "tachi_dori_kake",
+			"transition": 0.7
+		}
+	]
+}

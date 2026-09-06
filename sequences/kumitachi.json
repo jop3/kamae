@@ -1,0 +1,17 @@
+{
+	"camera": "Side",
+	"format": 1,
+	"name": "Kumitachi",
+	"steps": [
+		{
+			"hold": 0.6,
+			"pose": "kumitachi_awase",
+			"transition": 0.0
+		},
+		{
+			"hold": 1.0,
+			"pose": "kumitachi_uchi",
+			"transition": 0.6
+		}
+	]
+}

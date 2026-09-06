@@ -184,6 +184,19 @@ viewport is 1920×1080 and the interactive window shrinks itself), and a corouti
 `skeleton_updated` resumes inside the update, so `capture_baked` now awaits `process_frame`
 before returning.
 
-Next in order: M7 polish (Front+Side batch stills, gizmo snapping, per-pose camera, 2×
-supersampling if the Compatibility renderer allows it, tooltips), then M8 acceptance fixtures as
-committed `poses/` and `sequences/` with a build script, then the instructor guide.
+M7 and M8 followed: Front+Side batch stills (`--render-stills` child), gizmo snapping with
+Shift, the camera saved per pose and blended in per-pose sequences, the Front preset swung 35°
+off the line (on the line the near figure hides the other), and the acceptance techniques as
+committed `poses/` and `sequences/` written by `tools/build_fixtures.gd`. The fixtures are
+schematic drafts by a script, not by an aikidoka; the instructor loads and corrects them. What
+they guarantee is the mechanics of spec §8: exact grips (an automatic "step in until the hand
+reaches" in the builder), the reused Grepp slug, the deliberate out-of-reach Zenponage Kake,
+holds that survive reload, contact gap under 1 cm, jo at chin height. `tests/run.sh` now also
+renders every technique's Front+Side stills and a video into `exports/` (about 6 minutes in
+total) and checks them; set `RENDER_ACCEPTANCE=0` to skip that part. `docs/guide.md` is the
+instructor guide.
+
+Next: read the agent-written and script-written code line by line (still not done); 2×
+supersampled stills if the Compatibility renderer allows it; tooltips and keyboard shortcuts;
+the pose panel's confirm-before-overwrite; then wait for the instructor's corrections and the
+open questions in `docs/spec-v2.md` §9. M9 (gi) remains optional.

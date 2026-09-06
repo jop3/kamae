@@ -54,8 +54,11 @@ var _seq_scrub: HSlider
 var _seq_time: Label
 var _sequence: Sequence
 var _export_status: Label
-const POSES_DIR := "user://poses"
-const SEQUENCES_DIR := "user://sequences"
+## Poses and sequences live in the project folder, next to the code, so the acceptance
+## techniques ship with the repository and the instructor's own work is versioned with it.
+## An exported build cannot write into res://, so it falls back to the user folder.
+const POSES_DIR := "res://poses"
+const SEQUENCES_DIR := "res://sequences"
 
 
 func setup(ctrl: PoseController, posing_scene: PosingScene, grip_director: GripDirector = null, orbit_camera: OrbitCamera = null, sequence_player: SequencePlayer = null) -> void:

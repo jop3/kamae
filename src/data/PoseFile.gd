@@ -147,6 +147,7 @@ static func _assemble(scene: PosingScene, director: GripDirector, camera, name: 
 		"characters": characters,
 		"weapons": weapons,
 		"grips": grips,
+		"weapon_contacts": scene.weapon_contacts.duplicate(true),
 		"camera": camera.state() if camera != null and camera.has_method("state") else null,
 	}
 
@@ -215,12 +216,16 @@ static func apply(data: Dictionary, scene: PosingScene, director: GripDirector, 
 		if weapon == null:
 			weapon = scene.add_weapon(wd["id"], wd.get("type", "bokken"))
 		weapon.apply_dict(wd)
+	scene.weapon_contacts = data.get("weapon_contacts", []).duplicate(true)
 	if director:
 		director.refresh_hand_driven()
 		for g in data.get("grips", []):
 			var d: Dictionary = g.duplicate()
 			d["offset"] = array_to_transform(d.get("offset", null))
 			director._add(Grip.from_dict(scene, d))
+		# Holds were set behind the director's back; with no grips to add nothing else would
+		# reconnect it to the holder's skeleton and the weapon would stay where it was loaded.
+		director.rebuild()
 
 
 # ---------------------------------------------------------------- files
