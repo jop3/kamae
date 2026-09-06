@@ -321,6 +321,12 @@ on the neck does not pass through the neck; and a first look at the gi.
   `"gi"` per character, a **gi** checkbox next to "shown". Off by default so nothing rendered
   changes unless asked. `--demo-gi <path>` renders five views, now part of `tests/run.sh` and the
   goldens (`gi_front`, `gi_side`, `gi_belt`, `gi_sleeve`); look at `tests/out/demo/gi_*.png`.
+  Instructor feedback the same day: "needs more texture". The cloth now carries procedural
+  weave textures made in code (`Gi._cloth_textures`): rice-grain sashiko quilting with a
+  coarse weave for the jacket, plain canvas for trousers and belt, each as an albedo and a
+  normal map, mapped triplanar in world metres (8 cm tiles) so the shell needs no UVs; base
+  colour a warm off-white so the cloth separates from the white background. Tuned by looking
+  at `gi_belt.png`: the first pass was invisible, the second too bold.
   Known limits to raise with the instructor: no lapel overlap (the V shows skin to the sternum),
   the shell self-intersects a little in the armpit of a raised arm, no hakama by decision, and the
   cloth has no wrinkles or thickness of its own. A modelled gi (spec §7.1's transferred-weight

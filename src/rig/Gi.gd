@@ -7,7 +7,7 @@ extends Node
 ## colour as a second identification cue. Hems, collar, sleeve ends and the V are straight
 ## lines: triangles across an edge are kept with their outside vertices moved onto it.
 
-const WHITE := Color(0.93, 0.93, 0.91)
+const WHITE := Color(0.90, 0.89, 0.85)
 ## How far the cloth stands off the skin, metres. The jacket is the loose one.
 const JACKET_OFFSET := 0.022
 const SLEEVE_OFFSET := 0.030
@@ -31,27 +31,95 @@ var jacket: MeshInstance3D
 var trousers: MeshInstance3D
 var belt: MeshInstance3D
 var cloth_material: StandardMaterial3D
+var trouser_material: StandardMaterial3D
 var belt_material: StandardMaterial3D
+## Generated once per process and shared: the weave images are the same for every character.
+static var _textures: Dictionary = {}
 
 
 func build(for_rig: CharacterRig) -> void:
 	rig = for_rig
-	cloth_material = StandardMaterial3D.new()
-	cloth_material.albedo_color = WHITE
-	cloth_material.roughness = 1.0
-	belt_material = StandardMaterial3D.new()
-	belt_material.albedo_color = rig.get_skin_color()
-	belt_material.roughness = 0.9
+	cloth_material = _cloth_material("sashiko", WHITE)
+	trouser_material = _cloth_material("canvas", WHITE)
+	belt_material = _cloth_material("canvas", rig.get_skin_color())
 	var body: MeshInstance3D = rig.body
 	var arrays: Array = body.mesh.surface_get_arrays(0)
 	var dominant := _dominant_bones(arrays)
 	jacket = _shell(arrays, dominant, "jacket", cloth_material)
-	trousers = _shell(arrays, dominant, "trousers", cloth_material)
+	trousers = _shell(arrays, dominant, "trousers", trouser_material)
 	belt = _belt(arrays, dominant)
 	for m in [jacket, trousers, belt]:
 		m.skin = body.skin
 		m.cast_shadow = body.cast_shadow
 		rig.skeleton.add_child(m)
+
+
+# ---------------------------------------------------------------- cloth
+
+## Tiling weave textures, made in code so the gi carries no asset: "sashiko" is the rice-grain
+## quilting of a heavy jacket (a diamond lattice of raised grains over a coarse weave),
+## "canvas" the plain weave of trousers and belt. Height maps become normal maps for relief;
+## the albedo carries the same pattern faintly so it reads in flat light too. Mapped triplanar
+## in world metres (one tile is TILE_M), since the shell has no seams of its own.
+const TEX := 256
+const TILE_M := 0.08
+
+static func _cloth_textures(kind: String) -> Array:
+	if _textures.has(kind):
+		return _textures[kind]
+	var h := Image.create(TEX, TEX, false, Image.FORMAT_RF)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 7
+	# A little per-thread noise so the weave is not perfectly regular.
+	var noise := PackedFloat32Array()
+	noise.resize(TEX * TEX)
+	for i in TEX * TEX:
+		noise[i] = rng.randf()
+	for y in TEX:
+		for x in TEX:
+			var v := 0.0
+			var weave_x := 0.5 + 0.5 * sin(TAU * x / 8.0)   # threads every 2.5 mm
+			var weave_y := 0.5 + 0.5 * sin(TAU * y / 8.0)
+			var weave := maxf(weave_x, weave_y) * 0.35 + noise[y * TEX + x] * 0.12
+			if kind == "sashiko":
+				# Grains on a diamond lattice, 16 mm across, staggered every other row.
+				var cell := TEX / 3.2   # about 25 mm
+				var row := floorf(y / cell)
+				var sx := fmod(x + (cell * 0.5 if int(row) % 2 == 1 else 0.0), cell) / cell - 0.5
+				var sy := fmod(float(y), cell) / cell - 0.5
+				var d := sqrt(sx * sx * 1.2 + sy * sy * 5.0)
+				var grain := clampf(1.0 - d * 2.2, 0.0, 1.0)
+				v = weave * 0.5 + grain * 0.7
+			else:
+				v = weave
+			h.set_pixel(x, y, Color(v, v, v))
+	var albedo := Image.create(TEX, TEX, false, Image.FORMAT_RGB8)
+	for y in TEX:
+		for x in TEX:
+			var v := 0.74 + 0.26 * h.get_pixel(x, y).r
+			albedo.set_pixel(x, y, Color(v, v, v))
+	var normal := h.duplicate()
+	normal.convert(Image.FORMAT_RGB8)
+	normal.bump_map_to_normal_map(5.0 if kind == "sashiko" else 2.5)
+	var out := [ImageTexture.create_from_image(albedo), ImageTexture.create_from_image(normal)]
+	_textures[kind] = out
+	return out
+
+
+static func _cloth_material(kind: String, tint: Color) -> StandardMaterial3D:
+	var m := StandardMaterial3D.new()
+	var tex := _cloth_textures(kind)
+	m.albedo_color = tint
+	m.albedo_texture = tex[0]
+	m.normal_enabled = true
+	m.normal_texture = tex[1]
+	m.normal_scale = 2.0
+	m.roughness = 1.0
+	m.uv1_triplanar = true
+	m.uv1_world_triplanar = false
+	m.uv1_scale = Vector3.ONE * (1.0 / TILE_M)
+	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+	return m
 
 
 func set_belt_color(c: Color) -> void:
