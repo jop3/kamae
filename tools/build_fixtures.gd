@@ -318,17 +318,14 @@ func three_person() -> void:
 # ---------------------------------------------------------------- weapons: shared
 
 ## Places a weapon in front of a character in chudan and snaps both hands onto it.
-func chudan(id: String, weapon: Weapon, t_front: float, t_back: float, forward: float = 0.25, height: float = 1.02) -> void:
+func chudan(id: String, weapon: Weapon, forward: float = 0.25, height: float = 1.02) -> void:
 	var r := rig(id)
 	var b := r.global_transform.basis
 	weapon.drive = "weapon"
 	var along: Vector3 = (b * Vector3(0, 0.45, 0.9)).normalized()
 	var up: Vector3 = (b * Vector3(0, 0.9, -0.45)).normalized()
 	weapon.global_transform = Transform3D(Basis(along.cross(up), along, up), r.global_position + b * Vector3(0.0, height, forward))
-	director.attach_to_weapon(r, "Left", weapon, t_back, true)
-	director.attach_to_weapon(r, "Right", weapon, t_front, true)
-	r.fingers.apply_grip_preset("Right")
-	r.fingers.apply_grip_preset("Left")
+	director.attach_default_hands(r, weapon)
 	await settle(3)
 
 
@@ -338,11 +335,10 @@ func chudan(id: String, weapon: Weapon, t_front: float, t_back: float, forward: 
 func jo_kamae(r: CharacterRig, jo: Weapon) -> void:
 	jo.drive = "weapon"
 	var b := r.global_transform.basis
-	await place_weapon(jo, r.global_position + b * Vector3(-0.10, 1.08, -0.19), b * Vector3(0, 0.08, 1.0), Vector3.UP)
-	director.attach_to_weapon(r, "Left", jo, 0.28, true)
-	director.attach_to_weapon(r, "Right", jo, 0.50, true)
-	r.limbs["LeftArm"].pole.global_position = r.global_position + b * Vector3(0.32, 0.9, 0.5)
-	r.fingers.apply_grip_preset("Right"); r.fingers.apply_grip_preset("Left")
+	await place_weapon(jo, r.global_position + b * Vector3(-0.10, 0.98, -0.19), b * Vector3(0, 0.08, 1.0), Vector3.UP)
+	director.attach_default_hands(r, jo)
+	r.limbs["LeftArm"].pole.global_position = r.global_position + b * Vector3(0.34, 0.78, 0.58)
+	r.limbs["RightArm"].pole.global_position = r.global_position + b * Vector3(-0.42, 0.85, 0.15)   # right elbow out, clear of the crossing forearm
 	await settle(3)
 
 
@@ -369,7 +365,7 @@ func tachi_dori() -> void:
 	await hanmi("uke1", "Right")
 	await hanmi("tori", "Left")
 	var bokken := scene.add_weapon("bokken1", "bokken")
-	await chudan("uke1", bokken, 0.17, 0.04)
+	await chudan("uke1", bokken)
 	await save_pose("Tachi dori Kamae")
 	# The cut: bokken raised overhead (weapon-driven, hands follow) then brought down.
 	var u := rig("uke1")
@@ -383,7 +379,8 @@ func tachi_dori() -> void:
 	await save_pose("Tachi dori Irimi")
 	# Tori takes the sword: the hold names Tori; Uke lets go and is moved off.
 	await release_all("uke1")
-	director.hold_weapon(rig("tori"), "Right", bokken, 0.12, 0.0, true)
+	var dh: Dictionary = bokken.default_hold("Right")
+	director.hold_weapon(rig("tori"), "Right", bokken, dh["t"], dh["roll_deg"], true)
 	await settle(2)
 	rig("tori").fingers.apply_grip_preset("Right")
 	await arm_fk("uke1", "Right")
@@ -436,8 +433,8 @@ func kumitachi() -> void:
 	await hanmi("uke1", "Right")
 	var a := scene.add_weapon("bokken1", "bokken")
 	var b := scene.add_weapon("bokken2", "bokken")
-	await chudan("tori", a, 0.17, 0.04)
-	await chudan("uke1", b, 0.17, 0.04)
+	await chudan("tori", a)
+	await chudan("uke1", b)
 	var gap := director.contact_gap(a, 0.72, b, 0.72)
 	# Close the gap by stepping Uke in, sword and all, rather than sliding the sword back
 	# through Uke's chest: the crossing point is a matter of distance between the two.

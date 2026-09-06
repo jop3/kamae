@@ -271,3 +271,13 @@ they are now drafts a body could take.
 
 Still open: the instructor's corrections to the acceptance drafts, spec §9 questions, and the
 optional M9 gi.
+
+**Default weapon holds** (instructor feedback, same day): the hands used to take the tsuka with
+both palms straight under it. `Weapon.default_hold(hand)` now defines the grip per weapon type:
+bokken right hand in front just below the tsuba, left against the kashira, palms turned in from
+their own sides (roll −45° right, +45° left, measured: the right palm faces inward and down);
+the jo starts from the same grip, right hand forward, hands a forearm apart, and slides from
+there. `GripDirector.attach_default_hands` applies it, the panel has a "Both hands, default
+hold" button and pre-fills t and roll, the builder and the weapon demo use it, and test_m3w
+asserts the geometry. Look at `tests/out/demo/weapon_hands.png` after any change to the hold
+mapping.

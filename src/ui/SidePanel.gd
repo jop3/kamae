@@ -296,6 +296,11 @@ func setup(ctrl: PoseController, posing_scene: PosingScene, grip_director: GripD
 	var attach_other := Button.new(); attach_other.text = "Attach selected character's other hand at t"
 	attach_other.pressed.connect(_on_attach_weapon_pressed)
 	vb.add_child(attach_other)
+	var both := Button.new(); both.text = "Both hands, default hold"
+	both.tooltip_text = "Right hand in front (just below the tsuba on a bokken), left at the back, palms turned in from the sides; the starting grip for bokken and jo"
+	both.pressed.connect(_on_default_hold_pressed)
+	vb.add_child(both)
+	_weapon_hand.item_selected.connect(func(_i): _prefill_hold_defaults())
 	_weapon_drive = CheckButton.new(); _weapon_drive.text = "Weapon-driven"
 	_weapon_drive.toggled.connect(_on_weapon_drive_toggled)
 	vb.add_child(_weapon_drive)
@@ -692,7 +697,29 @@ func _refresh_weapon_values() -> void:
 		if not w.hold.is_empty():
 			_weapon_t.value = w.hold.get("t", _weapon_t.value)
 			_weapon_roll.value = w.hold.get("roll_deg", _weapon_roll.value)
+		else:
+			_prefill_hold_defaults()
 	_updating = false
+
+
+## The t and roll boxes start at the weapon's default for the chosen hand.
+func _prefill_hold_defaults() -> void:
+	var w := _selected_weapon()
+	if w == null:
+		return
+	var d: Dictionary = w.default_hold("Right" if _weapon_hand.selected == 0 else "Left")
+	_weapon_t.value = d["t"]
+	_weapon_roll.value = d["roll_deg"]
+
+
+func _on_default_hold_pressed() -> void:
+	var w := _selected_weapon()
+	var rig := _holder_rig()
+	if grips == null or w == null or rig == null:
+		return
+	grips.attach_default_hands(rig, w)
+	controller.pose_changed.emit()
+	_refresh_weapons()
 
 
 func _holder_rig() -> CharacterRig:

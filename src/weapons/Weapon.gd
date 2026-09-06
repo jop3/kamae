@@ -91,6 +91,27 @@ func hold_offset(rig: CharacterRig, hand: String, t: float, roll_deg: float) -> 
 	return Transform3D(b, palm_centre(rig, hand)) * Transform3D(Basis.IDENTITY, -(Vector3(0, t * length, 0) + _curve_offset(t)))
 
 
+## Where a hand goes by default, {t, roll_deg}. Bokken: the right hand in front just below where
+## the tsuba would be, the left at the back against the kashira, each palm turned inward and
+## down so the hands take the tsuka from their own sides (backs of the hands up and out) as in
+## aiki-ken. Jo: the same grip, right hand forward, about a forearm apart, as the usual starting
+## hold before the hands slide for the technique. Tanto: one hand on the short handle.
+## Roll is about the weapon axis: 0 puts the palm on the edge side, negative turns the right
+## palm inward, positive the left.
+const HAND_HALF_WIDTH := 0.045
+
+func default_hold(hand: String) -> Dictionary:
+	var roll := -45.0 if hand == "Right" else 45.0
+	match type:
+		"bokken":
+			var front := (tsuka - HAND_HALF_WIDTH - 0.01) / length
+			return {"t": front if hand == "Right" else HAND_HALF_WIDTH / length, "roll_deg": roll}
+		"jo":
+			return {"t": 0.50 if hand == "Right" else 0.28, "roll_deg": roll}
+		_:
+			return {"t": clampf(0.05 / length, 0.0, 1.0), "roll_deg": roll}
+
+
 ## Sets the hold so the weapon hangs off `rig`'s `hand` at the canonical pose.
 func set_hold(rig: CharacterRig, hand: String, t: float, roll_deg: float = 0.0) -> void:
 	hold = {"character": rig.character_id, "hand": hand, "t": t, "roll_deg": roll_deg,

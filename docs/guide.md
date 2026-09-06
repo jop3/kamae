@@ -71,6 +71,13 @@ technique, release it ("Release selected grip") and attach the other way round i
   every hand on it follows. This is the natural mode for kumitachi and kumijo, where the crossing
   point of the weapons is what matters and the arms should follow.
 
+**Both hands, default hold** puts the selected holder's two hands on the weapon at its default
+grip: right hand in front (on a bokken just below where the tsuba would be), left hand at the
+back against the kashira, each palm turned in from its own side so the backs of the hands face
+up and out. The jo starts from the same grip, right hand forward and the hands about a forearm
+apart; slide them with *t* and turn them with the roll box as the technique needs. The *t* and
+roll boxes are pre-filled with the default for the chosen hand.
+
 A weapon changes owner between poses by pressing **Hold** for the new holder in the later pose.
 
 **Weapon contact** (kumitachi, kumijo): choose two weapons and a point along each; the panel

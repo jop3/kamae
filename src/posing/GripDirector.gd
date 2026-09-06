@@ -209,6 +209,22 @@ func _attach_to_weapon_raw(gripper: CharacterRig, hand: String, weapon: Weapon, 
 	return grip
 
 
+## Puts both of `gripper`'s hands on `weapon` at the weapon's default hold (Weapon.default_hold):
+## on a weapon-driven weapon both hands snap on as grips; on a hand-driven one the right hand
+## takes the hold and the left attaches. Two undo steps.
+func attach_default_hands(gripper: CharacterRig, weapon: Weapon) -> void:
+	var r: Dictionary = weapon.default_hold("Right")
+	var l: Dictionary = weapon.default_hold("Left")
+	if weapon.drive == "weapon":
+		attach_to_weapon(gripper, "Left", weapon, l["t"], true, l["roll_deg"])
+		attach_to_weapon(gripper, "Right", weapon, r["t"], true, r["roll_deg"])
+	else:
+		hold_weapon(gripper, "Right", weapon, r["t"], r["roll_deg"])
+		attach_to_weapon(gripper, "Left", weapon, l["t"], true, l["roll_deg"])
+	gripper.fingers.apply_grip_preset("Right")
+	gripper.fingers.apply_grip_preset("Left")
+
+
 ## Switches who drives whom without moving anything. "weapon": the holder's hand becomes an
 ## ordinary grip on the weapon at the hold's t. "hand": the weapon hangs off that hand again.
 func set_weapon_drive(weapon: Weapon, mode: String) -> void:

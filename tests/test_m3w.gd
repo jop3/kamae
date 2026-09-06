@@ -156,6 +156,28 @@ func _initialize() -> void:
 	check(jo.global_position.is_equal_approx(jo_before), "undo puts the hand-driven jo back (%.4f m off)" % jo.global_position.distance_to(jo_before))
 	check(tori.limbs["RightArm"].mode == arm_mode_before, "undo restores the arm mode")
 
+	# --- default two-handed hold (aiki-ken grip) ------------------------------
+	for g in director.grips.duplicate():
+		director.detach(g)
+	bokken.drive = "weapon"
+	var along := Vector3(0, 0.45, 0.9).normalized()
+	var up := Vector3(0, 0.9, -0.45).normalized()
+	bokken.global_transform = Transform3D(Basis(along.cross(up), along, up), tori.global_position + Vector3(0.0, 1.02, 0.25))
+	director.attach_default_hands(tori, bokken)
+	await settle(4)
+	check(director.grips.size() == 2 and grips_hold(), "both hands snap on at the default hold (error %.4f)" % director.worst_error())
+	var rt: float = bokken.default_hold("Right")["t"]
+	var lt: float = bokken.default_hold("Left")["t"]
+	check(rt > lt, "the right hand is in front of the left")
+	check(absf(rt * bokken.length - (bokken.tsuka - 0.055)) < 0.01, "the right hand sits just below the tsuba (%.3f m from the butt, tsuba at %.2f)" % [rt * bokken.length, bokken.tsuka])
+	check(lt * bokken.length < 0.06, "the left hand is against the kashira (%.3f m from the butt)" % (lt * bokken.length))
+	var palms := {}
+	for side in ["Right", "Left"]:
+		var hand: Transform3D = tori.bone_world_transform(side + "Hand")
+		palms[side] = (hand.basis * tori.fingers.palm_normal(side)).normalized()
+	check(palms["Right"].x > 0.5 and palms["Right"].y < -0.3, "the right palm faces inward and down (%s)" % palms["Right"])
+	check(palms["Left"].x < -0.5 and palms["Left"].y < -0.3, "the left palm faces inward and down (%s)" % palms["Left"])
+
 	# --- removal ------------------------------------------------------------
 	scene.remove_weapon("bokken1")
 	await settle()
