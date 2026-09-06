@@ -4,3 +4,5 @@ exports/
 tests/out/*.png
 tests/out/*.import
 tests/out/*.json
+tests/out/**
+!tests/out/.gdignore
