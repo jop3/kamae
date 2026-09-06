@@ -76,8 +76,18 @@ static func capture(scene: PosingScene, director: GripDirector, camera = null, n
 ## straight on to apply another would silently lose that write.
 static func capture_baked(scene: PosingScene, director: GripDirector, camera = null, name: String = "") -> Dictionary:
 	var rotations := {}
+	# Finger bones are stored as authored: the curl sits on top of them (FingerCurl) and is
+	# saved separately, so a baked value would curl the finger twice on reload. Read before any
+	# await: the coroutine resumes inside skeleton_updated, where the bones carry the curl.
+	var authored := {}
 	for rig in scene.characters:
-		rotations[rig.character_id] = await _read_rotations_baked(rig.skeleton)
+		authored[rig.character_id] = _read_rotations(rig.skeleton)
+	for rig in scene.characters:
+		var baked: Dictionary = await _read_rotations_baked(rig.skeleton)
+		for bone in baked:
+			if FingerCurl.is_finger_bone(bone):
+				baked[bone] = authored[rig.character_id][bone]
+		rotations[rig.character_id] = baked
 	var tree := Engine.get_main_loop() as SceneTree
 	if tree:
 		await tree.process_frame
@@ -125,6 +135,7 @@ static func _assemble(scene: PosingScene, director: GripDirector, camera, name: 
 			"role": rig.role,
 			"skin_color": "#" + rig.get_skin_color().to_html(false),
 			"visible": rig.visible,
+			"gi": rig.gi_visible,
 			"root": {"pos": vec_to_array(rig.position), "yaw": rig.rotation.y},
 			"bones": bones,
 			"ik": ik,
@@ -181,6 +192,7 @@ static func apply(data: Dictionary, scene: PosingScene, director: GripDirector, 
 		if c.has("skin_color"):
 			rig.set_skin_color(Color.html(c["skin_color"]))
 		rig.visible = c.get("visible", true)
+		rig.set_gi_visible(c.get("gi", false))
 		var root: Dictionary = c.get("root", {})
 		rig.position = array_to_vec(root.get("pos", [0, 0, 0]))
 		rig.rotation = Vector3(0, root.get("yaw", 0.0), 0)

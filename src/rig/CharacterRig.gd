@@ -15,6 +15,9 @@ var body: MeshInstance3D
 var skin_material: StandardMaterial3D
 var fingers: FingerCurl
 var arm_bridge: ArmBridge
+## The white gi (spec §7.1), built on first use and toggled per character; saved with the pose.
+var gi: Gi
+var gi_visible := false
 ## Bone global poses as the modifier stack left them, refreshed every skeleton_updated.
 ## Reading Skeleton3D directly outside that signal returns the *authored* pose, not the posed one
 ## (see docs/engine-notes.md), so everything that asks "where is this bone now" goes through here.
@@ -159,6 +162,20 @@ func limb_for_bone(bone_name: String) -> String:
 
 func set_skin_color(color: Color) -> void:
 	skin_material.albedo_color = color
+	if gi:
+		gi.set_belt_color(color)   # the belt follows the character colour (spec §7.1)
+
+
+## Dresses or undresses the character. The gi is built the first time it is asked for.
+func set_gi_visible(on: bool) -> void:
+	gi_visible = on
+	if on and gi == null:
+		gi = Gi.new()
+		gi.name = "Gi"
+		add_child(gi)
+		gi.build(self)
+	if gi:
+		gi.set_visible(on)
 
 
 func get_skin_color() -> Color:

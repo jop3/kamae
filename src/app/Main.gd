@@ -68,6 +68,12 @@ func _ready() -> void:
 		print("ui screenshot saved")
 		get_tree().quit()
 		return
+	if args.has("--import-draft"):
+		await _import_draft(args)
+		return
+	if args.has("--demo-gi"):
+		await _render_demo_gi(args[args.find("--demo-gi") + 1])
+		return
 	if args.has("--demo-hand"):
 		await _render_demo_hand(args[args.find("--demo-hand") + 1])
 		return
@@ -386,4 +392,81 @@ func _render_demo_hand(path: String) -> void:
 			var p: String = "%s_%s_%.0f.png" % [path.get_basename(), view[0], curl]
 			await StillExport.capture(get_viewport(), p, false, _hide_always(), _hide_for_transparent())
 			print("hand demo saved: ", p)
+	get_tree().quit()
+
+
+## Test hook: both figures in gi, standing and in a katatedori with one arm raised, so the
+## jacket, sleeves, trousers and belt can be looked at from the front, the side and up close.
+func _render_demo_gi(path: String) -> void:
+	var tori: CharacterRig = posing_scene.get_character("tori")
+	var uke: CharacterRig = posing_scene.get_character("uke1")
+	controller.set_root(tori, Vector3(-0.35, 0, -0.1), deg_to_rad(20))
+	controller.set_root(uke, Vector3(0.35, 0, 0.1), deg_to_rad(-160))
+	tori.set_gi_visible(true)
+	uke.set_gi_visible(true)
+	# Uke bends forward at the waist, so the render shows the cloth following the spine too.
+	var uke_sk := uke.skeleton
+	uke_sk.set_bone_pose_rotation(uke_sk.find_bone("Spine"), Quaternion(Vector3(1, 0, 0), deg_to_rad(35)) * uke_sk.get_bone_rest(uke_sk.find_bone("Spine")).basis.get_rotation_quaternion())
+	await get_tree().process_frame
+	await controller.set_limb_mode(tori, "RightArm", Limb.Mode.IK)
+	tori.limbs["RightArm"].target.global_position = tori.bone_world_transform("RightUpperArm").origin + Vector3(0.1, 0.35, 0.25)
+	tori.limbs["RightArm"].reset_pole()
+	await controller.set_limb_mode(uke, "LeftArm", Limb.Mode.IK)
+	uke.limbs["LeftArm"].target.global_position = uke.bone_world_transform("LeftUpperArm").origin + Vector3(0.0, -0.2, 0.3)
+	uke.limbs["LeftArm"].reset_pole()
+	for i in 4:
+		await get_tree().process_frame
+	var mid := Vector3(0, 0.95, 0)
+	var views := {
+		"_front": [Vector3(0.0, 0.3, 1.0), mid, 3.2],
+		"_side": [Vector3(1.0, 0.3, 0.2), mid, 3.2],
+		"_back": [Vector3(0.0, 0.3, -1.0), mid, 3.2],
+		"_belt": [Vector3(0.3, 0.2, 1.0), tori.global_position + Vector3(0, 0.98, 0), 0.9],
+		"_sleeve": [Vector3(0.2, 0.6, 1.0), tori.bone_world_transform("RightLowerArm").origin, 0.8],
+		"_shoulder": [Vector3(-0.3, 0.1, 1.0), tori.bone_world_transform("RightUpperArm").origin, 0.7],
+		"_collar": [Vector3(0.4, 0.6, 1.0), tori.bone_world_transform("Neck").origin + Vector3(0, -0.05, 0), 0.5],
+		"_collar_back": [Vector3(0.2, 0.6, -1.0), tori.bone_world_transform("Neck").origin, 0.5],
+	}
+	for suffix in views:
+		var v: Array = views[suffix]
+		camera.look_from(v[0], v[1], v[2])
+		for i in 3:
+			await get_tree().process_frame
+		var p: String = path.get_basename() + str(suffix) + ".png"
+		await StillExport.capture(get_viewport(), p, false, _hide_always(), _hide_for_transparent())
+		print("gi demo saved: ", p)
+	get_tree().quit()
+
+
+## Child mode: turn a video draft (tools/video_pipeline) into poses and a sequence, and render
+## a Side still of every pose so the result can be looked at:
+##   --import-draft <draft.json> --poses-dir <dir> --sequences-dir <dir> [--stills-dir <dir>]
+func _import_draft(args: PackedStringArray) -> void:
+	var path: String = args[args.find("--import-draft") + 1]
+	var poses_dir: String = args[args.find("--poses-dir") + 1] if args.has("--poses-dir") else ProjectSettings.globalize_path(SidePanel.POSES_DIR)
+	var seq_dir: String = args[args.find("--sequences-dir") + 1] if args.has("--sequences-dir") else ProjectSettings.globalize_path(SidePanel.SEQUENCES_DIR)
+	var stills_dir: String = args[args.find("--stills-dir") + 1] if args.has("--stills-dir") else ""
+	posing_scene.show_handles = false
+	for rig in posing_scene.characters:
+		rig.set_show_handles(false)
+	var result: Dictionary = await PoseImport.import_draft(path, posing_scene, grip_director, controller, camera, poses_dir, seq_dir)
+	if result.has("error"):
+		push_error(result["error"])
+		get_tree().quit(1)
+		return
+	for note in result["notes"]:
+		print("note: ", note)
+	if stills_dir != "":
+		for pose_path in result["poses"]:
+			PoseFile.apply(PoseFile.load(pose_path), posing_scene, grip_director)
+			for rig in posing_scene.characters:
+				rig.set_show_handles(false)
+			for i in 3:
+				await get_tree().process_frame
+			camera.fov = CameraPresets.FOV_DEG
+			camera.apply_preset(CameraPresets.side(posing_scene))
+			var out := stills_dir.path_join(pose_path.get_file().get_basename() + ".png")
+			await StillExport.capture(get_viewport(), out, false, _hide_always(), _hide_for_transparent())
+			print("draft still saved: ", out)
+	print("draft imported: %d poses, sequence %s" % [result["poses"].size(), result["sequence_path"]])
 	get_tree().quit()

@@ -25,7 +25,9 @@ sequence, `Ctrl+Z` / `Ctrl+Y` undo and redo, `Shift` while dragging a ring snaps
 The Characters list shows who is in the scene. **Add** puts in another Uke, Tori or observer (up
 to five), **Duplicate** copies the selected figure with its pose, **Remove** takes it out (asking
 first if it is part of a grip). Type a name and press Enter to rename; the colour button picks
-the skin colour, which is what tells the hands apart in a printed grip. **Mirror pose** swaps the
+the skin colour, which is what tells the hands apart in a printed grip. **gi** dresses the figure
+in a white keikogi with a belt in its own colour (a first version, cut from the mannequin
+itself; the hem, collar and V are straight cuts). **Mirror pose** swaps the
 selected figure's left and right; **Copy pose to** gives another figure the same pose.
 
 ## Posing a figure
@@ -38,7 +40,12 @@ selected figure's left and right; **Copy pose to** gives another figure the same
    one at the elbow or knee. Drag the blue ball to put the hand where you want it; the arm
    follows. Drag the grey ball to steer the elbow. If the ball turns **red** the hand cannot reach
    and the panel says by how many centimetres. Switching a limb back to FK keeps its pose.
-4. **Fingers:** one slider per finger, "Grip" closes the hand, "Open" opens it.
+4. **Wrists** are joints like any other: click the hand and turn it with the rings or the
+   sliders, whether the arm is in FK, in IK, or gripping something. On a gripping hand the new
+   angle becomes part of the grip, so it is kept as the figures move.
+5. **Fingers:** one slider per finger, "Grip" closes the hand, "Open" opens it. A single finger
+   joint can also be clicked and turned on its own (a pointing finger, a spread hand); the curl
+   slider then closes it from there.
 
 ## Grips (the important part)
 
@@ -47,9 +54,17 @@ A grip keeps one figure's hand on another figure's body while either of them mov
 1. Click the body part to be gripped, on the figure being gripped (for katatedori: Tori's
    forearm).
 2. In the Grips section choose who grips and with which hand, then **Attach**.
-3. On an arm or leg the hand **wraps round the limb** the way a real hand does, on the side of
-   the limb it was on before you pressed Attach. So bring Uke's hand roughly above or beside
-   Tori's wrist first, then Attach. On other body parts the hand is frozen where it is.
+3. The hand **wraps round the body part** the way a real hand does, on the side it was on
+   before you pressed Attach. So bring Uke's hand roughly above or beside Tori's wrist first,
+   then Attach. A wrist is taken in a fist; on a thick part (the neck, a thigh, the torso) the
+   palm is laid on the skin and the fingers close only as far as the part allows. The fingers
+   are set for you; adjust them afterwards if you like.
+
+The bodies are solid to each other. A hand target dragged into the other figure stops at the
+skin, a gripping hand rides on the surface of what it holds as that figure turns or bends,
+and the **collisions** line under the grip list reports any body part that is still passing
+through another (or through a weapon), checked as you pose. A hand overlapping the part it
+grips is fine and is not reported.
 
 From now on the gripping hand follows. Move Tori's arm, turn Tori, step Tori away: Uke's hand
 stays on the wrist. If Tori moves beyond Uke's reach the hand stops short and the ball turns red,
@@ -85,6 +100,18 @@ shows the gap between the points live. **Close the gap** moves the weapon-driven
 selected figure's hand, which falls short by exactly its reach if the point is too far) until
 they touch, and is undoable; **Record contact** saves the pair with the pose. The
 contact is a measurement, never a constraint: nothing stops you moving the figures apart again.
+
+## Starting from a video
+
+If a technique was filmed, `tools/video_pipeline/` (four Python scripts, see its README) turns
+the clip into a *draft* JSON of body landmarks per phase. **Import video draft…** in the Poses
+section reads such a file and builds rough poses and a sequence from it: each figure's facing
+and limbs from the landmarks, feet planted, the grip the file names, and the file's timings.
+It is a starting point, never a finished pose: the phase where the bodies overlap is usually
+missing from the data (the figure keeps its previous pose and the file's description is
+shown), leg positions under a hakama are guesses, and fingers, weapons and hand angles are
+not in the data at all. Look at each pose, correct it, save it. The notes under the Export
+section tell you what the importer decided for you.
 
 ## Poses and techniques
 
@@ -125,4 +152,7 @@ Uke is thrown beyond reach, so you can see what the red warning looks like.
   uses the side the hand is on.
 - **Red ball:** out of reach. Move the figures closer or lower the target.
 - **Wrist looks broken:** the elbow is steering the wrong way; drag the grey ball down and out.
+  If the hand itself is turned too far, click the hand and turn it back with the rings.
+- **Hand sits inside the other figure:** the collisions line names the parts. Release the grip and
+  attach again from the side you want the hand on, or move the gripped figure.
 - **Weapon in the wrong place after loading:** press Hold again for the holder.

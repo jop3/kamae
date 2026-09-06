@@ -18,6 +18,7 @@ var _char_color: ColorPickerButton
 var _copy_to: OptionButton
 var _primary_uke: OptionButton
 var _char_visible: CheckBox
+var _char_gi: CheckBox
 var _seq_camera: OptionButton
 var _contact_a: OptionButton
 var _contact_b: OptionButton
@@ -38,6 +39,8 @@ var _grip_who: OptionButton
 var _grip_hand: OptionButton
 var _grip_list: ItemList
 var _finger_sliders: Dictionary = {} ## finger -> HSlider
+var _collision_label: Label
+var _collision_clock := 0.0
 var _finger_side := "Right"
 var _finger_side_button: OptionButton
 var _finger_old := 0.0
@@ -140,6 +143,12 @@ func setup(ctrl: PoseController, posing_scene: PosingScene, grip_director: GripD
 		if not _updating and controller.selected_rig:
 			controller.selected_rig.visible = on)
 	name_row.add_child(_char_visible)
+	_char_gi = CheckBox.new(); _char_gi.text = "gi"
+	_char_gi.tooltip_text = "Dress this character in a white gi with a belt in its colour (saved with the pose)"
+	_char_gi.toggled.connect(func(on: bool):
+		if not _updating and controller.selected_rig:
+			controller.selected_rig.set_gi_visible(on))
+	name_row.add_child(_char_gi)
 	var pose_row := HBoxContainer.new(); vb.add_child(pose_row)
 	var mirror := Button.new(); mirror.text = "Mirror pose"; mirror.tooltip_text = "Swap left and right on the selected character"
 	mirror.pressed.connect(func(): if controller.selected_rig: controller.mirror_pose(controller.selected_rig))
@@ -230,6 +239,11 @@ func setup(ctrl: PoseController, posing_scene: PosingScene, grip_director: GripD
 	var release := Button.new(); release.text = "Release selected grip"
 	release.pressed.connect(_on_release_pressed)
 	vb.add_child(release)
+	_collision_label = Label.new()
+	_collision_label.add_theme_font_size_override("font_size", 11)
+	_collision_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_collision_label.tooltip_text = "Body parts passing through each other or through a weapon, checked as you pose"
+	vb.add_child(_collision_label)
 
 	vb.add_child(_header("Fingers"))
 	_finger_side_button = OptionButton.new()
@@ -364,6 +378,10 @@ func setup(ctrl: PoseController, posing_scene: PosingScene, grip_director: GripD
 	var load_pose := Button.new(); load_pose.text = "Load pose"
 	load_pose.pressed.connect(_on_load_pose_pressed)
 	vb.add_child(load_pose)
+	var import_btn := Button.new(); import_btn.text = "Import video draft…"
+	import_btn.tooltip_text = "A draft from tools/video_pipeline (MediaPipe landmarks) becomes rough poses and a sequence to correct"
+	import_btn.pressed.connect(_on_import_draft_pressed)
+	vb.add_child(import_btn)
 
 	vb.add_child(_header("Sequence"))
 	var seq_hint := Label.new()
@@ -525,9 +543,17 @@ func _on_attach_pressed() -> void:
 	if gripper == null or gripper == controller.selected_rig:
 		return   # a hand cannot grip its own body
 	var hand := "Right" if _grip_hand.selected == 0 else "Left"
-	# A limb bone is gripped by wrapping the hand around it; anything else freezes the hand where it is.
-	var wrap := controller.selected_rig.limb_for_bone(controller.selected_bone) != ""
-	grips.attach_wrapped(gripper, hand, controller.selected_rig, controller.selected_bone, wrap)
+	# The hand is wrapped round the bone at that bone's thickness: a fist on a wrist, a palm
+	# laid on the neck or a thigh, and the fingers close as far as the part allows.
+	var bone := controller.selected_bone
+	grips.attach_wrapped(gripper, hand, controller.selected_rig, bone, true)
+	var curl := GripDirector.curl_for_bone(bone)
+	for finger in FingerCurl.FINGERS:
+		var old: float = gripper.fingers.get_curl(hand, finger)
+		var value := minf(curl + 0.1, 1.0) if finger == "Thumb" else curl
+		controller.set_finger_curl(gripper, hand, finger, value)
+		controller.commit_finger_curl(gripper, hand, finger, old, value)
+	_refresh_values()
 
 
 func _on_release_pressed() -> void:
@@ -565,6 +591,19 @@ func _process(_delta: float) -> void:
 		else:
 			var gap: float = grips.contact_gap(pair[0], pair[1], pair[2], pair[3])
 			_contact_gap.text = ("Touching (%.1f cm)" if gap < 0.01 else "Gap %.1f cm") % (gap * 100.0)
+	# Bodies through each other are reported live, a few times a second (the check walks every
+	# pair of body capsules, which is cheap but not free).
+	_collision_clock += _delta
+	if _collision_label and _collision_clock > 0.3:
+		_collision_clock = 0.0
+		var problems := Anatomy.scene_problems(scene, grips)
+		var lines := PackedStringArray()
+		for i in mini(problems.size(), 4):
+			lines.append(problems[i])
+		if problems.size() > 4:
+			lines.append("… and %d more" % (problems.size() - 4))
+		_collision_label.text = "\n".join(lines) if not lines.is_empty() else "No collisions"
+		_collision_label.add_theme_color_override("font_color", Color(0.85, 0.15, 0.15) if not lines.is_empty() else Color(0.2, 0.55, 0.2))
 	# Reach warnings change as the instructor drags a target, so they are polled rather than
 	# recomputed only on discrete edits.
 	var rig := controller.selected_rig
@@ -824,6 +863,39 @@ func _confirm_overwrite(path: String) -> bool:
 	return box["ok"]
 
 
+func _on_import_draft_pressed() -> void:
+	var dialog := FileDialog.new()
+	dialog.file_mode = FileDialog.FILE_MODE_OPEN_FILE
+	dialog.access = FileDialog.ACCESS_FILESYSTEM
+	dialog.filters = PackedStringArray(["*.json ; Video draft"])
+	dialog.title = "Import a video draft"
+	dialog.file_selected.connect(func(path: String):
+		_import_draft(path)
+		dialog.queue_free())
+	dialog.canceled.connect(dialog.queue_free)
+	add_child(dialog)
+	dialog.popup_centered_ratio(0.6)
+
+
+func _import_draft(path: String) -> void:
+	set_export_status("Importing %s…" % path.get_file())
+	var result: Dictionary = await PoseImport.import_draft(path, scene, grips, controller, camera,
+		ProjectSettings.globalize_path(POSES_DIR), ProjectSettings.globalize_path(SEQUENCES_DIR))
+	if result.has("error"):
+		set_export_status(str(result["error"]))
+		return
+	_refresh_poses()
+	_refresh_sequence_files()
+	_refresh_characters()
+	_sequence = result["sequence"]
+	_refresh_sequence()
+	_reload_player()
+	var lines := PackedStringArray(["Imported %d poses and the sequence \"%s\". A draft: correct every pose." % [result["poses"].size(), result["sequence"].name]])
+	for note in result["notes"]:
+		lines.append("• " + str(note))
+	set_export_status("\n".join(lines))
+
+
 func _on_load_pose_pressed() -> void:
 	var sel := _pose_list.get_selected_items()
 	if sel.is_empty():
@@ -1023,6 +1095,8 @@ func _refresh_character_fields() -> void:
 	_char_name.text = rig.display_name if rig else ""
 	_char_color.color = rig.get_skin_color() if rig else Color.GRAY
 	_char_visible.button_pressed = rig.visible if rig else true
+	if _char_gi:
+		_char_gi.button_pressed = rig.gi_visible if rig else false
 	_updating = false
 
 

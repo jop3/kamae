@@ -171,6 +171,14 @@ func _thumb_tip(sk: Skeleton3D, bones: Array[int], axes: Array, amount: float) -
 	return world.origin + world.basis.y.normalized() * distal_len * 0.8
 
 
+## True for a phalanx bone (thumb included): the bones this modifier drives.
+static func is_finger_bone(bone_name: String) -> bool:
+	for finger in FINGERS:
+		if finger in bone_name:
+			return true
+	return false
+
+
 ## Direction from the back of the hand out through the palm, in the hand bone's own frame, as
 ## measured from the rig. Weapons use it to put a shaft where the fingers close.
 func palm_normal(side: String) -> Vector3:
@@ -188,6 +196,13 @@ func _process_modification_with_delta(_delta: float) -> void:
 		return
 	if not _calibrated:
 		calibrate()
+	# The curl is added on top of whatever rotation each phalanx already carries, so a finger
+	# can also be posed on its own (spread, or one joint bent) with the gizmo or the sliders;
+	# the curl then closes it from there. This modifier runs first, so the value read here is the
+	# authored pose, never another modifier's output. Saved poses store that authored value
+	# (PoseFile), otherwise a reloaded curl would be applied twice.
+	# Every phalanx is written every pass, an open finger with its authored value unchanged: a
+	# modifier that writes nothing leaves the skeleton unrefreshed and the finger stuck curled.
 	for side in SIDES:
 		for finger in FINGERS:
 			var amount: float = curls[side][finger]
@@ -197,13 +212,10 @@ func _process_modification_with_delta(_delta: float) -> void:
 				var bone := sk.find_bone("%s%s%s" % [side, finger, segments[i]])
 				if bone < 0:
 					continue
-				var rest := sk.get_bone_rest(bone).basis.get_rotation_quaternion()
-				if is_zero_approx(amount):
-					sk.set_bone_pose_rotation(bone, rest)
-					continue
-				if not _axes.has(bone):
-					continue   # a finger calibrate() could not work out; leave it at rest
-				var weight: float = SEGMENT_WEIGHT[i]
-				var angle := deg_to_rad(FULL_CURL_DEG) * amount * weight * scale
-				var axis: Vector3 = _axes[bone]
-				sk.set_bone_pose_rotation(bone, rest * Quaternion(axis, angle))
+				var q := sk.get_bone_pose_rotation(bone)
+				if not is_zero_approx(amount) and _axes.has(bone):
+					var weight: float = SEGMENT_WEIGHT[i]
+					var angle := deg_to_rad(FULL_CURL_DEG) * amount * weight * scale
+					var axis: Vector3 = _axes[bone]
+					q = q * Quaternion(axis, angle)
+				sk.set_bone_pose_rotation(bone, q)
