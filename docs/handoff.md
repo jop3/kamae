@@ -45,7 +45,7 @@ The full suite (`tests/run.sh`) takes about 25 s.
 ```
 assets/characters/mannequin.glb   generated, CC0, 52 humanoid bones incl. fingers (LICENSE.md)
 tools/generate_mannequin.py       regenerates it headlessly via bpy + MPFB (see tools/README.md)
-src/rig/       CharacterRig, Limb, HandOrient, FingerCurl, LimbHandle, PickCapsules
+src/rig/       CharacterRig, Limb, HandOrient, TwistFollow, FingerCurl, Anatomy, LimbHandle
 src/scene/     PosingScene (owns 1–5 characters), Palette, FloorGrid
 src/posing/    PoseController (selection, FK, undo), RotationGizmo, GripTarget, Grip, GripDirector
 src/ui/        SidePanel (characters, placement, joint, limbs, grips, fingers, export)
@@ -54,7 +54,7 @@ tests/         test_m0..test_m3, check_exports, run.sh
 docs/          spec-v1, spec-v2, spec-review, build-plan, engine-notes, this file
 ```
 
-Frame order everything depends on: FK pose → `FingerCurl` → four `TwoBoneIK3D` → `HandOrient` →
+Frame order everything depends on: FK pose → `FingerCurl` → four × (`TwoBoneIK3D` → `TwistFollow` → `HandOrient`) →
 `skeleton_updated` (the character caches its solved pose; the grip director drives dependent hands) →
 skin → pose restored.
 
@@ -245,6 +245,29 @@ end away. If the point is out of reach the gap ends up equal to the reach shortf
 test asserts. **attach_to_weapon** takes a `roll_deg` and the panel passes the roll box to the
 second hand too.
 
-Still open from before: the left elbow riding high in the two-handed bokken hold (elbow pole
-versus hold orientation, see the weapon demo render), the instructor's corrections to the
-acceptance drafts, spec §9 questions, and the optional M9 gi.
+### Plausibility tests (same session, on request)
+
+Two new layers, both in `tests/run.sh` and CI:
+
+- **Anatomy, headless and fast.** `src/rig/Anatomy.gd` checks a posed character: elbow and knee
+  flexion range and *direction* (from the mannequin's rest fold), no limb through the torso or
+  through the other body, no weapon through anyone, no bone scale, and a CPU-skinned mesh whose
+  vertices keep their rest distance from their bones. `tests/test_anatomy.gd` proves each rule on
+  deliberate poses; `tests/check_anatomy.gd` runs them over every committed pose (about 2 s).
+  Grips and two-handed holds are exempted where bodies touch by design (fist on wrist, stacked
+  hands, forearms side by side); the rules are coarse on purpose and documented in the file.
+- **Golden stills.** `tests/check_golden.gd` shrinks every rendered still to 192×108 and compares
+  it with `tests/golden/`; more than 2 % of pixels moving fails. Goldens are what a person looked
+  at and accepted: after a deliberate visual change, look at the full-size renders in `exports/`
+  and `tests/out/`, then `UPDATE_GOLDEN=1 tests/run.sh` and commit the thumbnails.
+
+Running the anatomy check over the drafts found real defects (Uke's bokken through Uke's chest
+in kumitachi, the jo through both bodies in kumijo, hands inside the pelvis in ushiro, both
+Ukes crossing arms in ryotemochi, Tori on the wrong side in shihonage) and one mechanics gap:
+`TwoBoneIK3D` never twists the upper arm, so overhead and behind-the-back holds bent the elbow
+through the skin. `TwistFollow` fixes that (see `docs/engine-notes.md`); `tools/build_fixtures.gd`
+was corrected for the rest and every pose was rebuilt. They are still drafts by a script, but
+they are now drafts a body could take.
+
+Still open: the instructor's corrections to the acceptance drafts, spec §9 questions, and the
+optional M9 gi.

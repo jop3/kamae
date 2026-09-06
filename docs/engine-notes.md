@@ -16,6 +16,14 @@ is ignored, so a future change does not quietly reintroduce the problem.
   placed after the IK node (child order is execution order).
 - **IK does not stretch.** An out-of-reach target leaves the hand short by the shortfall, so the UI has to
   warn rather than assume the hand arrives.
+- **`TwoBoneIK3D` swings the root bone but never twists it.** The humerus keeps its rest twist
+  whatever the pole asks for, so with the hand overhead or behind the back the elbow crease ends up
+  facing away from the fold and the mesh shows an elbow point on the inside of the arm. A person
+  turns the humerus as the arm rises. `TwistFollow` (after each limb's IK node, before
+  `HandOrient`) rotates the root bone about its own axis until the rest fold direction
+  (`Anatomy.rest_bend_local`, from the mannequin's rest elbows and knees) lines up with the actual
+  bend, and re-expresses the middle bone against the turned root so the hand does not move. Capped
+  at 110° so an impossible pose stays visible to `Anatomy.joint_problems` instead of being hidden.
 
 ## Grips
 
@@ -133,6 +141,14 @@ now asserts against all three, so a bad character cannot be exported silently.
 
 - **Rendered output must not be scanned by the importer.** `tests/out/` carries a `.gdignore` so the PNGs
   the tests render are not turned into project resources. `tests/check_exports.gd` therefore reads them
-  from disk with `Image.load_from_file()` and an absolute path, not through `res://`.
+  from disk with `Image.load_from_file()` and a path from `ProjectSettings.globalize_path()`, not
+  through `res://`. Never hard-code the checkout path: the CI runner's differs.
+- **A parse error in a `class_name` script hangs `--headless -s`** instead of failing: the global class
+  cache cannot load and the main loop spins. `godot --headless --check-only -s file.gd` reports the
+  error; `tests/run.sh` bounds every run with `timeout` for the same reason.
+- **Skinning can be reproduced on the CPU** from `Mesh.surface_get_arrays()` (`ARRAY_BONES`,
+  `ARRAY_WEIGHTS`, four per vertex) and `Skin.get_bind_pose()` (the inverse global rest), with the
+  solved bone poses from `skeleton_updated`. `Anatomy.skin_problems` does this to check the mesh
+  itself, about 30 ms per character.
 - **Renderer:** Compatibility (OpenGL). Verified to run and export correctly on llvmpipe software
   rendering, which is the "laptop without a GPU" requirement.

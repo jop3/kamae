@@ -51,6 +51,7 @@ Total: about 20.5 sessions for M0–M8 including weapons, plus 4–6 for the opt
 
 ## Testing strategy
 - `tests/run.sh` runs every `tests/test_*.gd` with `godot --headless -s`, printing `PASS`/`FAIL`; exits non-zero on failure. Rendering tests wrap Godot in `xvfb-run` when no display exists (pattern from `feasibility/run.sh`).
+- Plausibility is tested at two speeds: `tests/check_anatomy.gd` (headless, seconds) applies `src/rig/Anatomy.gd` to every committed pose, and `tests/check_golden.gd` compares thumbnails of every rendered still with accepted goldens in `tests/golden/`.
 - GitHub Actions: download the pinned Godot 4.6 release, `apt install xvfb`, run `tests/run.sh`, upload `exports/` as an artifact so the instructor can preview renders from any PR.
 - The three acceptance sequences are regression fixtures: every PR re-renders them.
 

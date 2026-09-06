@@ -19,6 +19,7 @@ var is_arm: bool
 var rig: Node3D            ## CharacterRig
 var skeleton: Skeleton3D
 var ik: TwoBoneIK3D
+var twist: TwistFollow
 var hand_orient: HandOrient
 var target: Node3D
 var pole: Node3D
@@ -57,6 +58,14 @@ func build(character_rig: Node3D, sk: Skeleton3D, target_node: Node3D, pole_node
 	ik.set_target_node(0, ik.get_path_to(target))
 	ik.set_pole_node(0, ik.get_path_to(pole))
 	ik.active = false
+	twist = TwistFollow.new()
+	twist.name = "Twist_" + key
+	twist.root_bone = root_bone
+	twist.middle_bone = middle_bone
+	twist.end_bone = end_bone
+	twist.rest_bend_local = Anatomy.rest_bend_local(skeleton, key)
+	twist.enabled = false
+	skeleton.add_child(twist)   # after the IK node: it corrects the solve before the hand is oriented
 	hand_orient = HandOrient.new()
 	hand_orient.name = "Orient_" + key
 	hand_orient.bone_name = end_bone
@@ -72,6 +81,7 @@ func set_mode(new_mode: int) -> void:
 		reset_target_to_pose()   # target adopts the current hand transform, so nothing jumps
 	mode = new_mode
 	ik.active = mode == Mode.IK
+	twist.enabled = mode == Mode.IK
 	hand_orient.enabled = mode == Mode.IK and orient_to_target
 
 
@@ -102,6 +112,8 @@ func set_influence(x: float) -> void:
 	var v := clampf(x, 0.0, 1.0)
 	if not is_equal_approx(ik.influence, v):
 		ik.influence = v
+	if not is_equal_approx(twist.influence, v):
+		twist.influence = v
 	if not is_equal_approx(hand_orient.influence, v):
 		hand_orient.influence = v
 
