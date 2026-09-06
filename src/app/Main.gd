@@ -309,10 +309,7 @@ func _render_demo_weapon(path: String) -> void:
 	var along := Vector3(0, 0.45, 0.9).normalized()       # tip forward and up, toward the throat
 	var up := Vector3(0, 0.9, -0.45).normalized()          # edge (-Z) faces down and forward
 	w.global_transform = Transform3D(Basis(along.cross(up), along, up), tori.global_position + Vector3(0.0, 1.02, 0.25))
-	grip_director.attach_to_weapon(tori, "Left", w, 0.04, true)
-	grip_director.attach_to_weapon(tori, "Right", w, 0.17, true)
-	tori.fingers.apply_grip_preset("Right")
-	tori.fingers.apply_grip_preset("Left")
+	grip_director.attach_default_hands(tori, w)
 	for i in 4:
 		await get_tree().process_frame
 	print("weapon grip error: %.4f m (shortfall R %.3f, L %.3f)" % [grip_director.worst_error(),

@@ -32,6 +32,9 @@ run "$GODOT" --headless -s tests/check_movie.gd >/dev/null 2>&1 || status=1
 echo "== acceptance techniques (poses/ and sequences/)"
 run "$GODOT" --headless -s tests/check_acceptance.gd 2>&1 | grep -E "^(FAIL|RESULT)" || true
 run "$GODOT" --headless -s tests/check_acceptance.gd >/dev/null 2>&1 || status=1
+echo "== anatomy: joints, intersections, weapons and skin on every committed pose"
+run "$GODOT" --headless -s tests/check_anatomy.gd 2>&1 | grep -E "^(FAIL|RESULT)" || true
+run "$GODOT" --headless -s tests/check_anatomy.gd >/dev/null 2>&1 || status=1
 if [ "${RENDER_ACCEPTANCE:-1}" = "1" ]; then
   echo "== acceptance exports: Front+Side stills and a video per technique into exports/"
   mkdir -p exports
@@ -47,4 +50,7 @@ if [ "${RENDER_ACCEPTANCE:-1}" = "1" ]; then
   run "$GODOT" --headless -s tests/check_acceptance_exports.gd 2>&1 | grep -E "^(FAIL|RESULT)" || true
   run "$GODOT" --headless -s tests/check_acceptance_exports.gd >/dev/null 2>&1 || status=1
 fi
+echo "== golden stills (thumbnails under tests/golden/; UPDATE_GOLDEN=1 to accept new renders)"
+run "$GODOT" --headless -s tests/check_golden.gd 2>&1 | grep -E "^(FAIL|RESULT)|golden thumbnails" || true
+run "$GODOT" --headless -s tests/check_golden.gd >/dev/null 2>&1 || status=1
 exit $status

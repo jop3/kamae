@@ -180,8 +180,8 @@ func _child_joint(rig: CharacterRig, bone: String) -> Vector3:
 
 ## Attaches a second (or any) hand to a weapon at `t`. With `snap`, the hand's IK target is first
 ## moved to the canonical hand pose for that point, so the grip is a real hold.
-func attach_to_weapon(gripper: CharacterRig, hand: String, weapon: Weapon, t: float, snap := true) -> Grip:
-	var grip := _attach_to_weapon_raw(gripper, hand, weapon, t, snap)
+func attach_to_weapon(gripper: CharacterRig, hand: String, weapon: Weapon, t: float, snap := true, roll_deg := 0.0) -> Grip:
+	var grip := _attach_to_weapon_raw(gripper, hand, weapon, t, snap, roll_deg)
 	if controller:
 		controller.undo.create_action("Grip %s" % grip.describe())
 		controller.undo.add_do_method(_add.bind(grip))
@@ -190,11 +190,11 @@ func attach_to_weapon(gripper: CharacterRig, hand: String, weapon: Weapon, t: fl
 	return grip
 
 
-func _attach_to_weapon_raw(gripper: CharacterRig, hand: String, weapon: Weapon, t: float, snap := true) -> Grip:
+func _attach_to_weapon_raw(gripper: CharacterRig, hand: String, weapon: Weapon, t: float, snap := true, roll_deg := 0.0) -> Grip:
 	if snap:
 		gripper.set_limb_mode(hand + "Arm", Limb.Mode.IK)
 		var limb: Limb = gripper.limbs[hand + "Arm"]
-		limb.target.global_transform = weapon.global_transform * weapon.hold_offset(gripper, hand, t, 0.0).affine_inverse()
+		limb.target.global_transform = weapon.global_transform * weapon.hold_offset(gripper, hand, t, roll_deg).affine_inverse()
 		limb.reset_pole()
 	var grip := Grip.new()
 	grip.gripper_id = gripper.character_id
@@ -202,11 +202,27 @@ func _attach_to_weapon_raw(gripper: CharacterRig, hand: String, weapon: Weapon, 
 	grip.target = GripTarget.for_weapon(scene, weapon.weapon_id, t)
 	grip.target.bind(scene)
 	if snap:
-		grip.offset = grip.target.world_transform().affine_inverse() * (weapon.global_transform * weapon.hold_offset(gripper, hand, t, 0.0).affine_inverse())
+		grip.offset = grip.target.world_transform().affine_inverse() * (weapon.global_transform * weapon.hold_offset(gripper, hand, t, roll_deg).affine_inverse())
 	else:
 		grip.offset = grip.target.world_transform().affine_inverse() * gripper.bone_world_transform(hand + "Hand")
 	_add(grip)
 	return grip
+
+
+## Puts both of `gripper`'s hands on `weapon` at the weapon's default hold (Weapon.default_hold):
+## on a weapon-driven weapon both hands snap on as grips; on a hand-driven one the right hand
+## takes the hold and the left attaches. Two undo steps.
+func attach_default_hands(gripper: CharacterRig, weapon: Weapon) -> void:
+	var r: Dictionary = weapon.default_hold("Right")
+	var l: Dictionary = weapon.default_hold("Left")
+	if weapon.drive == "weapon":
+		attach_to_weapon(gripper, "Left", weapon, l["t"], true, l["roll_deg"])
+		attach_to_weapon(gripper, "Right", weapon, r["t"], true, r["roll_deg"])
+	else:
+		hold_weapon(gripper, "Right", weapon, r["t"], r["roll_deg"])
+		attach_to_weapon(gripper, "Left", weapon, l["t"], true, l["roll_deg"])
+	gripper.fingers.apply_grip_preset("Right")
+	gripper.fingers.apply_grip_preset("Left")
 
 
 ## Switches who drives whom without moving anything. "weapon": the holder's hand becomes an
@@ -277,14 +293,58 @@ func close_gap(a: Weapon, t_a: float, b: Weapon, t_b: float, mover: Weapon = nul
 	if target_weapon == a:
 		delta = -delta
 	if target_weapon.drive == "weapon" or target_weapon.hold.is_empty():
-		target_weapon.global_position += delta
+		var before_pos := target_weapon.global_position
+		_undoable("Close gap (%s)" % target_weapon.weapon_id,
+			_set_weapon_position.bind(target_weapon, before_pos + delta),
+			_set_weapon_position.bind(target_weapon, before_pos))
 		return
 	var holder := scene.get_character(target_weapon.hold["character"])
 	if holder == null:
 		return
-	var limb: Limb = holder.limbs[target_weapon.hold["hand"] + "Arm"]
-	holder.set_limb_mode(limb.key, Limb.Mode.IK)
+	var limb_key: String = target_weapon.hold["hand"] + "Arm"
+	var limb: Limb = holder.limbs[limb_key]
+	var before := [limb.mode, limb.orient_to_target, limb.target.global_transform]
+	# Switching to IK first puts the target on the hand (it is stale while the arm is in FK), so
+	# the move is applied relative to wherever the target lands, not to the stale value. The hand
+	# keeps its orientation on the way, otherwise the re-solved arm swings the weapon's far end.
+	_undoable("Close gap (%s)" % target_weapon.weapon_id,
+		_nudge_limb_target.bind(holder, limb_key, delta),
+		_restore_limb_target.bind(holder, limb_key, before))
+
+
+## Runs `do` now and records the pair on the undo stack when there is a controller.
+func _undoable(name: String, do: Callable, undo: Callable) -> void:
+	if controller:
+		controller.undo.create_action(name)
+		controller.undo.add_do_method(do)
+		controller.undo.add_undo_method(undo)
+		controller.undo.commit_action()
+	else:
+		do.call()
+
+
+func _set_weapon_position(weapon: Weapon, pos: Vector3) -> void:
+	if is_instance_valid(weapon):
+		weapon.global_position = pos
+
+
+func _nudge_limb_target(holder: CharacterRig, limb_key: String, delta: Vector3) -> void:
+	if not is_instance_valid(holder):
+		return
+	holder.set_limb_mode(limb_key, Limb.Mode.IK)
+	var limb: Limb = holder.limbs[limb_key]
+	limb.reset_target_to_pose()   # an arm already in IK may carry a stale target rotation
+	limb.set_orient_to_target(true)
 	limb.target.global_position += delta
+
+
+func _restore_limb_target(holder: CharacterRig, limb_key: String, state: Array) -> void:
+	if not is_instance_valid(holder):
+		return
+	holder.set_limb_mode(limb_key, state[0])
+	var limb: Limb = holder.limbs[limb_key]
+	limb.set_orient_to_target(state[1])
+	limb.target.global_transform = state[2]
 
 
 func _grips_on_hand(gripper_id: String, hand: String) -> Array[Grip]:

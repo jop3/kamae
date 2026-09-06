@@ -132,11 +132,16 @@ func fingers(id: String, side: String, curl: float) -> void:
 	rig(id).fingers.set_hand_curl(side, curl)
 
 
-func grab(gripper: String, hand: String, target: String, bone: String, approach_offset: Vector3 = Vector3(0, 0.06, 0)) -> void:
+func grab(gripper: String, hand: String, target: String, bone: String, approach_offset: Vector3 = Vector3(0, 0.06, 0), along: float = 0.0) -> void:
 	var g := rig(gripper)
 	if g.limbs[hand + "Arm"].mode != Limb.Mode.IK:
 		await ctrl.set_limb_mode(g, hand + "Arm", Limb.Mode.IK)
-	g.limbs[hand + "Arm"].target.global_position = rig(target).bone_world_transform(bone).origin + approach_offset
+	var t := rig(target)
+	var start: Vector3 = t.bone_world_transform(bone).origin
+	var children := t.skeleton.get_bone_children(t.skeleton.find_bone(bone))
+	if along > 0.0 and children.size() > 0:
+		start = start.lerp(t.bone_world_transform(t.skeleton.get_bone_name(children[0])).origin, along)
+	g.limbs[hand + "Arm"].target.global_position = start + approach_offset
 	await settle()
 	director.attach_wrapped(g, hand, rig(target), bone)
 	fingers(gripper, hand, 0.6)
@@ -207,8 +212,8 @@ func settle(frames: int = 2) -> void:
 
 func katatedori_ikkyo() -> void:
 	await reset()
-	stance("tori", 0, -0.22, 0)
-	stance("uke1", 0, 0.22, 180)
+	stance("tori", 0.12, -0.31, 0)
+	stance("uke1", -0.12, 0.31, 180)   # offset so the front feet do not share a line
 	await settle()
 	await hanmi("tori", "Right")
 	await hanmi("uke1", "Left")
@@ -224,11 +229,11 @@ func katatedori_ikkyo() -> void:
 	# Kake: Uke's grip is off, Uke bends forward, Tori holds Uke's arm at wrist and elbow.
 	await release_all("uke1")
 	await bend_forward("uke1", "Spine", 40)
-	await hand_at("uke1", "Left", Vector3(-0.42, -0.08, 0.20))
-	stance("tori", 0.55, -0.30, 145)
+	await hand_at("uke1", "Left", Vector3(0.35, -0.10, 0.30))   # out to Uke's left and forward
+	stance("tori", -1.0, -0.20, 110)                             # outside that arm, facing it
 	await settle(3)
 	await grab("tori", "Right", "uke1", "LeftLowerArm", Vector3(0, 0.06, 0))
-	await grab("tori", "Left", "uke1", "LeftUpperArm", Vector3(0, 0.06, 0))
+	await grab("tori", "Left", "uke1", "LeftUpperArm", Vector3(-0.06, 0.05, 0), 0.6)   # just above the elbow, clear of the chest
 	await save_pose("Katatedori Ikkyo Kake")
 	save_sequence("Katatedori Ikkyo", [["Katatedori Ikkyo Grepp", 0.0, 0.5], ["Katatedori Ikkyo Kuzushi", 0.6, 0.3], ["Katatedori Ikkyo Kake", 0.6, 1.0]])
 
@@ -242,22 +247,22 @@ func ushiro_ryotedori_zenponage() -> void:
 	await settle()
 	await hanmi("tori", "Right")
 	await hanmi("uke1", "Right")
-	await hand_at("tori", "Right", Vector3(0.04, -0.36, -0.06))
-	await hand_at("tori", "Left", Vector3(-0.04, -0.36, -0.06))
+	await hand_at("tori", "Right", Vector3(-0.08, -0.36, -0.06))
+	await hand_at("tori", "Left", Vector3(0.08, -0.36, -0.06))
 	await settle(3)
 	await grab("uke1", "Right", "tori", "RightLowerArm", Vector3(0, 0.05, -0.04))
 	await grab("uke1", "Left", "tori", "LeftLowerArm", Vector3(0, 0.05, -0.04))
 	await save_pose("Ushiro Ryotedori Zenponage Grepp")
 
-	await hand_at("tori", "Right", Vector3(0.02, 0.12, 0.30))
-	await hand_at("tori", "Left", Vector3(-0.02, 0.12, 0.30))
-	stance("uke1", 0, -0.25, 0)
+	await hand_at("tori", "Right", Vector3(-0.04, 0.12, 0.30))
+	await hand_at("tori", "Left", Vector3(0.04, 0.12, 0.30))
+	stance("uke1", 0, -0.40, 0)
 	await save_pose("Ushiro Ryotedori Zenponage Kuzushi")
 
 	# Kake: Tori extends forward-down; Uke, still holding, is thrown well beyond arm's reach,
 	# which is exactly what the reach warning is for (spec 8.2).
-	await hand_at("tori", "Right", Vector3(0.05, -0.35, 0.42))
-	await hand_at("tori", "Left", Vector3(-0.05, -0.35, 0.42))
+	await hand_at("tori", "Right", Vector3(-0.05, -0.35, 0.42))
+	await hand_at("tori", "Left", Vector3(0.05, -0.35, 0.42))
 	stance("uke1", 0, 1.3, 0)
 	await save_pose("Ushiro Ryotedori Zenponage Kake", true)
 	save_sequence("Ushiro Ryotedori Zenponage", [["Ushiro Ryotedori Zenponage Grepp", 0.0, 0.5], ["Ushiro Ryotedori Zenponage Kuzushi", 0.6, 0.3], ["Ushiro Ryotedori Zenponage Kake", 0.8, 1.0]])
@@ -272,14 +277,14 @@ func katatedori_shihonage_irimi() -> void:
 	PoseFile.apply(grepp, scene, director, ctrl)
 	await settle(3)
 	# Kuzushi: Tori steps in beside Uke and raises the gripped arm high.
-	stance("tori", 0.30, 0.05, 80)
-	await hand_at("tori", "Right", Vector3(-0.35, 0.40, 0.10))
+	stance("tori", -0.55, 0.20, 180)
+	await hand_at("tori", "Right", Vector3(-0.12, 0.45, 0.08))
 	await save_pose("Katatedori Shihonage Kuzushi")
 	# Kake: the grip reverses. Uke's hand is off; Tori has turned and holds Uke's wrist, the arm
 	# folded back over Uke's shoulder.
 	await release_all("uke1")
-	await hand_at("uke1", "Left", Vector3(-0.15, 0.30, -0.30))
-	stance("tori", 0.40, 0.55, 200)
+	await hand_at("uke1", "Left", Vector3(0.10, 0.25, -0.20))   # folded back over Uke's own shoulder
+	stance("tori", -0.55, 0.70, 195)
 	await settle(3)
 	await grab("tori", "Left", "uke1", "LeftLowerArm", Vector3(0, 0.06, 0))
 	await grab("tori", "Right", "uke1", "LeftHand", Vector3(0, 0.05, 0))
@@ -301,8 +306,8 @@ func three_person() -> void:
 	await hand_at("tori", "Right", Vector3(0.05, -0.14, 0.25))
 	await hand_at("tori", "Left", Vector3(-0.05, -0.14, 0.25))
 	await settle(3)
-	await grab("uke1", "Left", "tori", "RightLowerArm")
-	await grab("uke2", "Right", "tori", "LeftLowerArm")
+	await grab("uke1", "Right", "tori", "RightLowerArm")
+	await grab("uke2", "Left", "tori", "LeftLowerArm")
 	await save_pose("Ryotemochi Grepp")
 	await hand_at("tori", "Right", Vector3(0.05, 0.15, 0.30))
 	await hand_at("tori", "Left", Vector3(-0.05, 0.15, 0.30))
@@ -313,18 +318,34 @@ func three_person() -> void:
 # ---------------------------------------------------------------- weapons: shared
 
 ## Places a weapon in front of a character in chudan and snaps both hands onto it.
-func chudan(id: String, weapon: Weapon, t_front: float, t_back: float, forward: float = 0.25, height: float = 1.02) -> void:
+func chudan(id: String, weapon: Weapon, forward: float = 0.25, height: float = 1.02) -> void:
 	var r := rig(id)
 	var b := r.global_transform.basis
 	weapon.drive = "weapon"
 	var along: Vector3 = (b * Vector3(0, 0.45, 0.9)).normalized()
 	var up: Vector3 = (b * Vector3(0, 0.9, -0.45)).normalized()
 	weapon.global_transform = Transform3D(Basis(along.cross(up), along, up), r.global_position + b * Vector3(0.0, height, forward))
-	director.attach_to_weapon(r, "Left", weapon, t_back, true)
-	director.attach_to_weapon(r, "Right", weapon, t_front, true)
-	r.fingers.apply_grip_preset("Right")
-	r.fingers.apply_grip_preset("Left")
+	director.attach_default_hands(r, weapon)
 	await settle(3)
+
+
+## Jo in chudan: held level beside the right hip, butt end behind, rear (left) hand at the hip
+## with its elbow forward so the forearm crosses in front of the hips, front (right) hand a
+## forearm ahead; the staff runs past the body rather than through it.
+func jo_kamae(r: CharacterRig, jo: Weapon) -> void:
+	jo.drive = "weapon"
+	var b := r.global_transform.basis
+	await place_weapon(jo, r.global_position + b * Vector3(-0.10, 0.98, -0.19), b * Vector3(0, 0.08, 1.0), Vector3.UP)
+	director.attach_default_hands(r, jo)
+	r.limbs["LeftArm"].pole.global_position = r.global_position + b * Vector3(0.34, 0.78, 0.58)
+	r.limbs["RightArm"].pole.global_position = r.global_position + b * Vector3(-0.42, 0.85, 0.15)   # right elbow out, clear of the crossing forearm
+	await settle(3)
+
+
+## Points a limb's elbow (or knee) toward an offset from the character's root, in its frame.
+func pole_at(id: String, limb_key: String, local_offset: Vector3) -> void:
+	var r := rig(id)
+	r.limbs[limb_key].pole.global_position = r.global_position + r.global_transform.basis * local_offset
 
 
 func place_weapon(weapon: Weapon, origin: Vector3, along: Vector3, up_hint: Vector3) -> void:
@@ -344,11 +365,13 @@ func tachi_dori() -> void:
 	await hanmi("uke1", "Right")
 	await hanmi("tori", "Left")
 	var bokken := scene.add_weapon("bokken1", "bokken")
-	await chudan("uke1", bokken, 0.17, 0.04)
+	await chudan("uke1", bokken)
 	await save_pose("Tachi dori Kamae")
 	# The cut: bokken raised overhead (weapon-driven, hands follow) then brought down.
 	var u := rig("uke1")
-	await place_weapon(bokken, u.global_position + u.global_transform.basis * Vector3(0, 1.55, -0.05), u.global_transform.basis * Vector3(0, 0.6, -0.8), Vector3.UP)
+	await place_weapon(bokken, u.global_position + u.global_transform.basis * Vector3(0, 1.58, 0.22), u.global_transform.basis * Vector3(0, 0.5, -0.87), Vector3.UP)
+	pole_at("uke1", "LeftArm", Vector3(0.45, 1.25, 0.15))
+	pole_at("uke1", "RightArm", Vector3(-0.45, 1.25, 0.15))
 	await save_pose("Tachi dori Furikaburi")
 	await place_weapon(bokken, u.global_position + u.global_transform.basis * Vector3(0, 1.05, 0.30), u.global_transform.basis * Vector3(0, 0.2, 1.0), Vector3.UP)
 	stance("tori", 0.35, -0.10, 40)
@@ -356,7 +379,8 @@ func tachi_dori() -> void:
 	await save_pose("Tachi dori Irimi")
 	# Tori takes the sword: the hold names Tori; Uke lets go and is moved off.
 	await release_all("uke1")
-	director.hold_weapon(rig("tori"), "Right", bokken, 0.12, 0.0, true)
+	var dh: Dictionary = bokken.default_hold("Right")
+	director.hold_weapon(rig("tori"), "Right", bokken, dh["t"], dh["roll_deg"], true)
 	await settle(2)
 	rig("tori").fingers.apply_grip_preset("Right")
 	await arm_fk("uke1", "Right")
@@ -379,13 +403,11 @@ func jo_dori() -> void:
 	var u := rig("uke1")
 	# Thrust: jo level at chest height, tip toward Tori, hands at 0.30 and 0.55 along it.
 	jo.drive = "weapon"
-	await place_weapon(jo, u.global_position + u.global_transform.basis * Vector3(0.05, 1.12, -0.40), u.global_transform.basis * Vector3(0, 0.05, 1.0), Vector3.UP)
-	director.attach_to_weapon(u, "Left", jo, 0.28, true)
-	director.attach_to_weapon(u, "Right", jo, 0.52, true)
+	await jo_kamae(u, jo)
 	u.fingers.apply_grip_preset("Right"); u.fingers.apply_grip_preset("Left")
 	await save_pose("Jo dori Tsuki")
 	# Deflect and take hold of the staff near its tip.
-	stance("tori", 0.30, -0.35, 20)
+	stance("tori", 0.42, -0.30, 35)   # off the line of the staff, so it passes beside the arm
 	director.attach_to_weapon(rig("tori"), "Right", jo, 0.80, true)
 	rig("tori").fingers.apply_grip_preset("Right")
 	await save_pose("Jo dori Uke")
@@ -411,10 +433,17 @@ func kumitachi() -> void:
 	await hanmi("uke1", "Right")
 	var a := scene.add_weapon("bokken1", "bokken")
 	var b := scene.add_weapon("bokken2", "bokken")
-	await chudan("tori", a, 0.17, 0.04)
-	await chudan("uke1", b, 0.17, 0.04)
+	await chudan("tori", a)
+	await chudan("uke1", b)
 	var gap := director.contact_gap(a, 0.72, b, 0.72)
-	director.close_gap(a, 0.72, b, 0.72, b)
+	# Close the gap by stepping Uke in, sword and all, rather than sliding the sword back
+	# through Uke's chest: the crossing point is a matter of distance between the two.
+	var step := a.anchor_transform(0.72).origin - b.anchor_transform(0.72).origin
+	step.y = 0.0
+	rig("uke1").position += step
+	b.global_position += step
+	await settle(3)
+	director.close_gap(a, 0.72, b, 0.72, b)   # the last centimetres, mostly height
 	await settle(3)
 	scene.weapon_contacts = [{"a": "bokken1", "t_a": 0.72, "b": "bokken2", "t_b": 0.72}]
 	print("kumitachi contact gap %.3f -> %.4f m" % [gap, director.contact_gap(a, 0.72, b, 0.72)])
@@ -440,16 +469,12 @@ func kumijo() -> void:
 	for entry in [["tori", a], ["uke1", b]]:
 		var r := rig(entry[0])
 		var jo: Weapon = entry[1]
-		jo.drive = "weapon"
-		await place_weapon(jo, r.global_position + r.global_transform.basis * Vector3(0.05, 1.12, -0.40), r.global_transform.basis * Vector3(0, 0.05, 1.0), Vector3.UP)
-		director.attach_to_weapon(r, "Left", jo, 0.28, true)
-		director.attach_to_weapon(r, "Right", jo, 0.52, true)
-		r.fingers.apply_grip_preset("Right"); r.fingers.apply_grip_preset("Left")
+		await jo_kamae(r, jo)
 	await settle(3)
 	await save_pose("Kumijo Kamae")
 	# Tori thrusts: both hands slide along the staff toward the tip, the same grips at new t.
 	for grip in director.grips_for("tori"):
-		grip.target.t = 0.40 if grip.hand == "Left" else 0.64
+		grip.target.t = 0.40 if grip.hand == "Left" else 0.62
 	director.refresh_hand_driven()
 	await settle(3)
 	await save_pose("Kumijo Tsuki")

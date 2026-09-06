@@ -9,7 +9,8 @@ where the work stands, how to run it, and what the next session should pick up.
 | Branch | Contents | State |
 |---|---|---|
 | `main` | Spec v2.3, build plan, feasibility, the application M0–M3 | PRs #1–#3 merged |
-| `claude/handoff-continuation-8iw00t` | M3W weapons, M4 save/load, camera presets, CI workflow (see "Follow-up session" below) | this branch |
+| `claude/handoff-continuation-8iw00t` | M3W weapons, M4 save/load, camera presets, CI workflow (see "Follow-up session" below) | PR #4 merged |
+| `claude/project-continuation-46gatk` | CI fix (absolute paths in tests), undo for close-the-gap, roll for the second hand | this branch |
 
 Milestones done: **M0** project and character, **M1** click-to-select FK posing with a gizmo and PNG
 export, **M2** IK arms and legs with finger curls, **M3** grip attachments. Next up is **M3W**
@@ -44,7 +45,7 @@ The full suite (`tests/run.sh`) takes about 25 s.
 ```
 assets/characters/mannequin.glb   generated, CC0, 52 humanoid bones incl. fingers (LICENSE.md)
 tools/generate_mannequin.py       regenerates it headlessly via bpy + MPFB (see tools/README.md)
-src/rig/       CharacterRig, Limb, HandOrient, FingerCurl, LimbHandle, PickCapsules
+src/rig/       CharacterRig, Limb, HandOrient, TwistFollow, FingerCurl, Anatomy, LimbHandle
 src/scene/     PosingScene (owns 1–5 characters), Palette, FloorGrid
 src/posing/    PoseController (selection, FK, undo), RotationGizmo, GripTarget, Grip, GripDirector
 src/ui/        SidePanel (characters, placement, joint, limbs, grips, fingers, export)
@@ -53,7 +54,7 @@ tests/         test_m0..test_m3, check_exports, run.sh
 docs/          spec-v1, spec-v2, spec-review, build-plan, engine-notes, this file
 ```
 
-Frame order everything depends on: FK pose → `FingerCurl` → four `TwoBoneIK3D` → `HandOrient` →
+Frame order everything depends on: FK pose → `FingerCurl` → four × (`TwoBoneIK3D` → `TwistFollow` → `HandOrient`) →
 `skeleton_updated` (the character caches its solved pose; the grip director drives dependent hands) →
 skin → pose restored.
 
@@ -227,3 +228,56 @@ Next: hand the drafts to the instructor; 2×
 supersampled stills if the Compatibility renderer allows it; tooltips and keyboard shortcuts;
 the pose panel's confirm-before-overwrite; then wait for the instructor's corrections and the
 open questions in `docs/spec-v2.md` §9. M9 (gi) remains optional.
+
+## Session 2026-09-06
+
+The CI workflow had never gone green: five test scripts carried the absolute path
+`/home/user/kamae/...`, which does not exist on the GitHub runner, so test_m4 could not save its
+round-trip file and everything downstream of it (m5, the movie check, the acceptance exports)
+failed. Test paths now derive from `res://` through `ProjectSettings.globalize_path`. Never write
+an absolute path into a test again; `tests/check_exports.gd` shows the pattern.
+
+Two loose ends from the list above closed: **close the gap** is undoable (it records the moved
+weapon's position, or the holder's arm mode, orient flag and IK target), and the hand-driven
+branch of it now works at all: the target is first reset onto the hand and orient-to-target is
+switched on, otherwise the re-solved arm changes the hand's rotation and swings the weapon's far
+end away. If the point is out of reach the gap ends up equal to the reach shortfall, which the
+test asserts. **attach_to_weapon** takes a `roll_deg` and the panel passes the roll box to the
+second hand too.
+
+### Plausibility tests (same session, on request)
+
+Two new layers, both in `tests/run.sh` and CI:
+
+- **Anatomy, headless and fast.** `src/rig/Anatomy.gd` checks a posed character: elbow and knee
+  flexion range and *direction* (from the mannequin's rest fold), no limb through the torso or
+  through the other body, no weapon through anyone, no bone scale, and a CPU-skinned mesh whose
+  vertices keep their rest distance from their bones. `tests/test_anatomy.gd` proves each rule on
+  deliberate poses; `tests/check_anatomy.gd` runs them over every committed pose (about 2 s).
+  Grips and two-handed holds are exempted where bodies touch by design (fist on wrist, stacked
+  hands, forearms side by side); the rules are coarse on purpose and documented in the file.
+- **Golden stills.** `tests/check_golden.gd` shrinks every rendered still to 192×108 and compares
+  it with `tests/golden/`; more than 2 % of pixels moving fails. Goldens are what a person looked
+  at and accepted: after a deliberate visual change, look at the full-size renders in `exports/`
+  and `tests/out/`, then `UPDATE_GOLDEN=1 tests/run.sh` and commit the thumbnails.
+
+Running the anatomy check over the drafts found real defects (Uke's bokken through Uke's chest
+in kumitachi, the jo through both bodies in kumijo, hands inside the pelvis in ushiro, both
+Ukes crossing arms in ryotemochi, Tori on the wrong side in shihonage) and one mechanics gap:
+`TwoBoneIK3D` never twists the upper arm, so overhead and behind-the-back holds bent the elbow
+through the skin. `TwistFollow` fixes that (see `docs/engine-notes.md`); `tools/build_fixtures.gd`
+was corrected for the rest and every pose was rebuilt. They are still drafts by a script, but
+they are now drafts a body could take.
+
+Still open: the instructor's corrections to the acceptance drafts, spec §9 questions, and the
+optional M9 gi.
+
+**Default weapon holds** (instructor feedback, same day): the hands used to take the tsuka with
+both palms straight under it. `Weapon.default_hold(hand)` now defines the grip per weapon type:
+bokken right hand in front just below the tsuba, left against the kashira, palms turned in from
+their own sides (roll −45° right, +45° left, measured: the right palm faces inward and down);
+the jo starts from the same grip, right hand forward, hands a forearm apart, and slides from
+there. `GripDirector.attach_default_hands` applies it, the panel has a "Both hands, default
+hold" button and pre-fills t and roll, the builder and the weapon demo use it, and test_m3w
+asserts the geometry. Look at `tests/out/demo/weapon_hands.png` after any change to the hold
+mapping.

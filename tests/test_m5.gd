@@ -12,7 +12,7 @@ var scene: PosingScene
 var ctrl: PoseController
 var director: GripDirector
 var player: SequencePlayer
-const OUT := "/home/user/kamae/tests/out/poses_m5"
+var OUT := ProjectSettings.globalize_path("res://tests/out/poses_m5")
 
 
 func _initialize() -> void:

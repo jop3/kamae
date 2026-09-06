@@ -68,6 +68,21 @@ func _initialize() -> void:
 	var grip2 := director.attach_to_weapon(tori, "Left", bokken, 0.2)
 	await settle()
 	check(director.grips.size() == 1, "second hand registered as a weapon grip")
+	# A rolled attach turns the hand about the weapon's axis by the requested angle and holds.
+	var flat_hand := tori.bone_world_transform("LeftHand").basis
+	director.detach(grip2)
+	var grip_rolled := director.attach_to_weapon(tori, "Left", bokken, 0.2, true, 30.0)
+	await settle()
+	var rolled_hand := tori.bone_world_transform("LeftHand").basis
+	var axis: Vector3 = bokken.global_transform.basis.y.normalized()
+	var turn := rolled_hand * flat_hand.inverse()
+	var turn_angle := rad_to_deg(turn.get_rotation_quaternion().get_angle())
+	var turn_axis := turn.get_rotation_quaternion().get_axis()
+	check(absf(turn_angle - 30.0) < 1.0 and absf(absf(turn_axis.dot(axis)) - 1.0) < 0.02, "a 30° roll turns the second hand 30° about the weapon axis (%.1f°, axis dot %.2f)" % [turn_angle, turn_axis.dot(axis)])
+	check(grips_hold(), "the rolled hand holds its anchor (error %.4f)" % director.error_for(grip_rolled))
+	director.detach(grip_rolled)
+	grip2 = director.attach_to_weapon(tori, "Left", bokken, 0.2)
+	await settle()
 	check(grips_hold(), "second hand tracks its anchor (error %.4f, shortfall %.4f)" % [director.error_for(grip2), tori.limbs["LeftArm"].reach_shortfall()])
 	tori.limbs["RightArm"].target.rotate_x(-0.2)
 	await settle(1)
@@ -121,6 +136,47 @@ func _initialize() -> void:
 	director.close_gap(jo, 0.9, bokken, 0.8)
 	await settle()
 	check(director.contact_gap(jo, 0.9, bokken, 0.8) < 0.01, "gap closes under 1 cm (%.4f)" % director.contact_gap(jo, 0.9, bokken, 0.8))
+	ctrl.undo.undo()
+	await settle()
+	check(is_equal_approx(director.contact_gap(jo, 0.9, bokken, 0.8), gap), "undo reopens the gap (%.3f m)" % director.contact_gap(jo, 0.9, bokken, 0.8))
+	ctrl.undo.redo()
+	await settle()
+	check(director.contact_gap(jo, 0.9, bokken, 0.8) < 0.01, "redo closes it again")
+	# Closing by moving a hand-driven weapon moves the holder's hand instead, also undoable.
+	var jo_before := jo.global_position
+	var arm_mode_before: int = tori.limbs["RightArm"].mode
+	director.close_gap(jo, 0.9, bokken, 0.5, jo)
+	await settle()
+	var hand_gap := director.contact_gap(jo, 0.9, bokken, 0.5)
+	var short: float = tori.limbs["RightArm"].reach_shortfall()
+	check(hand_gap < 0.01 or absf(hand_gap - short) < 0.01, "gap closed by moving the holder's hand, or short by exactly its reach (gap %.3f, shortfall %.3f)" % [hand_gap, short])
+	check(tori.limbs["RightArm"].mode == Limb.Mode.IK, "the holding arm switched to IK")
+	ctrl.undo.undo()
+	await settle()
+	check(jo.global_position.is_equal_approx(jo_before), "undo puts the hand-driven jo back (%.4f m off)" % jo.global_position.distance_to(jo_before))
+	check(tori.limbs["RightArm"].mode == arm_mode_before, "undo restores the arm mode")
+
+	# --- default two-handed hold (aiki-ken grip) ------------------------------
+	for g in director.grips.duplicate():
+		director.detach(g)
+	bokken.drive = "weapon"
+	var along := Vector3(0, 0.45, 0.9).normalized()
+	var up := Vector3(0, 0.9, -0.45).normalized()
+	bokken.global_transform = Transform3D(Basis(along.cross(up), along, up), tori.global_position + Vector3(0.0, 1.02, 0.25))
+	director.attach_default_hands(tori, bokken)
+	await settle(4)
+	check(director.grips.size() == 2 and grips_hold(), "both hands snap on at the default hold (error %.4f)" % director.worst_error())
+	var rt: float = bokken.default_hold("Right")["t"]
+	var lt: float = bokken.default_hold("Left")["t"]
+	check(rt > lt, "the right hand is in front of the left")
+	check(absf(rt * bokken.length - (bokken.tsuka - 0.055)) < 0.01, "the right hand sits just below the tsuba (%.3f m from the butt, tsuba at %.2f)" % [rt * bokken.length, bokken.tsuka])
+	check(lt * bokken.length < 0.06, "the left hand is against the kashira (%.3f m from the butt)" % (lt * bokken.length))
+	var palms := {}
+	for side in ["Right", "Left"]:
+		var hand: Transform3D = tori.bone_world_transform(side + "Hand")
+		palms[side] = (hand.basis * tori.fingers.palm_normal(side)).normalized()
+	check(palms["Right"].x > 0.5 and palms["Right"].y < -0.3, "the right palm faces inward and down (%s)" % palms["Right"])
+	check(palms["Left"].x < -0.5 and palms["Left"].y < -0.3, "the left palm faces inward and down (%s)" % palms["Left"])
 
 	# --- removal ------------------------------------------------------------
 	scene.remove_weapon("bokken1")

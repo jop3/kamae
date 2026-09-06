@@ -6,11 +6,11 @@ func check(cond: bool, msg: String) -> void:
 	if cond: print("PASS ", msg)
 	else: failures += 1; print("FAIL ", msg)
 
-const OUT := "/home/user/kamae/tests/out/m6"
+var OUT := ProjectSettings.globalize_path("res://tests/out/m6")
 
 
 func _initialize() -> void:
-	var seq := Sequence.load("/home/user/kamae/tests/out/poses_m5/katatedori_ikkyo.sequence.json")
+	var seq := Sequence.load(ProjectSettings.globalize_path("res://tests/out/poses_m5/katatedori_ikkyo.sequence.json"))
 	check(seq != null, "the sequence written by test_m5 is readable")
 	var expected := int(round(seq.duration() * MovieExport.FPS)) if seq else 0
 	var frames := 0
@@ -38,7 +38,7 @@ func _initialize() -> void:
 	# Front+Side batch: two stills per phase from the --render-stills child.
 	for phase in ["grepp", "kuzushi", "kake"]:
 		for view in ["front", "side"]:
-			var p := "/home/user/kamae/tests/out/m7/katatedori_ikkyo_%s_%s.png" % [phase, view]
+			var p := ProjectSettings.globalize_path("res://tests/out/m7/katatedori_ikkyo_%s_%s.png" % [phase, view])
 			var still := Image.load_from_file(p)
 			check(still != null and still.get_width() == MovieExport.WIDTH, "Front+Side still %s exists at full size" % p.get_file())
 	# The exporter's own command lines, checked without spawning anything.

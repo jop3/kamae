@@ -65,16 +65,25 @@ technique, release it ("Release selected grip") and attach the other way round i
 
 - **Hand-driven** (default): pick the holder and hand, set *t* (where along the weapon the hand
   is: 0 at the butt, 1 at the tip) and a roll angle, press **Hold**. The weapon now follows that
-  hand. "Attach the other hand at t" puts the second hand on it for a two-handed hold.
+  hand. "Attach the other hand at t" puts the second hand on it for a two-handed hold, using
+  the roll angle in the box for that hand too.
 - **Weapon-driven**: tick "Weapon-driven" and place the weapon itself with the X/Z/turn boxes;
   every hand on it follows. This is the natural mode for kumitachi and kumijo, where the crossing
   point of the weapons is what matters and the arms should follow.
+
+**Both hands, default hold** puts the selected holder's two hands on the weapon at its default
+grip: right hand in front (on a bokken just below where the tsuba would be), left hand at the
+back against the kashira, each palm turned in from its own side so the backs of the hands face
+up and out. The jo starts from the same grip, right hand forward and the hands about a forearm
+apart; slide them with *t* and turn them with the roll box as the technique needs. The *t* and
+roll boxes are pre-filled with the default for the chosen hand.
 
 A weapon changes owner between poses by pressing **Hold** for the new holder in the later pose.
 
 **Weapon contact** (kumitachi, kumijo): choose two weapons and a point along each; the panel
 shows the gap between the points live. **Close the gap** moves the weapon-driven weapon (or the
-selected figure's hand) until they touch; **Record contact** saves the pair with the pose. The
+selected figure's hand, which falls short by exactly its reach if the point is too far) until
+they touch, and is undoable; **Record contact** saves the pair with the pose. The
 contact is a measurement, never a constraint: nothing stops you moving the figures apart again.
 
 ## Poses and techniques

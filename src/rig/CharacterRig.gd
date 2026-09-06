@@ -115,7 +115,7 @@ func put_arm_first(key: String) -> void:
 	var first: Limb = limbs[key]
 	var second: Limb = limbs[other]
 	var i := fingers.get_index() + 1
-	for node in [first.ik, first.hand_orient, arm_bridge, second.ik, second.hand_orient]:
+	for node in [first.ik, first.twist, first.hand_orient, arm_bridge, second.ik, second.twist, second.hand_orient]:
 		skeleton.move_child(node, i)
 		i += 1
 
