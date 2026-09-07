@@ -35,7 +35,7 @@ func check(cond: bool, msg: String) -> void:
 ## is a pose to author, not a rule to loosen.
 const OUTSTANDING := {
 	"jo_dori": 18,
-	"katatedori_ikkyo": 7,
+	"katatedori_ikkyo": 9,   ## the grip is the catalogue's now; two frames of a wrist at its edge as the arm is raised
 	"katatedori_shihonage_irimi": 18,   ## re-authored after the shoulder girdle: 26 before it, 51 with it, 18 now
 	"kumijo": 9,
 	"kumitachi": 2,

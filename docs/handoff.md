@@ -804,3 +804,16 @@ further off. Kake lost seven of its ten `check_anatomy.gd` entries and the head 
 the motion count went 26 → 51 (girdle) → 18. What is left in the pin is Uke's forearm rolled as
 the grip turns it (elbow supination 101°, pronation 159° in the kuzushi), which is the hold's
 roll about the wrist and the instructor's to decide, as with the weapons.
+
+### Katatedori ikkyo starts from the catalogue (same session)
+
+`build_fixtures.gd` has `attack(key)` (stages an entry from `data/attacks.json` through
+`Staging`) and `stance_from_uke()`, and `katatedori_ikkyo` uses them: the grepp is the
+catalogue's katatedori, Uke where his wrist can take Tori's, and the kuzushi and kake are
+placed relative to him. Shihonage starts from that file and was moved with it (Tori a hand's
+width further out in its kuzushi, where his shoulder had come into Uke's angled arm). Both
+were pure script output before, so nothing hand-made was lost. `katatedori_ikkyo_grepp` has
+no entry in `check_anatomy.gd` any more — the first committed grip the joints refuse nothing
+in — and its motion count is 9 (two frames of Uke's wrist at its edge as the arm is raised).
+The other six techniques still start from the old hand-placed grabs; the same two lines do
+it for any of them.
