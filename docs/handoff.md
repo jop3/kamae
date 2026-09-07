@@ -792,3 +792,15 @@ fix is the pose (hand further out from the head, which is what the technique loo
 the rule. The catalogue gained `tanto_tsuki` (a weapon in Uke's hand through `Staging.hold`)
 and `mae_geri` (a lifted foot through `Staging.foot_at`, which `feet_on_floor` now leaves in
 the air), and `ryotedori` had its hands raised and widened so both wrists clear.
+
+### Shihonage re-authored (same session)
+
+The committed shihonage poses turned out to be exactly what `build_fixtures.gd` produces (same
+roots to the centimetre), so rebuilding them threw nothing away. Two lines changed: the kuzushi
+raises the gripped arm up and *forward* past Uke's face (it went straight up over his head, and
+his forearm ran through his skull once the joints and the girdle had their say), and the kake
+folds Uke's hand down behind his shoulder instead of at his head, with Tori a few centimetres
+further off. Kake lost seven of its ten `check_anatomy.gd` entries and the head intersection;
+the motion count went 26 → 51 (girdle) → 18. What is left in the pin is Uke's forearm rolled as
+the grip turns it (elbow supination 101°, pronation 159° in the kuzushi), which is the hold's
+roll about the wrist and the instructor's to decide, as with the weapons.

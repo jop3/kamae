@@ -36,7 +36,7 @@ func check(cond: bool, msg: String) -> void:
 const OUTSTANDING := {
 	"jo_dori": 18,
 	"katatedori_ikkyo": 7,
-	"katatedori_shihonage_irimi": 51,   ## 26 before the shoulder girdle; all in the held pin, see check_anatomy.gd
+	"katatedori_shihonage_irimi": 18,   ## re-authored after the shoulder girdle: 26 before it, 51 with it, 18 now
 	"kumijo": 9,
 	"kumitachi": 2,
 	"tachi_dori": 11,

@@ -361,15 +361,20 @@ func katatedori_shihonage_irimi() -> void:
 	var grepp := PoseFile.load(PoseFile.pose_path(POSES, "Katatedori Ikkyo Grepp"))
 	PoseFile.apply(grepp, scene, director, ctrl)
 	await settle(3)
-	# Kuzushi: Tori steps in beside Uke and raises the gripped arm high.
+	# Kuzushi: Tori steps in beside Uke and raises the gripped arm high — up and *forward*, past
+	# Uke's face as a sword is raised, not straight up over his head, where his own forearm went
+	# through his skull once the joints and the shoulder girdle had their say.
 	stance("tori", -0.55, 0.20, 180)
-	await hand_at("tori", "Right", Vector3(-0.12, 0.45, 0.08))
+	await hand_at("tori", "Right", Vector3(-0.12, 0.42, 0.30))
 	await save_pose("Katatedori Shihonage Kuzushi")
 	# Kake: the grip reverses. Uke's hand is off; Tori has turned and holds Uke's wrist, the arm
 	# folded back over Uke's shoulder.
 	await release_all("uke1")
-	await hand_at("uke1", "Left", Vector3(0.10, 0.25, -0.20))   # folded back over Uke's own shoulder
-	stance("tori", -0.55, 0.70, 195)
+	# Folded back over Uke's own shoulder: the hand goes down *behind* the shoulder, at shoulder
+	# height and a little out, the elbow pointing up. Placed at the head (25 cm up, where it was)
+	# the forearm went through the skull once the shoulder girdle lifted the shoulder with it.
+	await hand_at("uke1", "Left", Vector3(0.12, 0.02, -0.24))
+	stance("tori", -0.62, 0.74, 195)
 	await settle(3)
 	await grab("tori", "Left", "uke1", "LeftLowerArm", Vector3(0, 0.06, 0))
 	await grab("tori", "Right", "uke1", "LeftHand", Vector3(0, 0.05, 0))
