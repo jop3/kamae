@@ -11,7 +11,9 @@ any of them up in a second:
   side, **Stage**);
 - headless, `godot --headless -s tools/stage_attack.gd -- katatedori [--mirror]` saves the
   staged pose to `poses/` as "Katatedori Start";
-- in a script, `await Attacks.stage(staging, "katatedori", {"mirror": true})`.
+- in a script, `await Attacks.stage(staging, "katatedori", {"mirror": true})`; the fixture
+  builder's `attack("katatedori")` does this, and katatedori ikkyo and shihonage in `poses/`
+  start from it (`tools/build_fixtures.gd`).
 
 Staging puts Tori at the origin facing +z in hanmi, offers whatever the attack takes, puts Uke in
 hanmi where the catalogue has him, hangs the hands nobody uses at the sides, wraps each gripping

@@ -38,7 +38,8 @@ selected figure's left and right; **Copy pose to** gives another figure the same
    varus/valgus and rotation — and each runs exactly as far as that joint goes. The line under
    them says the pose in words ("flexion 32°, ulnar deviation 12°"). "Reset joint" returns it to
    rest. **Every joint stops where a real one stops**: a ring dragged past the range stays at the
-   edge, a knee only turns once it is bent, a finger only spreads while it is open. When a grip,
+   edge, a knee only turns once it is bent, a finger only spreads while it is open, a closed fist bends the
+   wrist less than an open hand. When a grip,
    a weapon or a loaded pose asks a joint for more than it has, the joint is held at its edge and
    the panel says what was asked ("Asked for more: wrist flexion 119°, past 80°"); the rest of the
    arm does what it can first — the forearm rolls, the elbow comes round — so a hand stays on its
