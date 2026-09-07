@@ -15,27 +15,27 @@ const FRONT_OFFSET_DEG := 35.0
 const FRAME_BONES := ["Hips", "Head", "RightHand", "LeftHand", "RightFoot", "LeftFoot"]
 
 
-static func front(scene: PosingScene) -> Dictionary:
+static func front(scene: PosingScene, points: Array[Vector3] = []) -> Dictionary:
 	var axis: Dictionary = scene.tori_uke_axis()
 	var along: Vector3 = axis["to"] - axis["from"]
 	along.y = 0.0
 	if along.length() < 0.001:
 		along = Vector3(0, 0, 1)
-	return _preset(scene, (-along.normalized()).rotated(Vector3.UP, deg_to_rad(FRONT_OFFSET_DEG)))
+	return _preset(scene, (-along.normalized()).rotated(Vector3.UP, deg_to_rad(FRONT_OFFSET_DEG)), points)
 
 
-static func side(scene: PosingScene) -> Dictionary:
+static func side(scene: PosingScene, points: Array[Vector3] = []) -> Dictionary:
 	var axis: Dictionary = scene.tori_uke_axis()
 	var along: Vector3 = axis["to"] - axis["from"]
 	along.y = 0.0
 	if along.length() < 0.001:
 		along = Vector3(0, 0, 1)
-	return _preset(scene, along.normalized().cross(Vector3.UP).normalized())
+	return _preset(scene, along.normalized().cross(Vector3.UP).normalized(), points)
 
 
 ## Direction is the horizontal unit vector from the scene centre towards the camera.
-static func _preset(scene: PosingScene, horizontal: Vector3) -> Dictionary:
-	var sphere := bounding_sphere(scene)
+static func _preset(scene: PosingScene, horizontal: Vector3, points: Array[Vector3] = []) -> Dictionary:
+	var sphere := bounding_sphere(scene, points)
 	var center: Vector3 = sphere["center"]
 	var radius: float = sphere["radius"]
 	var distance := radius / tan(deg_to_rad(FOV_DEG) * 0.5) * MARGIN
@@ -47,13 +47,11 @@ static func _preset(scene: PosingScene, horizontal: Vector3) -> Dictionary:
 
 
 ## Bounding sphere over the framing bones of every visible character.
-static func bounding_sphere(scene: PosingScene) -> Dictionary:
-	var points: Array[Vector3] = []
-	for rig in scene.characters:
-		if not rig.visible:
-			continue
-		for bone in FRAME_BONES:
-			points.append(rig.bone_world_transform(bone).origin)
+## `points` frames those instead of the scene as it stands: a technique is framed over all of its
+## poses, or a figure thrown a long way leaves the picture.
+static func bounding_sphere(scene: PosingScene, points: Array[Vector3] = []) -> Dictionary:
+	if points.is_empty():
+		points = frame_points(scene)
 	if points.is_empty():
 		return {"center": Vector3(0, 0.9, 0), "radius": 1.0}
 	var sum := Vector3.ZERO
@@ -64,3 +62,17 @@ static func bounding_sphere(scene: PosingScene) -> Dictionary:
 	for p in points:
 		radius = maxf(radius, center.distance_to(p))
 	return {"center": center, "radius": maxf(radius, 0.5)}
+
+
+## Where every visible character is right now, as the handful of bones that bound it well enough.
+## With `fk` the bones are read from the pose alone rather than from the last solve, which needs
+## no frame to have been drawn: framing a whole technique means walking its poses, and waiting a
+## frame on each would record those frames into the video being made.
+static func frame_points(scene: PosingScene, fk := false) -> Array[Vector3]:
+	var points: Array[Vector3] = []
+	for rig in scene.characters:
+		if not rig.visible:
+			continue
+		for bone in FRAME_BONES:
+			points.append((rig.fk_bone_transform(bone) if fk else rig.bone_world_transform(bone)).origin)
+	return points

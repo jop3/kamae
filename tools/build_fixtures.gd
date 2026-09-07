@@ -28,14 +28,26 @@ func _initialize() -> void:
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(POSES))
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(SEQUENCES))
 
-	await katatedori_ikkyo()
-	await ushiro_ryotedori_zenponage()
-	await katatedori_shihonage_irimi()
-	await three_person()
-	await tachi_dori()
-	await jo_dori()
-	await kumitachi()
-	await kumijo()
+	# ONLY=<technique> rebuilds one technique and leaves the other files alone. The poses have
+	# been corrected by hand since this script last ran, so a full rebuild would throw that away:
+	# rebuild the one being worked on, look at what it renders, and leave the rest committed.
+	var only := OS.get_environment("ONLY")
+	if only == "" or only == "katatedori_ikkyo":
+		await katatedori_ikkyo()
+	if only == "" or only == "ushiro_ryotedori_zenponage":
+		await ushiro_ryotedori_zenponage()
+	if only == "" or only == "katatedori_shihonage_irimi":
+		await katatedori_shihonage_irimi()
+	if only == "" or only == "three_person":
+		await three_person()
+	if only == "" or only == "tachi_dori":
+		await tachi_dori()
+	if only == "" or only == "jo_dori":
+		await jo_dori()
+	if only == "" or only == "kumitachi":
+		await kumitachi()
+	if only == "" or only == "kumijo":
+		await kumijo()
 
 	print("wrote %d files" % written.size())
 	for w in written:
@@ -61,8 +73,10 @@ func rig(id: String) -> CharacterRig:
 	return scene.get_character(id)
 
 
-func stance(id: String, x: float, z: float, yaw_deg: float) -> void:
-	ctrl.set_root(rig(id), Vector3(x, 0, z), deg_to_rad(yaw_deg))
+## Places a character. `y` lifts or drops it and `pitch_deg`/`roll_deg` tip it over: a figure being
+## thrown is not standing upright, and it used to have no way of being anything else.
+func stance(id: String, x: float, z: float, yaw_deg: float, y := 0.0, pitch_deg := 0.0, roll_deg := 0.0) -> void:
+	ctrl.set_root(rig(id), Vector3(x, y, z), deg_to_rad(yaw_deg), deg_to_rad(pitch_deg), deg_to_rad(roll_deg))
 
 
 ## Puts a hand at an offset from its own shoulder, in the character's frame (x right-to-left,
@@ -99,8 +113,14 @@ func bend_forward(id: String, bone: String, deg: float) -> void:
 	ctrl.select(null, "")
 
 
+## Puts a bone back to its rest rotation. bend_forward turns a bone *by* an angle, so bends add
+## up across a technique; this is how a figure stands up straight again after being curled.
+func straighten(id: String, bone: String) -> void:
+	ctrl.set_bone_rotation(rig(id), bone, Quaternion.IDENTITY)
+
+
 ## A hanmi stance: `front` foot a step forward and turned out a little, rear foot back and
-## turned out more, knees bent by dropping the hips. Feet are planted with leg IK, so later
+## turned out more, knees bent by dropping the hips onto planted feet. Feet are planted with leg IK, so later
 ## root moves (the step-in in save_pose) slide the figure without lifting a foot off the floor
 ## only if the targets move with it: they hang under the rig root, so they do.
 func hanmi(id: String, front: String = "Right", depth: float = 0.32, width: float = 0.16, drop: float = 0.06) -> void:
@@ -124,8 +144,13 @@ func hanmi(id: String, front: String = "Right", depth: float = 0.32, width: floa
 		limb.reset_pole()
 	foot.call(front, depth * 0.5, 0.0)
 	foot.call(rear, -depth * 0.5, 40.0 if rear == "Left" else -40.0)
-	r.position.y = -drop
+	await settle(2)
+	# The hips drop with the feet left on the mat, which is what bends the knees. Setting the
+	# root's height directly (as this did until now) takes the feet down with it, so every stance
+	# in every committed pose had a knee bend of exactly zero degrees.
+	Stance.drop_hips(ctrl, r, drop)
 	await settle(3)
+
 
 
 func fingers(id: String, side: String, curl: float) -> void:
@@ -160,6 +185,27 @@ func release_all(gripper: String) -> void:
 ## keeps a deliberate out-of-reach pose (spec 8.2) as it is.
 func save_pose(name: String, allow_short: bool = false) -> Dictionary:
 	await settle(3)
+	# A hand placed on a weapon or a grip has its orientation decided for it, and the wrist takes
+	# up whatever the forearm does not. Before the pose is kept, any wrist bent past what a wrist
+	# does gets its elbow chosen to suit the hand instead (src/rig/Wrist.gd).
+	# Anyone still on their feet stands on the floor: bending the knees tilts the shins, and the
+	# arm work above can pull a figure about, either of which lifts a foot a centimetre or two.
+	for r in scene.characters:
+		if not r.visible or absf(r.rotation.x) > 0.6 or absf(r.rotation.z) > 0.6:
+			continue
+		for pass_ in 3:
+			var moved := false
+			for side in ["Right", "Left"]:
+				var leg: Limb = r.limbs[side + "Leg"]
+				if leg.mode != Limb.Mode.IK:
+					continue
+				var err: float = 0.02 - r.bone_world_transform(side + "Toes").origin.y
+				if absf(err) > 0.004:
+					leg.target.global_position += Vector3(0.0, err, 0.0)
+					moved = true
+			if not moved:
+				break
+			await settle(3)
 	if not allow_short:
 		for attempt in 12:
 			var moves := {}   # gripper id -> [sum of directions, worst error]
@@ -254,18 +300,57 @@ func ushiro_ryotedori_zenponage() -> void:
 	await grab("uke1", "Left", "tori", "LeftLowerArm", Vector3(0, 0.05, -0.04))
 	await save_pose("Ushiro Ryotedori Zenponage Grepp")
 
+	# Kuzushi: Tori lifts and turns a little, breaking Uke's balance forward. Uke is still square
+	# behind him here — he is off balance, not yet going anywhere.
 	await hand_at("tori", "Right", Vector3(-0.04, 0.12, 0.30))
 	await hand_at("tori", "Left", Vector3(0.04, 0.12, 0.30))
+	stance("tori", 0, 0, 0)
 	stance("uke1", 0, -0.40, 0)
+	await settle(3)
 	await save_pose("Ushiro Ryotedori Zenponage Kuzushi")
 
-	# Kake: Tori extends forward-down; Uke, still holding, is thrown well beyond arm's reach,
-	# which is exactly what the reach warning is for (spec 8.2).
-	await hand_at("tori", "Right", Vector3(-0.05, -0.35, 0.42))
-	await hand_at("tori", "Left", Vector3(0.05, -0.35, 0.42))
-	stance("uke1", 0, 1.3, 0)
+	# Tenkan: Tori turns away to his left and leads Uke round to that side. This is the pose the
+	# technique cannot do without: with only a Kuzushi and a Kake, the straight line between them
+	# runs Uke through the place Tori is standing, which is what tests/check_motion.gd measures
+	# and no blend can correct (a gripping hand cannot be pushed aside).
+	# Tori faces +Z, so his left is +X: that is the side Uke goes round and is thrown past, the
+	# side on which his own arms reach forward to keep hold rather than crossing his chest.
+	await hand_at("tori", "Right", Vector3(-0.02, 0.06, 0.34))
+	await hand_at("tori", "Left", Vector3(0.10, 0.02, 0.26))
+	stance("tori", 0, 0, 25)
+	stance("uke1", 0.85, 0.35, 25)
+	await settle(3)
+	await save_pose("Ushiro Ryotedori Zenponage Tenkan")
+
+	# Kake: Uke is projected forward past that same side, turning with the direction he is thrown,
+	# and still holding — well beyond arm's reach, which is what the reach warning is for
+	# (spec 8.2).
+	await hand_at("tori", "Right", Vector3(-0.05, -0.30, 0.44))
+	await hand_at("tori", "Left", Vector3(0.05, -0.30, 0.44))
+	stance("tori", 0, 0, 35)
+	stance("uke1", 1.05, 0.75, 55)
+	await settle(3)
 	await save_pose("Ushiro Ryotedori Zenponage Kake", true)
-	save_sequence("Ushiro Ryotedori Zenponage", [["Ushiro Ryotedori Zenponage Grepp", 0.0, 0.5], ["Ushiro Ryotedori Zenponage Kuzushi", 0.6, 0.3], ["Ushiro Ryotedori Zenponage Kake", 0.8, 1.0]])
+
+	# The fall. Uke lets go — nobody holds a wrist and takes ukemi — and goes over forward. The
+	# shape of the fall comes from src/rig/Ukemi.gd, which turns the body and then rests it on the
+	# mat, so the pivot lands wherever the body is touching instead of at its feet. All that is
+	# left to say here is where the fall travels.
+	await release_all("uke1")
+	for step in [[0.30, 1.45, 1.05, "Ukemi"], [0.55, 1.90, 1.35, "Rulle"], [1.00, 2.35, 1.60, "Upp"]]:
+		stance("uke1", step[1], step[2], 55.0)
+		Ukemi.shape(rig("uke1"), Ukemi.Kind.FORWARD, step[0])
+		await settle(4)
+		Ukemi.ground(rig("uke1"))
+		await settle(2)
+		await save_pose("Ushiro Ryotedori Zenponage %s" % step[3], true)
+
+	# The waypoints hold for nothing: they are passed through, not rested on, which is what keeps
+	# the throw and the fall running as one movement instead of four poses in a row.
+	save_sequence("Ushiro Ryotedori Zenponage", [["Ushiro Ryotedori Zenponage Grepp", 0.0, 0.5],
+		["Ushiro Ryotedori Zenponage Kuzushi", 0.6, 0.2], ["Ushiro Ryotedori Zenponage Tenkan", 0.45, 0.0],
+		["Ushiro Ryotedori Zenponage Kake", 0.5, 0.0], ["Ushiro Ryotedori Zenponage Ukemi", 0.4, 0.0],
+		["Ushiro Ryotedori Zenponage Rulle", 0.45, 0.0], ["Ushiro Ryotedori Zenponage Upp", 0.5, 1.0]])
 
 
 # ---------------------------------------------------------------- 8.3 Katatedori Shihonage irimi

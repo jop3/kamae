@@ -262,18 +262,32 @@ func reset_bone(rig: CharacterRig, bone_name: String) -> void:
 
 # ---------------------------------------------------------------- root placement
 
-func set_root(rig: CharacterRig, pos: Vector3, yaw: float) -> void:
+## Places a character. `pitch` tips it forward, `roll` tips it sideways: a figure that is falling
+## or already down is not upright, and before these existed it could only ever stand and turn.
+##
+## `plant` names limbs whose IK target keeps its place on the mat while the body moves. The
+## targets hang under the root, so without this a foot goes wherever the body goes: dropping the
+## hips takes the feet down with them instead of bending the knees, and turning the body drags
+## both feet round instead of pivoting on one. Everything a leg does that is not simply carrying
+## the figure somewhere else needs a foot left where it is.
+func set_root(rig: CharacterRig, pos: Vector3, yaw: float, pitch := 0.0, roll := 0.0, plant: Array = []) -> void:
+	var held := {}
+	for key: String in plant:
+		if rig.limbs.has(key):
+			held[key] = (rig.limbs[key] as Limb).target.global_transform
 	rig.position = pos
-	rig.rotation = Vector3(0, yaw, 0)
+	rig.rotation = Vector3(pitch, yaw, roll)
+	for key: String in held:
+		(rig.limbs[key] as Limb).target.global_transform = held[key]
 	pose_changed.emit()
 
 
-func commit_root(rig: CharacterRig, old_pos: Vector3, old_yaw: float, new_pos: Vector3, new_yaw: float) -> void:
-	if old_pos.is_equal_approx(new_pos) and is_equal_approx(old_yaw, new_yaw):
+func commit_root(rig: CharacterRig, old_pos: Vector3, old_rot: Vector3, new_pos: Vector3, new_rot: Vector3) -> void:
+	if old_pos.is_equal_approx(new_pos) and old_rot.is_equal_approx(new_rot):
 		return
 	undo.create_action("Move %s" % rig.display_name)
-	undo.add_do_method(set_root.bind(rig, new_pos, new_yaw))
-	undo.add_undo_method(set_root.bind(rig, old_pos, old_yaw))
+	undo.add_do_method(set_root.bind(rig, new_pos, new_rot.y, new_rot.x, new_rot.z))
+	undo.add_undo_method(set_root.bind(rig, old_pos, old_rot.y, old_rot.x, old_rot.z))
 	undo.commit_action(false)
 
 

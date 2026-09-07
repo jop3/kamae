@@ -373,3 +373,280 @@ draft…"; `tests/test_import.gd` and three goldens cover the katatedori tenkan 
 imported Grepp is a recognisable katatedori; Kuzushi and Kake are rougher, as the pipeline's
 own log predicts for contact phases. Not done: weapons for the jo draft (not in the data), and
 using the image landmarks for the distance between partners.
+
+
+### The motion, not just the poses (this session)
+
+The videos were plausible pose by pose and not plausible in between. `tests/check_anatomy.gd`
+checks every committed pose; nothing checked the frames a blend puts between them, and those are
+most of the video. `tests/check_motion.gd` now walks every sequence at the export frame rate and
+runs the same checks on every frame. On the first run 50 of the 707 rendered frames broke a body,
+from three separate causes:
+
+1. **A root position lerps in a straight line.** In `ushiro_ryotedori_zenponage` Tori ended up on
+   the far side of Uke, so the straight line took him *through* Uke — 17 cm deep at worst, one
+   whole body inside another.
+2. **A bone rotation slerps the short way round**, which walks an arm through a chest rather than
+   round it, and rolls an IK-driven humerus 178° between two poses that are both fine.
+3. **A gripping hand is carried to its next hold in a straight line** when a grip is released and
+   re-taken, and that line runs through the partner.
+
+`src/posing/MotionClearance.gd` fixes the first two and the part of the third that does not
+involve a grip: after every blend, trunks that overlap are pushed apart horizontally by their
+roots so one figure goes round another, and a limb inside a body is solved by IK to a cleared
+target with the influence ramped by how far it had to move. Every correction is derived from
+`CharacterRig.fk_bone_transform` — the pose before any modifier runs — which is what keeps it from
+feeding back into its own input, and what makes it exactly zero on a keyframe, so a hold still
+shows the saved pose and every golden still is unchanged. That took the bad frames from 50 to 40.
+
+What is left is recorded, per sequence, in `check_motion.gd`'s `OUTSTANDING`, and the count may
+only go down — beating it fails the check and asks for the number to be lowered.
+
+**Still open, in the order I would take them:**
+
+- **The wrists in weapon holds.** New swing and twist limits in `Anatomy` (`SWING`, `TWIST`,
+  measured from bone directions in the parent's frame, so they do not depend on the rig's axis
+  conventions) pass on every committed pose except the wrists: 13 poses bend a wrist 93°–151° off
+  rest where a real one manages about 90°, worst in `jo_dori_uke`. They are listed in
+  `check_anatomy.gd`'s `OUTSTANDING` so nothing new can join them. The cause is one thing, not
+  thirteen: a hand is placed on a weapon or a grip while the forearm points somewhere else, and
+  the wrist takes up the difference. The fix is to choose the elbow that leaves the wrist neutral
+  when a hand is placed — with the hand's position and orientation fixed, the pole is what decides
+  the forearm's direction — and then rebuild the fixtures. That changes every weapon pose, so it
+  wants the instructor's eye before the goldens are refreshed.
+- **The IK-driven shoulder roll.** One frame of `jo_dori` rolls the humerus 178°. The arm is in
+  IK there, so it comes from the solver and its interpolated target, not from the blend.
+  Interpolating the blend's rotations as swing and twist separately was tried and reverted: it
+  did not touch this (the rotation is not the blend's) and it made intersections worse, 39 frames
+  to 51.
+- **Where a gripping hand travels.** The remaining 40 frames are all a gripping arm mid re-grip.
+  A blend cannot fix them — `MotionClearance` will not move a gripping hand, because that would
+  tear it off what it holds — so each one needs a pose that says where the hand goes.
+  `tools/add_step.gd <slug> <seconds>` bakes the pose the technique is already showing at that
+  moment, clearance included, and splits the transition around it without changing the technique's
+  length; open it in the tool, move the offending limb, save. `MOTION_VERBOSE=1` on
+  `check_motion.gd` lists every offending frame with its time, which is where the seconds come
+  from.
+- **Nobody's head ever moves.** Measuring the poses turned up Neck, Head, Chest and both clavicles
+  at exactly 0° in every committed pose. The figures stare straight ahead through every technique,
+  which is a large part of why they read as mannequins rather than people.
+
+
+### Ushiro ryotedori zenponage: Uke went through Tori, not past him (same session)
+
+The instructor's words: "one person passes straight through the other, while he should be thrown
+on the side of the nage." He was right, and it was in the fixture, not in the rendering.
+`ushiro_ryotedori_zenponage_kake` put Uke at `pos [0, 0, 1.30]` and Kuzushi at `[0, 0, -0.28]` —
+both on x = 0, with Tori standing at the origin and the same root and yaw in all three keyframes.
+Uke was scripted to travel from behind Tori to 1.3 m in front along a line through Tori's body,
+and Tori never moved or turned at all. `MotionClearance` had only pushed the pair apart far enough
+to clear the tolerance, which is why it still read as passing through: a clearance pass cannot
+correct a technique that is specified wrong.
+
+The technique now goes round. Uke is led out past Tori's left (Tori faces +Z, so +X), and Tori
+turns through the throw, 0 -> 25 -> 35 degrees, instead of standing still. It needed a fourth
+keyframe, **Tenkan**: with only a Kuzushi and a Kake the straight line between them still grazes
+Tori, and a polyline through a waypoint beside him does not.
+
+`tools/build_fixtures.gd` takes `ONLY=<technique>` now. A plain rebuild rewrites all 21 poses —
+the committed ones have been corrected by hand since the script last ran, so a full rebuild throws
+that work away. Rebuild the technique being worked on, look at what it renders, leave the rest.
+
+Two things that need the instructor before this phase is finished, and that I did not invent:
+
+- **Uke is thrown standing up.** The fixture only ever moved his *position*; his posture is a man
+  standing, translated along a path. No lean, no fall, no ukemi. That is now the main reason it
+  does not read as a throw, and it is a bigger problem than the trajectory was.
+- **When does the grip go?** The 11 frames `check_motion.gd` still reports for this technique are
+  all Uke's arms tangling with Tori as he is led round still holding both wrists. He cannot simply
+  be placed further out while he holds: `save_pose` steps a gripper back until its hands reach,
+  which is correct. So the question is where in the movement Uke lets go, and whether he goes down.
+  Answer those two and the phase can be finished; guessing at them would be inventing aikido.
+
+
+### Bending, smoothness, and taking a fall (this session)
+
+The instructor: "the models need to be able to bend, move more smoothly, and fall and roll
+somewhat." The first and third were the same missing thing, and it was structural.
+
+**A figure could not be anything but upright.** `PoseController.set_root` did
+`rig.rotation = Vector3(0, yaw, 0)`, `PoseFile` stored a root as a position and a yaw, and the
+panel's placement fields wrote `Vector3(x, 0, z)`. There was no way to represent a person leaning,
+falling or lying down — which is the whole reason Uke had been thrown standing bolt upright, and
+why nobody had ever noticed: the data had no room for it. The root now carries **pitch and roll**
+and a **height**, everywhere: stored (older files without them read as upright), restored, blended
+(the whole orientation slerps instead of a yaw angle lerping), and posable from the panel as
+Height, Lean fwd and Lean side. `stance()` in the fixture builder takes them too.
+
+**Ushiro ryotedori zenponage now ends in ukemi.** Uke lets go at the throw — he cannot hold a
+wrist and take a fall — goes over forward with the spine curled and an arm reaching for the mat,
+rolls through, and comes back up on his feet facing Tori. `Sequence.MAX_STEPS` went from 5 to 8:
+the throw alone is four poses and the fall is three more. `bend_forward` turns a bone *by* an
+angle, so bends accumulate across a technique; `straighten()` is how a figure stands up again.
+
+**Two things the fall broke, both of which were right to break:**
+- `check_acceptance.gd` required every foot on the floor. A figure taking a fall is not on its
+  feet: a root tipped past 35 degrees is now exempt, and the check says how many figures it
+  counted so an exemption cannot hide a bug.
+- The spine limits were too tight for a tucked roll. Raised to 60/45/35 degrees for
+  Spine/Chest/UpperChest, which is most of what a real trunk flexes; every committed pose passes.
+
+**Smoothness** is two changes. The root now follows a curve through the steps on either side of a
+transition (`Vector3.cubic_interpolate`) instead of a straight line between two of them, so a
+technique sweeps through a waypoint instead of turning a corner on it. And easing is no longer
+applied at every keyframe: `Sequence.ease_through` eases away from a pose only where the technique
+actually rests, so a step with a zero hold is passed through at speed. Both are exact at
+keyframes. Together they took three techniques' bad frames down without touching their poses
+(shihonage 12 to 8, tachi dori 10 to 9).
+
+**The camera framed the pose a technique opens on**, so an Uke thrown two metres left the picture
+entirely — the first render of the finished throw is Tori alone in an empty frame. The sequence
+camera now frames every keyframe of the technique. Note it must do that *without waiting a frame*
+on each pose: under Movie Maker every drawn frame is recorded, and the first attempt wrote sixteen
+frames of the technique flickering through its poses into the start of every video (103 frames for
+a 3.0 s clip, which `check_movie.gd` caught). It reads the poses through
+`CharacterRig.fk_bone_transform` instead, which needs no solve.
+
+**Still open:** the wide framing is the price of keeping everyone in shot — the figures are
+smaller than they were. A camera that follows the action would frame both tightly, and the
+per-phase stills are already framed per phase, so it is only the video. And bending is *available*
+now but barely *used*: outside the new ukemi poses, Neck, Head, Chest and both clavicles are still
+at 0 degrees in every committed pose, so the figures still stare straight ahead through every
+technique.
+
+
+### Ukemi as a thing the tool can do, not numbers in one technique (this session)
+
+"I'm sure you can roll the model up a bit more natural. There will be techniques where an uke
+rolls forward, backwards, and is laid down on their stomach." So the fall stopped being three
+hand-tuned stances inside `ushiro_ryotedori_zenponage` and became `src/rig/Ukemi.gd`.
+
+**Why the first roll looked like a felled tree.** A body rolling on a mat turns about whatever
+part of it is touching the mat, and that part travels: shoulder, back, hip, feet. The root is at
+the figure's feet, so turning the root turns the body about its feet, which either drives it
+through the floor or swings it round in the air. `Ukemi.ground()` is the whole trick: shape the
+body, turn it as far as the fall has got, then lift or drop the root until the lowest capsule
+rests on the mat. The pivot then falls out wherever the contact is, with nobody working out where.
+
+    Ukemi.shape(rig, Ukemi.Kind.FORWARD, t)   # also BACKWARD and PRONE; t: 0 upright, 1 up again
+    await settle()                            # it measures the solve, so the solve has to happen
+    Ukemi.ground(rig)
+
+The three falls are one body turned different ways, so they are one function with a `Kind`.
+Forward and backward are a whole turn about the body's sideways axis; face down is a quarter of
+one and stops. The tuck — trunk, hip, knee — is taken up as the fall starts, held through the
+roll, and let out as the body comes back to its feet. `Ukemi` says nothing about where a fall
+travels: the technique still says where Uke lands. `tests/test_ukemi.gd` walks all three and
+checks the body is on the mat the whole way, stays plausible while curled, turns the full amount,
+and gives the same shape when asked for twice.
+
+**Three bugs it turned up, two of them in what the last session had just written:**
+
+- **A bone's pose rotation is its rest rotation, not zero.** Writing identity does not straighten a
+  bone, it wrenches it to wherever its parent's frame points — 170 degrees out for a thigh, which
+  is what the first version of `bend_about` did to both legs. Bends compose onto the rest now.
+- **A pitch of 360 degrees is the same quaternion as 0.** The root orientation was being slerped,
+  so a completed roll ran *backwards* to where it started rather than through. Turning is a
+  direction and keeps its shortest path; leaning is an amount and now interpolates as the angle it
+  is.
+- **The Lean fields were capped at ±180 degrees**, so a body rolled past that had its value
+  clamped and handed back changed, re-emitting on every frame. In the render child, where there is
+  no selection, that flooded the log and the video ran to 2194 frames.
+
+And one of my own: `var ea` in the blend collided with an existing `ea` two screens further down
+the same function. GDScript reported it as "could not resolve class PoseBlend" from every *other*
+file, so the visible symptom was the whole scene failing and a null controller in the side panel.
+Check the file the parse error names, not the files complaining about it.
+
+**Where it leaves the technique:** 10 of 139 frames not plausible, against 15 of 133 before there
+was a proper fall in it, and 8 of 97 when it was still a man being slid through his partner.
+
+**Still open:** only `ushiro_ryotedori_zenponage` takes ukemi. Every other technique still ends
+with Uke standing where the throw left him, and `Ukemi.BACKWARD` and `Ukemi.PRONE` have no
+technique using them yet — they are tested, not exercised. A pin (ikkyo ends face down) is the
+obvious next one, and it is now a few lines rather than a research project.
+
+
+### Knees, pivoting and kneeling (this session)
+
+Asked how the tool was doing on knees, on techniques done kneeling, and on pivoting and turning a
+foot. The honest answer was: no knees at all. **The deepest knee bend in any committed pose was
+zero degrees** — every hanmi stance in every technique stands on straight legs, and the only bent
+knees in the repository are the two ukemi poses from the session before. `hanmi` has carried the
+comment "knees bent by dropping the hips" since M0 and it has never been true.
+
+One cause under all three questions: **the feet are attached to the body, not to the mat.** A
+leg's IK target is `add_child`-ed to the character root, so a foot goes wherever the body goes.
+Measured before the fix:
+
+- drop the hips 26 cm and the knee stays at 0 degrees while the whole figure sinks, the toe ending
+  34 cm below the floor;
+- turn the body 90 degrees and the "planted" foot travels 0.295 m, so nothing can pivot;
+- kneeling was not supported anywhere, and is not in the spec either.
+
+`PoseController.set_root` now takes a list of limbs to leave on the mat, and `src/rig/Stance.gd`
+is that idea applied to the four movements:
+
+| | before | after |
+|---|---|---|
+| `drop_hips(0.22)` | 0°, foot dragged down with the hips | 83° knee, foot moved 0.011 m |
+| `pivot("Right", 90)` | foot dragged 0.295 m | 0.003 m; the other foot swings 0.636 m |
+| `turn_foot("Left", 30)` | no control at all | 39° to 69°, foot moved 0.000 m |
+| `kneel(SEIZA)` | impossible | knee 0.021 m, toe 0.007 m, hips 0.250 m, 149° fold |
+| `kneel(KIZA)` | impossible | knee 0.076 m, toe 0.017 m, hips 0.330 m, 138° fold |
+
+`tests/test_stance.gd` covers all of it, and every check verifies the foot stayed on the mat while
+the body did something, since that is the whole mechanism.
+
+Two things worth knowing for later. Kneeling needs the foot to *keep* the flat orientation it had
+while standing: left to follow the shin it carries on past it and points through the floor, and
+the fix is the target's rotation, not its position. And the ankle limit of 55 degrees was mine and
+was wrong — a kneeling foot lies in line with its shin, which is most of the ankle's range, so it
+is 95 now; every committed pose still passes.
+
+**Not done, and it is a decision rather than an omission:** none of this is switched on for the
+eight existing techniques. Making `hanmi` bend the knees changes every committed pose, every
+render and every golden, which is the instructor's acceptance content — the same rebuild question
+as the wrists. It is a small change to `hanmi` plus a rebuild whenever that is wanted. Suwari-waza
+techniques can be authored from now on either way.
+
+
+### The knees, and the wrists that were not fixed (this session)
+
+**The knees are fixed, and the problem was bigger than it looked.** A leg's IK target hangs under
+the character's root, so a foot follows the body wherever it goes. `hanmi` set the root's height
+to drop the hips, which took the feet down with it: the figure sank, the knees never bent, and the
+docstring has claimed "knees bent by dropping the hips" since M0 without it ever being true. The
+deepest knee bend in twenty-four committed poses was **zero degrees**, in a martial art that is
+done entirely on bent legs.
+
+`PoseController.set_root` takes a list of limbs to leave on the mat, and `src/rig/Stance.gd` is
+that idea applied to the four things legs do: `drop_hips` (bends the knees, foot moves 11 mm),
+`pivot` (turns the body about one foot, that foot moves 3 mm, the other swings 0.64 m),
+`turn_foot` (out and in, without stepping), and `kneel` (seiza and kiza, shins on the mat — no
+suwari-waza was possible before, and the spec never mentioned it). `tests/test_stance.gd` covers
+all of it. `hanmi` now drops onto planted feet, so every committed stance has a real bend (37° at
+the default depth), and `save_pose` puts a standing figure's feet back on the mat afterwards,
+since bending the knees tilts the shins.
+
+One limit had to be corrected to allow it: an ankle may swing 95°, not 55°. A kneeling foot lies
+in line with its shin, which is most of an ankle's range.
+
+**The wrists were not fixed, and here is what was learned.** The plan was to choose the elbow to
+suit the hand: with the shoulder and the hand both pinned, the elbow can be anywhere on a circle
+between them, and each place on it points the forearm differently. That was built, measured, and
+**reverted**. It is worth knowing why before anyone tries it again.
+
+- On its own it works: the worst wrist went from 151° to 118°, and thirteen bad poses became eight.
+- But the arm has exactly *one* degree of freedom once the hand is placed, and on a two-handed
+  weapon hold no point on that circle gives both a straight wrist and a clear arm. Elbows ended up
+  inside the other arm — 8.5 cm deep between two Uke holding one arm.
+- Worse, and this is the part a pose-by-pose check cannot see: moving an elbow makes neighbouring
+  keyframes disagree about which side it is on, and the blend between them **rolls the humerus
+  145°** to get from one to the other. Every keyframe passed; `tests/check_motion.gd` showed
+  kumijo at 70 bad frames out of 70. Straightening a wrist by breaking a shoulder is not a fix.
+
+So the wrist is not the elbow's to solve. What is actually over-constrained is the *hand*: where
+it sits along the shaft and how it is rolled about it are both fixed by the hold, and one of them
+has to give. That is a decision about how the weapon is held — the instructor's, not the tool's.
+The nine remaining wrists are listed in `check_anatomy.gd`'s `OUTSTANDING`, worst 119°.

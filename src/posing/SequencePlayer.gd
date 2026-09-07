@@ -105,9 +105,17 @@ func apply_time(t: float) -> void:
 	if st["from"] == st["to"]:
 		PoseBlend.apply(scene, director, a, a, 0.0)
 	else:
-		PoseBlend.apply(scene, director, a, b, st["u"])
+		PoseBlend.apply(scene, director, a, b, st["u"], _step_pose(st["from"] - 1), _step_pose(st["to"] + 1))
 	if camera != null and sequence.camera == "per_pose":
 		var ca = a.get("camera")
 		var cb = b.get("camera")
 		if ca is Dictionary or cb is Dictionary:
 			camera.apply_state(OrbitCamera.blend_state(ca if ca is Dictionary else {}, cb if cb is Dictionary else {}, st["u"]))
+
+
+## The pose of step `i`, or an empty dictionary past either end of the technique. The blend uses
+## the steps on either side of a transition to curve the root through it.
+func _step_pose(i: int) -> Dictionary:
+	if sequence == null or i < 0 or i >= sequence.steps.size():
+		return {}
+	return poses.get(sequence.steps[i]["pose"], {})

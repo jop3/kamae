@@ -3,6 +3,9 @@ extends SceneTree
 ## pose, lets the grips settle and asserts the mechanics the spec names. Visual judgement of
 ## the techniques themselves is the instructor's.
 
+## Past this much lean a figure is not standing, so its feet are not expected on the floor.
+const UPRIGHT := deg_to_rad(35.0)
+
 var failures := 0
 func check(cond: bool, msg: String) -> void:
 	if cond: print("PASS ", msg)
@@ -32,7 +35,8 @@ func _initialize() -> void:
 	var referenced := {}
 	for f in seq_files:
 		var seq := Sequence.load(SEQUENCES.path_join(f))
-		check(seq != null and seq.steps.size() >= 2 and seq.steps.size() <= 5, "%s has 2-5 steps" % f)
+		check(seq != null and seq.steps.size() >= Sequence.MIN_STEPS and seq.steps.size() <= Sequence.MAX_STEPS,
+			"%s has %d-%d steps" % [f, Sequence.MIN_STEPS, Sequence.MAX_STEPS])
 		if seq:
 			for st in seq.steps:
 				referenced[st["pose"]] = referenced.get(st["pose"], 0) + 1
@@ -68,13 +72,20 @@ func _initialize() -> void:
 		else:
 			check(worst < 0.012, "%s: every gripping hand is on its point (worst %.3f m, %s)" % [slug, worst, worst_desc])
 		check(colours_ok, "%s: gripping hand and gripped limb have different colours" % slug)
-		# Nobody floats or sinks: every foot within a few centimetres of the floor.
+		# Nobody floats or sinks: every foot within a few centimetres of the floor. A figure that
+		# is falling or already down is not on its feet, and its feet are not the thing that
+		# should be on the floor: a root tipped past UPRIGHT is exempt.
 		var worst_foot := 0.0
+		var standing := 0
 		for rig in scene.characters:
+			if absf(rig.rotation.x) > UPRIGHT or absf(rig.rotation.z) > UPRIGHT:
+				continue
+			standing += 1
 			for side in ["Right", "Left"]:
 				var toe_y: float = rig.bone_world_transform(side + "Toes").origin.y
 				worst_foot = maxf(worst_foot, absf(toe_y - 0.02))
-		check(worst_foot < 0.06, "%s: feet stay on the floor (worst %.3f m)" % [slug, worst_foot])
+		check(worst_foot < 0.06, "%s: the figures on their feet keep them on the floor (%d of %d, worst %.3f m)"
+			% [slug, standing, scene.characters.size(), worst_foot])
 		# Hand-driven weapons sit in their holder's palm.
 		for w in scene.weapons:
 			if w.drive == "hand" and not w.hold.is_empty():

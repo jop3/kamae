@@ -203,6 +203,20 @@ func bone_world_transform(bone_name: String) -> Transform3D:
 	return skeleton.global_transform * _solved_poses[idx]
 
 
+## Where a bone would be under the pose alone, with every modifier ignored: the bone poses that
+## were last set, walked up the chain to the root. IK, twist and hand orientation do not enter,
+## so this is the only reading that does not depend on a solve having happened, and the only one
+## a correction can be derived from without feeding its own output back in (MotionClearance).
+func fk_bone_transform(bone_name: String) -> Transform3D:
+	var idx := skeleton.find_bone(bone_name)
+	assert(idx >= 0, "Unknown bone %s" % bone_name)
+	var t := Transform3D.IDENTITY
+	while idx >= 0:
+		t = skeleton.get_bone_pose(idx) * t
+		idx = skeleton.get_bone_parent(idx)
+	return skeleton.global_transform * t
+
+
 ## Same value read live from the skeleton. Only correct inside skeleton_updated.
 func bone_world_transform_live(bone_name: String) -> Transform3D:
 	var idx := skeleton.find_bone(bone_name)
