@@ -75,7 +75,14 @@ static func _apply_character(rig: CharacterRig, ca: Dictionary, cb: Dictionary, 
 	var p0 := PoseFile.array_to_vec(cprev.get("root", ra).get("pos", ra.get("pos", [0, 0, 0])))
 	var p3 := PoseFile.array_to_vec(cnext.get("root", rb).get("pos", rb.get("pos", [0, 0, 0])))
 	rig.position = p1.cubic_interpolate(p2, p0, p3, u)
-	rig.quaternion = Quaternion.from_euler(root_euler(ra)).slerp(Quaternion.from_euler(root_euler(rb)), u)
+	# Turning is a direction, so a yaw takes the short way round. Leaning is an amount — a body
+	# rolling right over goes through 360 degrees, and 360 is the same *orientation* as 0, so
+	# slerping the root would send a completed roll backwards to where it started instead of
+	# through. Pitch and roll therefore interpolate as the angles they are.
+	var lean_a := root_euler(ra)
+	var lean_b := root_euler(rb)
+	rig.rotation = Vector3(lerpf(lean_a.x, lean_b.x, u), lerp_angle(lean_a.y, lean_b.y, u),
+		lerpf(lean_a.z, lean_b.z, u))
 	var sk := rig.skeleton
 	var bones_a: Dictionary = ca.get("bones", {})
 	var bones_b: Dictionary = cb.get("bones", {})

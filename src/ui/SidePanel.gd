@@ -166,8 +166,10 @@ func setup(ctrl: PoseController, posing_scene: PosingScene, grip_director: GripD
 	_root_z = _spin(g, "Z (m)", -5, 5, 0.01)
 	_root_yaw = _spin(g, "Turn (°)", -360, 360, 1)
 	_root_y = _spin(g, "Height (m)", -1.2, 1.2, 0.01)
-	_root_pitch = _spin(g, "Lean fwd (°)", -180, 180, 1)
-	_root_roll = _spin(g, "Lean side (°)", -180, 180, 1)
+	# A body that rolls right over goes through a whole turn, so the lean fields have to hold one:
+	# clamping at 180 makes the box hand back a different value than it was given, every frame.
+	_root_pitch = _spin(g, "Lean fwd (°)", -360, 360, 1)
+	_root_roll = _spin(g, "Lean side (°)", -360, 360, 1)
 	for sb in [_root_x, _root_z, _root_yaw, _root_y, _root_pitch, _root_roll]:
 		sb.value_changed.connect(_on_root_changed)
 	var turn := Button.new(); turn.text = "Turn 180°"
@@ -667,7 +669,7 @@ func _on_euler_drag_ended(changed: bool) -> void:
 
 
 func _on_root_changed(_v: float) -> void:
-	if _updating or controller.selected_rig == null:
+	if _updating or controller == null or controller.selected_rig == null:
 		return
 	var rig := controller.selected_rig
 	var old_pos := rig.position

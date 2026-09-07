@@ -306,42 +306,25 @@ func ushiro_ryotedori_zenponage() -> void:
 	await settle(3)
 	await save_pose("Ushiro Ryotedori Zenponage Kake", true)
 
-	# Ukemi. The grip goes here — Uke cannot hold a wrist and take a fall — and he goes over
-	# forward: curled through the spine, one arm reaching for the mat, tipped past his own feet.
+	# The fall. Uke lets go — nobody holds a wrist and takes ukemi — and goes over forward. The
+	# shape of the fall comes from src/rig/Ukemi.gd, which turns the body and then rests it on the
+	# mat, so the pivot lands wherever the body is touching instead of at its feet. All that is
+	# left to say here is where the fall travels.
 	await release_all("uke1")
-	bend_forward("uke1", "Spine", 22)
-	bend_forward("uke1", "Chest", 18)
-	bend_forward("uke1", "Neck", 20)
-	await hand_at("uke1", "Right", Vector3(-0.06, -0.34, 0.34))
-	await hand_at("uke1", "Left", Vector3(0.10, -0.20, 0.30))
-	stance("uke1", 1.45, 1.05, 55, 0.0, 60)
-	await settle(3)
-	await save_pose("Ushiro Ryotedori Zenponage Ukemi", true)
+	for step in [[0.30, 1.45, 1.05, "Ukemi"], [0.55, 1.90, 1.35, "Rulle"], [1.00, 2.35, 1.60, "Upp"]]:
+		stance("uke1", step[1], step[2], 55.0)
+		Ukemi.shape(rig("uke1"), Ukemi.Kind.FORWARD, step[0])
+		await settle(4)
+		Ukemi.ground(rig("uke1"))
+		await settle(2)
+		await save_pose("Ushiro Ryotedori Zenponage %s" % step[3], true)
 
-	# Over: the roll itself, curled tight and still travelling. The root sits at the feet, so a
-	# pitch past level would drive the body through the floor: the roll is carried by lifting it
-	# clear of the mat at about level, not by turning it further over.
-	bend_forward("uke1", "Spine", 30)
-	bend_forward("uke1", "Chest", 25)
-	await hand_at("uke1", "Right", Vector3(-0.04, -0.28, 0.20))
-	await hand_at("uke1", "Left", Vector3(0.08, -0.26, 0.18))
-	stance("uke1", 1.85, 1.30, 55, 0.38, 95)
-	await settle(3)
-	await save_pose("Ushiro Ryotedori Zenponage Rulle", true)
-
-	# Up again, facing Tori: an Uke who has taken the fall is back on his feet.
-	for bone in ["Spine", "Chest", "Neck"]:
-		straighten("uke1", bone)
-	stance("uke1", 2.25, 1.55, 235)
-	await hanmi("uke1", "Right")
-	await settle(3)
-	await save_pose("Ushiro Ryotedori Zenponage Upp", true)
 	# The waypoints hold for nothing: they are passed through, not rested on, which is what keeps
 	# the throw and the fall running as one movement instead of four poses in a row.
 	save_sequence("Ushiro Ryotedori Zenponage", [["Ushiro Ryotedori Zenponage Grepp", 0.0, 0.5],
 		["Ushiro Ryotedori Zenponage Kuzushi", 0.6, 0.2], ["Ushiro Ryotedori Zenponage Tenkan", 0.45, 0.0],
-		["Ushiro Ryotedori Zenponage Kake", 0.5, 0.0], ["Ushiro Ryotedori Zenponage Ukemi", 0.35, 0.0],
-		["Ushiro Ryotedori Zenponage Rulle", 0.35, 0.0], ["Ushiro Ryotedori Zenponage Upp", 0.45, 1.0]])
+		["Ushiro Ryotedori Zenponage Kake", 0.5, 0.0], ["Ushiro Ryotedori Zenponage Ukemi", 0.4, 0.0],
+		["Ushiro Ryotedori Zenponage Rulle", 0.45, 0.0], ["Ushiro Ryotedori Zenponage Upp", 0.5, 1.0]])
 
 
 # ---------------------------------------------------------------- 8.3 Katatedori Shihonage irimi

@@ -26,17 +26,17 @@
 		{
 			"hold": 0.0,
 			"pose": "ushiro_ryotedori_zenponage_ukemi",
-			"transition": 0.35
+			"transition": 0.4
 		},
 		{
 			"hold": 0.0,
 			"pose": "ushiro_ryotedori_zenponage_rulle",
-			"transition": 0.35
+			"transition": 0.45
 		},
 		{
 			"hold": 1.0,
 			"pose": "ushiro_ryotedori_zenponage_upp",
-			"transition": 0.45
+			"transition": 0.5
 		}
 	]
 }

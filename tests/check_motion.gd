@@ -31,9 +31,9 @@ const OUTSTANDING := {
 	## Uke now goes round Tori instead of through him, which is the technique; what is left is
 	## his arms tangling with Tori's body as he is led round still holding both wrists. That is
 	## the authoring question this fixture had never answered. It answers it now — Uke lets go at
-	## the throw and takes a forward roll — and the technique runs 133 frames instead of 97, so
-	## there is more of it to be wrong: the count rose while the proportion barely moved.
-	"ushiro_ryotedori_zenponage": 15,
+	## the throw and takes a forward roll shaped by src/rig/Ukemi.gd — and the technique runs 139
+	## frames instead of 97 while fewer of them are wrong than before it had a fall in it at all.
+	"ushiro_ryotedori_zenponage": 10,
 }
 
 var scene: PosingScene

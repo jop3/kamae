@@ -513,3 +513,55 @@ per-phase stills are already framed per phase, so it is only the video. And bend
 now but barely *used*: outside the new ukemi poses, Neck, Head, Chest and both clavicles are still
 at 0 degrees in every committed pose, so the figures still stare straight ahead through every
 technique.
+
+
+### Ukemi as a thing the tool can do, not numbers in one technique (this session)
+
+"I'm sure you can roll the model up a bit more natural. There will be techniques where an uke
+rolls forward, backwards, and is laid down on their stomach." So the fall stopped being three
+hand-tuned stances inside `ushiro_ryotedori_zenponage` and became `src/rig/Ukemi.gd`.
+
+**Why the first roll looked like a felled tree.** A body rolling on a mat turns about whatever
+part of it is touching the mat, and that part travels: shoulder, back, hip, feet. The root is at
+the figure's feet, so turning the root turns the body about its feet, which either drives it
+through the floor or swings it round in the air. `Ukemi.ground()` is the whole trick: shape the
+body, turn it as far as the fall has got, then lift or drop the root until the lowest capsule
+rests on the mat. The pivot then falls out wherever the contact is, with nobody working out where.
+
+    Ukemi.shape(rig, Ukemi.Kind.FORWARD, t)   # also BACKWARD and PRONE; t: 0 upright, 1 up again
+    await settle()                            # it measures the solve, so the solve has to happen
+    Ukemi.ground(rig)
+
+The three falls are one body turned different ways, so they are one function with a `Kind`.
+Forward and backward are a whole turn about the body's sideways axis; face down is a quarter of
+one and stops. The tuck — trunk, hip, knee — is taken up as the fall starts, held through the
+roll, and let out as the body comes back to its feet. `Ukemi` says nothing about where a fall
+travels: the technique still says where Uke lands. `tests/test_ukemi.gd` walks all three and
+checks the body is on the mat the whole way, stays plausible while curled, turns the full amount,
+and gives the same shape when asked for twice.
+
+**Three bugs it turned up, two of them in what the last session had just written:**
+
+- **A bone's pose rotation is its rest rotation, not zero.** Writing identity does not straighten a
+  bone, it wrenches it to wherever its parent's frame points — 170 degrees out for a thigh, which
+  is what the first version of `bend_about` did to both legs. Bends compose onto the rest now.
+- **A pitch of 360 degrees is the same quaternion as 0.** The root orientation was being slerped,
+  so a completed roll ran *backwards* to where it started rather than through. Turning is a
+  direction and keeps its shortest path; leaning is an amount and now interpolates as the angle it
+  is.
+- **The Lean fields were capped at ±180 degrees**, so a body rolled past that had its value
+  clamped and handed back changed, re-emitting on every frame. In the render child, where there is
+  no selection, that flooded the log and the video ran to 2194 frames.
+
+And one of my own: `var ea` in the blend collided with an existing `ea` two screens further down
+the same function. GDScript reported it as "could not resolve class PoseBlend" from every *other*
+file, so the visible symptom was the whole scene failing and a null controller in the side panel.
+Check the file the parse error names, not the files complaining about it.
+
+**Where it leaves the technique:** 10 of 139 frames not plausible, against 15 of 133 before there
+was a proper fall in it, and 8 of 97 when it was still a man being slid through his partner.
+
+**Still open:** only `ushiro_ryotedori_zenponage` takes ukemi. Every other technique still ends
+with Uke standing where the throw left him, and `Ukemi.BACKWARD` and `Ukemi.PRONE` have no
+technique using them yet — they are tested, not exercised. A pin (ikkyo ends face down) is the
+obvious next one, and it is now a few lines rather than a research project.
