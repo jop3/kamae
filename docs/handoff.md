@@ -844,17 +844,20 @@ with the goldens refreshed. What the day added, in the order to read it:
    joints can make the grip. `tests/test_attacks.gd`.
 3. `poses/` — the three rolling poses of ushiro ryotedori zenponage rebuilt (hips tucked),
    shihonage re-authored (arm past the face, hand behind the shoulder), katatedori ikkyo and
-   shihonage starting from the catalogue's katatedori.
+   shihonage starting from the catalogue's katatedori, and the four weapon techniques rebuilt
+   with every hand rolled and skewed on its shaft to where its wrist can hold it.
 4. What each check still lists — `tests/check_anatomy.gd`'s and `tests/check_motion.gd`'s
    `OUTSTANDING` — with the reason in the file. Nearly all of it is the roll of a hand on a
    weapon or a wrist, which is the instructor's decision, and the re-grip frames, which are
    intermediate poses to author.
 
-Next, in order: the remaining six techniques from the catalogue (`attack()` in
-`build_fixtures.gd`, two lines each, then look at the renders); the weapon holds' roll
-(`Weapon.default_hold`); the re-grip intermediate poses (`tools/add_step.gd`); coupled fingers
-(a DIP that follows its PIP when either is posed by hand). Kicks and knives are in the catalogue;
-bokken and jo attacks are not.
+Next, in order: the rear hand of the two-handed weapon holds (where along the tsuka it sits and
+how far apart the hands are, `Weapon.default_hold`; the joints say the current spacing leaves
+that wrist past its range whatever its roll); ushiro ryotedori zenponage and ryotemochi from the
+catalogue (the first has a tenkan pose the script no longer reproduces, the second is two Uke
+on one Tori); the re-grip intermediate poses (`tools/add_step.gd`); coupled fingers (a DIP that
+follows its PIP when either is posed by hand). Kicks and knives are in the catalogue; bokken and
+jo attacks are not.
 
 ### The weapon holds, rolled and skewed by the joints (same session)
 
