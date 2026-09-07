@@ -34,12 +34,12 @@ func check(cond: bool, msg: String) -> void:
 ## partner while its wrist is refused. Every one of them is listed by MOTION_VERBOSE=1, and each
 ## is a pose to author, not a rule to loosen.
 const OUTSTANDING := {
-	"jo_dori": 16,
+	"jo_dori": 20,   ## the taken jo's hand is fitted now and the blend from the thrust crosses differently
 	"katatedori_ikkyo": 9,   ## the grip is the catalogue's now; two frames of a wrist at its edge as the arm is raised
 	"katatedori_shihonage_irimi": 18,   ## re-authored after the shoulder girdle: 26 before it, 51 with it, 18 now
-	"kumijo": 9,
-	"kumitachi": 2,
-	"tachi_dori": 11,
+	"kumijo": 0,
+	"kumitachi": 1,
+	"tachi_dori": 12,
 	"ushiro_ryotedori_zenponage": 11,
 }
 

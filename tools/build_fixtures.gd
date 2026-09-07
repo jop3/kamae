@@ -431,6 +431,8 @@ func chudan(id: String, weapon: Weapon, forward: float = 0.25, height: float = 1
 	weapon.global_transform = Transform3D(Basis(along.cross(up), along, up), r.global_position + b * Vector3(0.0, height, forward))
 	director.attach_default_hands(r, weapon)
 	await settle(3)
+	# Each hand is then rolled about the shaft to where its wrist can hold it (Staging).
+	await st.fit_weapon_hands(id, weapon)
 
 
 ## Jo in chudan: held level beside the right hip, butt end behind, rear (left) hand at the hip
@@ -444,6 +446,7 @@ func jo_kamae(r: CharacterRig, jo: Weapon) -> void:
 	r.limbs["LeftArm"].pole.global_position = r.global_position + b * Vector3(0.34, 0.78, 0.58)
 	r.limbs["RightArm"].pole.global_position = r.global_position + b * Vector3(-0.42, 0.85, 0.15)   # right elbow out, clear of the crossing forearm
 	await settle(3)
+	await st.fit_weapon_hands(r.character_id, jo)
 
 
 ## Points a limb's elbow (or knee) toward an offset from the character's root, in its frame.
@@ -476,6 +479,7 @@ func tachi_dori() -> void:
 	await place_weapon(bokken, u.global_position + u.global_transform.basis * Vector3(0, 1.58, 0.22), u.global_transform.basis * Vector3(0, 0.5, -0.87), Vector3.UP)
 	pole_at("uke1", "LeftArm", Vector3(0.45, 1.25, 0.15))
 	pole_at("uke1", "RightArm", Vector3(-0.45, 1.25, 0.15))
+	await st.fit_weapon_hands("uke1", bokken)   # the hands turn on the tsuka as the sword rises
 	await save_pose("Tachi dori Furikaburi")
 	await place_weapon(bokken, u.global_position + u.global_transform.basis * Vector3(0, 1.05, 0.30), u.global_transform.basis * Vector3(0, 0.2, 1.0), Vector3.UP)
 	stance("tori", 0.35, -0.10, 40)
@@ -514,6 +518,7 @@ func jo_dori() -> void:
 	stance("tori", 0.42, -0.30, 35)   # off the line of the staff, so it passes beside the arm
 	director.attach_to_weapon(rig("tori"), "Right", jo, 0.80, true)
 	rig("tori").fingers.apply_grip_preset("Right")
+	await st.fit_weapon_hands("tori", jo)
 	await save_pose("Jo dori Uke")
 	# Tori holds the jo; Uke lets go.
 	await release_all("uke1")

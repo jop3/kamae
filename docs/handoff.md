@@ -855,3 +855,18 @@ Next, in order: the remaining six techniques from the catalogue (`attack()` in
 (`Weapon.default_hold`); the re-grip intermediate poses (`tools/add_step.gd`); coupled fingers
 (a DIP that follows its PIP when either is posed by hand). Kicks and knives are in the catalogue;
 bokken and jo attacks are not.
+
+### The weapon holds, rolled and skewed by the joints (same session)
+
+The four weapon techniques were pure script output too, so they are rebuilt. `Staging.fit_weapon_hands`
+turns each hand that grips a weapon about the shaft (roll) and across it (skew — the fingers run
+diagonally, which is how a hand takes a tsuka whose shaft runs on from the forearm rather than
+across it; `Weapon.hold_offset` and `GripDirector._attach_to_weapon_raw` carry a `skew_deg`) to
+where its wrist, elbow and shoulder refuse least, and `build_fixtures.gd` calls it after every
+`attach_default_hands`, after the sword is raised in tachi dori, and on the jo Tori takes. That
+cleared every *right* (front) hand on a jo or a bokken from `check_anatomy.gd` and a shoulder,
+took kumijo's motion count from 9 to 0 and kumitachi's from 2 to 1; jo dori went 16 → 20 and
+tachi dori 11 → 12 in the blends. What is left on the weapons is the *left* (rear) hand of each
+two-handed hold: the shaft reaches it at an angle no fist takes square, and the search found
+no roll or skew inside the wrist's range. That is the hold itself — where along the tsuka the
+rear hand sits and how far apart the hands are (`Weapon.default_hold`) — and is the instructor's.

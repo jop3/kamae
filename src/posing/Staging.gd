@@ -75,6 +75,44 @@ func hold(id: String, side: String, type: String, t: float = -1.0, weapon_id: St
 	return w
 
 
+## The rolls tried for a hand on a weapon, degrees either side of the weapon's default hold,
+## and the skews (the fingers running diagonally across the shaft rather than square to it).
+const HOLD_ROLLS := [0.0, -15.0, 15.0, -30.0, 30.0, -45.0, 45.0, -60.0, 60.0]
+const HOLD_SKEWS := [0.0, -20.0, 20.0, -40.0, 40.0]
+
+## Turns each of `id`'s hands that grips `weapon` about the shaft, and skews the fingers across
+## it, to where its wrist, elbow and shoulder refuse least: the roll and the skew of a hold are
+## what a two-handed weapon grip leaves to the wrist, and the default hold's 45° was a guess. Weapon-driven weapons only
+## (both hands are grips); a hand-driven holder's own hand is placed by its arm.
+func fit_weapon_hands(id: String, weapon: Weapon) -> void:
+	var r := rig(id)
+	for grip in director.grips_for(id).duplicate():
+		if grip.target.kind != GripTarget.Kind.WEAPON or grip.target.weapon_id != weapon.weapon_id:
+			continue
+		var hand: String = grip.hand
+		var t: float = grip.target.t
+		var base: float = float(weapon.default_hold(hand)["roll_deg"])
+		var current: Grip = grip
+		var best_roll := base
+		var best_skew := 0.0
+		var best_cost := INF
+		for d in HOLD_ROLLS:
+			for sk in HOLD_SKEWS:
+				director._remove(current)
+				current = director._attach_to_weapon_raw(r, hand, weapon, t, true, base + float(d), float(sk))
+				await settle(4)
+				var cost := arm_refusal_excess(r, hand) + 2000.0 * director.error_for(current) + 0.02 * (absf(float(d)) + absf(float(sk)))
+				if cost < best_cost:
+					best_cost = cost; best_roll = base + float(d); best_skew = float(sk)
+				if best_cost < 1e-3:
+					break
+			if best_cost < 1e-3:
+				break
+		director._remove(current)
+		director._attach_to_weapon_raw(r, hand, weapon, t, true, best_roll, best_skew)
+		await settle(4)
+
+
 ## A hanmi stance: `front` foot a step forward, rear foot back and turned out, knees bent by
 ## dropping the hips onto planted feet.
 func hanmi(id: String, front: String = "Right", depth: float = 0.32, width: float = 0.16, drop: float = 0.06) -> void:
