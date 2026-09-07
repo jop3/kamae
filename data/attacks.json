@@ -191,11 +191,13 @@
           "hand": "Right",
           "bone": "RightLowerArm",
           "along": 0.35,
-          "curl": 0.6,
+          "curl": 0.45,
           "skews": [
             0,
             25,
-            -25
+            -25,
+            45,
+            -45
           ]
         }
       ]
@@ -482,14 +484,14 @@
         "hanmi": "Right",
         "hands": {
           "Right": [
-            -0.09,
-            -0.42,
-            0.02
+            -0.12,
+            -0.38,
+            -0.08
           ],
           "Left": [
-            0.09,
-            -0.42,
-            0.02
+            0.12,
+            -0.38,
+            -0.08
           ]
         }
       },
@@ -504,13 +506,23 @@
           "hand": "Right",
           "bone": "RightLowerArm",
           "along": 0.0,
-          "curl": 0.6
+          "curl": 0.6,
+          "skews": [
+            0,
+            25,
+            -25
+          ]
         },
         {
           "hand": "Left",
           "bone": "LeftLowerArm",
           "along": 0.0,
-          "curl": 0.6
+          "curl": 0.6,
+          "skews": [
+            0,
+            25,
+            -25
+          ]
         }
       ]
     },

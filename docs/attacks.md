@@ -54,7 +54,7 @@ How each is situated (Tori in right hanmi, offering the right side; *mirror* swa
 | `katatedori` | right hand forward, hip height | left hanmi, in front, offset to Tori's right | left hand round the right wrist from the outside, thumb up | 0.57 m away, 0.31 m to Tori's right — 16 cm closer than the old fixture, elbow out |
 | `aihanmi_katatedori` | right hand forward, a little higher | right hanmi, straight in front | right hand over the right wrist, fingers skewed across it (45°) | 0.59 m away, centred |
 | `ryotedori` | both hands forward and apart, a little high | left hanmi, in front | each hand on the same-side wrist from the outside, fingers skewed a little | 0.56 m away |
-| `morotedori` | right hand forward | left hanmi, well out on Tori's right | left hand at the wrist, right hand a third of the way up the forearm, fingers skewed | 0.58 m away, 0.45 m to Tori's right: further round the arm than the catalogue guessed, both forearms across it |
+| `morotedori` | right hand forward | left hanmi, well out on Tori's right | left hand at the wrist, right hand a third of the way up the forearm, held a little looser, fingers skewed | 0.58 m away, 0.45 m to Tori's right: further round the arm than the catalogue guessed, both forearms across it |
 | `katadori` | nothing (hands at the sides) | left hanmi, close, a little to the right | left hand on the top of the right shoulder | 0.51 m, where the catalogue put him |
 | `ryokatadori` | nothing | left hanmi, close, square | both hands on the shoulders | 0.49 m, shifted 12 cm to Tori's right |
 | `munedori` | nothing | left hanmi, close | left hand on the chest at the lapel | 0.46 m |
@@ -74,7 +74,7 @@ How each is situated (Tori in right hanmi, offering the right side; *mirror* swa
 
 | key | Tori | Uke stands | Uke's hands | measured |
 |---|---|---|---|---|
-| `ushiro_ryotedori` | arms hanging, hands a little out | behind, facing the same way, right hanmi | each hand on the same-side wrist from behind | 0.29 m behind, 12 cm to the left: closer than the old fixture's 0.36 |
+| `ushiro_ryotedori` | arms hanging, hands a little out | behind, facing the same way, right hanmi | each hand on the same-side wrist from behind, fingers skewed a little | 0.36 m behind, where the catalogue put him |
 | `ushiro_ryokatadori` | arms hanging | behind | hands on the shoulders from above and behind | 0.40 m |
 | `ushiro_eridori` | arms hanging | behind, a touch right | right hand in the collar at the nape | 0.42 m |
 | `ushiro_kubishime` | left arm hanging back | behind, right up against Tori | right forearm across the throat (the hand lands on the far side of the neck), left hand on Tori's left wrist | 0.35 m; the forearm lies across the throat and shoulder by design |
