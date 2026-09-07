@@ -136,7 +136,8 @@ static func _assemble(scene: PosingScene, director: GripDirector, camera, name: 
 			"skin_color": "#" + rig.get_skin_color().to_html(false),
 			"visible": rig.visible,
 			"gi": rig.gi_visible,
-			"root": {"pos": vec_to_array(rig.position), "yaw": rig.rotation.y},
+			"root": {"pos": vec_to_array(rig.position), "yaw": rig.rotation.y,
+				"pitch": rig.rotation.x, "roll": rig.rotation.z},
 			"bones": bones,
 			"ik": ik,
 			"fingers": fingers,
@@ -195,7 +196,8 @@ static func apply(data: Dictionary, scene: PosingScene, director: GripDirector, 
 		rig.set_gi_visible(c.get("gi", false))
 		var root: Dictionary = c.get("root", {})
 		rig.position = array_to_vec(root.get("pos", [0, 0, 0]))
-		rig.rotation = Vector3(0, root.get("yaw", 0.0), 0)
+		# pitch and roll arrived after the first poses were written; a file without them is upright.
+		rig.rotation = Vector3(root.get("pitch", 0.0), root.get("yaw", 0.0), root.get("roll", 0.0))
 		var sk := rig.skeleton
 		var bones: Dictionary = c.get("bones", {})
 		for bone in bones:

@@ -42,7 +42,7 @@ const SWING := {
 	"RightUpperLeg": 125.0, "LeftUpperLeg": 125.0,   ## hip
 	"RightHand": 90.0, "LeftHand": 90.0,             ## wrist: flexion, extension and deviation
 	"RightFoot": 55.0, "LeftFoot": 55.0,             ## ankle
-	"Spine": 45.0, "Chest": 35.0, "UpperChest": 30.0,
+	"Spine": 60.0, "Chest": 45.0, "UpperChest": 35.0,   ## trunk flexion, most of it lumbar
 	"Neck": 60.0, "Head": 45.0,
 	"RightShoulder": 30.0, "LeftShoulder": 30.0,     ## the clavicle shrugs, it does not rotate
 }

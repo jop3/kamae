@@ -11,10 +11,13 @@ extends RefCounted
 
 ## Applies the blend for `u` in 0..1 between pose dictionaries `a` and `b` (PoseFile format).
 ## Characters and weapons are matched by id; both poses are expected to contain the same ids.
-static func apply(scene: PosingScene, director: GripDirector, a: Dictionary, b: Dictionary, u: float) -> void:
+static func apply(scene: PosingScene, director: GripDirector, a: Dictionary, b: Dictionary, u: float,
+		prev: Dictionary = {}, next: Dictionary = {}) -> void:
 	u = clampf(u, 0.0, 1.0)
 	var chars_a := _by_id(a.get("characters", []))
 	var chars_b := _by_id(b.get("characters", []))
+	var chars_prev := _by_id(prev.get("characters", []))
+	var chars_next := _by_id(next.get("characters", []))
 	var grips_a := _grips_by_key(a)
 	var grips_b := _grips_by_key(b)
 	for id in _union(chars_a.keys(), chars_b.keys()):
@@ -23,7 +26,8 @@ static func apply(scene: PosingScene, director: GripDirector, a: Dictionary, b: 
 			continue
 		var ca: Dictionary = chars_a.get(id, chars_b.get(id))
 		var cb: Dictionary = chars_b.get(id, chars_a.get(id))
-		_apply_character(rig, ca, cb, u, grips_a, grips_b)
+		_apply_character(rig, ca, cb, u, grips_a, grips_b,
+			chars_prev.get(id, ca), chars_next.get(id, cb))
 	var holds_before := _hold_signature(scene)
 	_apply_weapons(scene, a, b, u)
 	_apply_grips(scene, director, a, b, u, grips_a, grips_b)
@@ -59,11 +63,19 @@ static func _hold_signature(scene: PosingScene) -> Array:
 	return sig
 
 
-static func _apply_character(rig: CharacterRig, ca: Dictionary, cb: Dictionary, u: float, grips_a: Dictionary, grips_b: Dictionary) -> void:
+static func _apply_character(rig: CharacterRig, ca: Dictionary, cb: Dictionary, u: float, grips_a: Dictionary, grips_b: Dictionary,
+		cprev: Dictionary = {}, cnext: Dictionary = {}) -> void:
 	var ra: Dictionary = ca.get("root", {})
 	var rb: Dictionary = cb.get("root", {})
-	rig.position = PoseFile.array_to_vec(ra.get("pos", [0, 0, 0])).lerp(PoseFile.array_to_vec(rb.get("pos", [0, 0, 0])), u)
-	rig.rotation = Vector3(0, lerp_angle(float(ra.get("yaw", 0.0)), float(rb.get("yaw", 0.0)), u), 0)
+	# The root follows a curve through the steps on either side rather than a straight line
+	# between these two, so a technique that passes through a waypoint sweeps through it instead
+	# of turning a corner on the spot. The curve still passes exactly through every keyframe.
+	var p1 := PoseFile.array_to_vec(ra.get("pos", [0, 0, 0]))
+	var p2 := PoseFile.array_to_vec(rb.get("pos", [0, 0, 0]))
+	var p0 := PoseFile.array_to_vec(cprev.get("root", ra).get("pos", ra.get("pos", [0, 0, 0])))
+	var p3 := PoseFile.array_to_vec(cnext.get("root", rb).get("pos", rb.get("pos", [0, 0, 0])))
+	rig.position = p1.cubic_interpolate(p2, p0, p3, u)
+	rig.quaternion = Quaternion.from_euler(root_euler(ra)).slerp(Quaternion.from_euler(root_euler(rb)), u)
 	var sk := rig.skeleton
 	var bones_a: Dictionary = ca.get("bones", {})
 	var bones_b: Dictionary = cb.get("bones", {})
@@ -234,3 +246,9 @@ static func _union(x: Array, y: Array) -> Array:
 		if not item in out:
 			out.append(item)
 	return out
+
+
+
+## A saved root's orientation. Poses written before a figure could lean carry only a yaw.
+static func root_euler(root: Dictionary) -> Vector3:
+	return Vector3(float(root.get("pitch", 0.0)), float(root.get("yaw", 0.0)), float(root.get("roll", 0.0)))

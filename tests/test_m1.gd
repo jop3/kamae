@@ -72,7 +72,7 @@ func _initialize() -> void:
 	check(tori.bone_world_transform("RightHand").origin.distance_to(after) < 1e-4, "redo re-applies rotation")
 
 	# Root placement + undo
-	ctrl.set_root(uke, Vector3(0, 0, 1.5), PI); ctrl.commit_root(uke, Vector3(0, 0, 0.5), PI, Vector3(0, 0, 1.5), PI)
+	ctrl.set_root(uke, Vector3(0, 0, 1.5), PI); ctrl.commit_root(uke, Vector3(0, 0, 0.5), Vector3(0, PI, 0), Vector3(0, 0, 1.5), Vector3(0, PI, 0))
 	ctrl.undo.undo()
 	check(uke.position.is_equal_approx(Vector3(0, 0, 0.5)), "root move undo restores position")
 

@@ -462,3 +462,54 @@ Two things that need the instructor before this phase is finished, and that I di
   be placed further out while he holds: `save_pose` steps a gripper back until its hands reach,
   which is correct. So the question is where in the movement Uke lets go, and whether he goes down.
   Answer those two and the phase can be finished; guessing at them would be inventing aikido.
+
+
+### Bending, smoothness, and taking a fall (this session)
+
+The instructor: "the models need to be able to bend, move more smoothly, and fall and roll
+somewhat." The first and third were the same missing thing, and it was structural.
+
+**A figure could not be anything but upright.** `PoseController.set_root` did
+`rig.rotation = Vector3(0, yaw, 0)`, `PoseFile` stored a root as a position and a yaw, and the
+panel's placement fields wrote `Vector3(x, 0, z)`. There was no way to represent a person leaning,
+falling or lying down — which is the whole reason Uke had been thrown standing bolt upright, and
+why nobody had ever noticed: the data had no room for it. The root now carries **pitch and roll**
+and a **height**, everywhere: stored (older files without them read as upright), restored, blended
+(the whole orientation slerps instead of a yaw angle lerping), and posable from the panel as
+Height, Lean fwd and Lean side. `stance()` in the fixture builder takes them too.
+
+**Ushiro ryotedori zenponage now ends in ukemi.** Uke lets go at the throw — he cannot hold a
+wrist and take a fall — goes over forward with the spine curled and an arm reaching for the mat,
+rolls through, and comes back up on his feet facing Tori. `Sequence.MAX_STEPS` went from 5 to 8:
+the throw alone is four poses and the fall is three more. `bend_forward` turns a bone *by* an
+angle, so bends accumulate across a technique; `straighten()` is how a figure stands up again.
+
+**Two things the fall broke, both of which were right to break:**
+- `check_acceptance.gd` required every foot on the floor. A figure taking a fall is not on its
+  feet: a root tipped past 35 degrees is now exempt, and the check says how many figures it
+  counted so an exemption cannot hide a bug.
+- The spine limits were too tight for a tucked roll. Raised to 60/45/35 degrees for
+  Spine/Chest/UpperChest, which is most of what a real trunk flexes; every committed pose passes.
+
+**Smoothness** is two changes. The root now follows a curve through the steps on either side of a
+transition (`Vector3.cubic_interpolate`) instead of a straight line between two of them, so a
+technique sweeps through a waypoint instead of turning a corner on it. And easing is no longer
+applied at every keyframe: `Sequence.ease_through` eases away from a pose only where the technique
+actually rests, so a step with a zero hold is passed through at speed. Both are exact at
+keyframes. Together they took three techniques' bad frames down without touching their poses
+(shihonage 12 to 8, tachi dori 10 to 9).
+
+**The camera framed the pose a technique opens on**, so an Uke thrown two metres left the picture
+entirely — the first render of the finished throw is Tori alone in an empty frame. The sequence
+camera now frames every keyframe of the technique. Note it must do that *without waiting a frame*
+on each pose: under Movie Maker every drawn frame is recorded, and the first attempt wrote sixteen
+frames of the technique flickering through its poses into the start of every video (103 frames for
+a 3.0 s clip, which `check_movie.gd` caught). It reads the poses through
+`CharacterRig.fk_bone_transform` instead, which needs no solve.
+
+**Still open:** the wide framing is the price of keeping everyone in shot — the figures are
+smaller than they were. A camera that follows the action would frame both tightly, and the
+per-phase stills are already framed per phase, so it is only the video. And bending is *available*
+now but barely *used*: outside the new ukemi poses, Neck, Head, Chest and both clavicles are still
+at 0 degrees in every committed pose, so the figures still stare straight ahead through every
+technique.

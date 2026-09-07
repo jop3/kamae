@@ -238,13 +238,20 @@ func _render_stills(args: PackedStringArray) -> void:
 	get_tree().quit()
 
 
+## Frames the whole technique, not the pose it opens on: a preset built from the first pose alone
+## loses everyone who moves, and a figure thrown two metres ends up outside the picture.
 func _apply_sequence_camera(seq: Sequence) -> void:
 	camera.fov = CameraPresets.FOV_DEG
+	var points: Array[Vector3] = []
+	for i in seq.steps.size():
+		player.apply_time(seq.step_start(i))
+		points.append_array(CameraPresets.frame_points(posing_scene, true))
+	player.apply_time(0.0)
 	match seq.camera:
 		"Front":
-			camera.apply_preset(CameraPresets.front(posing_scene))
+			camera.apply_preset(CameraPresets.front(posing_scene, points))
 		_:
-			camera.apply_preset(CameraPresets.side(posing_scene))
+			camera.apply_preset(CameraPresets.side(posing_scene, points))
 
 
 ## Phase slugs for filenames: the pose slug with the technique's own slug stripped off.

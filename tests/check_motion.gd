@@ -26,13 +26,14 @@ func check(cond: bool, msg: String) -> void:
 const OUTSTANDING := {
 	"jo_dori": 8,   ## seven of them; the eighth is an IK-driven shoulder rolled 178°, below
 	"katatedori_ikkyo": 6,
-	"katatedori_shihonage_irimi": 12,
-	"tachi_dori": 10,
+	"katatedori_shihonage_irimi": 8,
+	"tachi_dori": 9,
 	## Uke now goes round Tori instead of through him, which is the technique; what is left is
 	## his arms tangling with Tori's body as he is led round still holding both wrists. That is
-	## the authoring question this fixture has never answered: when the grip goes, and whether
-	## Uke goes down (docs/handoff.md).
-	"ushiro_ryotedori_zenponage": 11,
+	## the authoring question this fixture had never answered. It answers it now — Uke lets go at
+	## the throw and takes a forward roll — and the technique runs 133 frames instead of 97, so
+	## there is more of it to be wrong: the count rose while the proportion barely moved.
+	"ushiro_ryotedori_zenponage": 15,
 }
 
 var scene: PosingScene

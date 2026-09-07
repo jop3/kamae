@@ -31,6 +31,9 @@ var _euler_vals: Array[Label] = []
 var _root_x: SpinBox
 var _root_z: SpinBox
 var _root_yaw: SpinBox
+var _root_y: SpinBox
+var _root_pitch: SpinBox
+var _root_roll: SpinBox
 var _limb_buttons: Dictionary = {}   ## limb key -> CheckButton
 var _limb_warnings: Dictionary = {}  ## limb key -> Label
 var _limb_orient: Dictionary = {}    ## limb key -> CheckBox
@@ -162,7 +165,10 @@ func setup(ctrl: PoseController, posing_scene: PosingScene, grip_director: GripD
 	_root_x = _spin(g, "X (m)", -5, 5, 0.01)
 	_root_z = _spin(g, "Z (m)", -5, 5, 0.01)
 	_root_yaw = _spin(g, "Turn (°)", -360, 360, 1)
-	for sb in [_root_x, _root_z, _root_yaw]:
+	_root_y = _spin(g, "Height (m)", -1.2, 1.2, 0.01)
+	_root_pitch = _spin(g, "Lean fwd (°)", -180, 180, 1)
+	_root_roll = _spin(g, "Lean side (°)", -180, 180, 1)
+	for sb in [_root_x, _root_z, _root_yaw, _root_y, _root_pitch, _root_roll]:
 		sb.value_changed.connect(_on_root_changed)
 	var turn := Button.new(); turn.text = "Turn 180°"
 	turn.tooltip_text = "Face the other way"
@@ -630,6 +636,9 @@ func _refresh_values() -> void:
 		_root_x.value = rig.position.x
 		_root_z.value = rig.position.z
 		_root_yaw.value = rad_to_deg(rig.rotation.y)
+		_root_y.value = rig.position.y
+		_root_pitch.value = rad_to_deg(rig.rotation.x)
+		_root_roll.value = rad_to_deg(rig.rotation.z)
 		if controller.selected_bone != "":
 			var e := controller.get_bone_rotation(rig, controller.selected_bone).get_euler()
 			for i in 3:
@@ -662,11 +671,11 @@ func _on_root_changed(_v: float) -> void:
 		return
 	var rig := controller.selected_rig
 	var old_pos := rig.position
-	var old_yaw := rig.rotation.y
-	var new_pos := Vector3(_root_x.value, 0, _root_z.value)
-	var new_yaw := deg_to_rad(_root_yaw.value)
-	controller.set_root(rig, new_pos, new_yaw)
-	controller.commit_root(rig, old_pos, old_yaw, new_pos, new_yaw)
+	var old_rot := rig.rotation
+	var new_pos := Vector3(_root_x.value, _root_y.value, _root_z.value)
+	var new_rot := Vector3(deg_to_rad(_root_pitch.value), deg_to_rad(_root_yaw.value), deg_to_rad(_root_roll.value))
+	controller.set_root(rig, new_pos, new_rot.y, new_rot.x, new_rot.z)
+	controller.commit_root(rig, old_pos, old_rot, new_pos, new_rot)
 
 
 static func _pretty(bone: String) -> String:

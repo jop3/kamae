@@ -7,7 +7,9 @@ extends RefCounted
 
 const FORMAT := 1
 const MIN_STEPS := 2
-const MAX_STEPS := 5
+## The spec asked for 2-5 poses. A technique that ends in a fall needs more than five: the throw
+## itself is four, and going down, over and back up is three more.
+const MAX_STEPS := 8
 const DEFAULT_PHASES := ["Grepp", "Kuzushi", "Kake"]
 
 var name: String = ""
@@ -49,7 +51,12 @@ func state_at(time: float) -> Dictionary:
 			var trans := float(steps[i].get("transition", 0.0))
 			if t < trans:
 				var raw := t / trans if trans > 0.0 else 1.0
-				return {"from": i - 1, "to": i, "u": smoothstep(0.0, 1.0, raw), "raw": raw}
+				# Ease away from a pose only when the technique actually rests on it. A step held
+				# for no time is a waypoint being passed through, and easing to a stop at every
+				# one of them is what makes a sequence move in lurches.
+				var rest_before := float(steps[i - 1].get("hold", 0.0)) > 0.0
+				var rest_after := float(steps[i].get("hold", 0.0)) > 0.0
+				return {"from": i - 1, "to": i, "u": ease_through(raw, rest_before, rest_after), "raw": raw}
 			t -= trans
 		var hold := float(steps[i].get("hold", 0.0))
 		if t < hold or i == steps.size() - 1:
@@ -98,3 +105,14 @@ static func load(path: String) -> Sequence:
 	if not parsed is Dictionary or int(parsed.get("format", 0)) != FORMAT:
 		return null
 	return Sequence.from_dict(parsed)
+
+
+## Eases `t` (0..1) into and out of rest. A cubic with zero slope at an end holds still there;
+## with unit slope it passes through at speed. Both ends at rest is the smoothstep this used
+## everywhere before waypoints existed.
+static func ease_through(t: float, rest_at_start: bool, rest_at_end: bool) -> float:
+	var m0 := 0.0 if rest_at_start else 1.0
+	var m1 := 0.0 if rest_at_end else 1.0
+	var t2 := t * t
+	var t3 := t2 * t
+	return (t3 - 2.0 * t2 + t) * m0 + (-2.0 * t3 + 3.0 * t2) + (t3 - t2) * m1
