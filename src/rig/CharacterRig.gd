@@ -22,6 +22,9 @@ var gi_visible := false
 ## that holds every solved pose inside it (JointLimits), last in the stack.
 var joints: Joints
 var joint_limits: JointLimits
+## Raises the clavicles with the arms (ShoulderGirdle), first in the stack so the arms solve
+## from shoulders that have moved.
+var girdle: ShoulderGirdle
 ## Bone global poses as the modifier stack left them, refreshed every skeleton_updated.
 ## Reading Skeleton3D directly outside that signal returns the *authored* pose, not the posed one
 ## (see docs/engine-notes.md), so everything that asks "where is this bone now" goes through here.
@@ -94,9 +97,13 @@ func setup() -> void:
 	_build_limbs()
 
 
-## Modifier order on the skeleton is child order: finger curls first, then each limb's
-## IK solve followed by its hand-orientation modifier.
+## Modifier order on the skeleton is child order: the shoulder girdle, finger curls, then each
+## limb's IK solve followed by its twist and hand-orientation modifiers, and the joint limits last.
 func _build_limbs() -> void:
+	girdle = ShoulderGirdle.new()
+	girdle.name = "ShoulderGirdle"
+	girdle.rig = self
+	skeleton.add_child(girdle)
 	fingers = FingerCurl.new()
 	fingers.name = "FingerCurl"
 	skeleton.add_child(fingers)

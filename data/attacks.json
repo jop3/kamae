@@ -107,14 +107,14 @@
         "hanmi": "Right",
         "hands": {
           "Right": [
-            -0.1,
-            -0.16,
-            0.24
+            -0.12,
+            -0.12,
+            0.26
           ],
           "Left": [
-            0.1,
-            -0.16,
-            0.24
+            0.12,
+            -0.12,
+            0.26
           ]
         }
       },
@@ -129,13 +129,23 @@
           "hand": "Left",
           "bone": "RightLowerArm",
           "along": 0.0,
-          "curl": 0.6
+          "curl": 0.6,
+          "skews": [
+            0,
+            20,
+            -20
+          ]
         },
         {
           "hand": "Right",
           "bone": "LeftLowerArm",
           "along": 0.0,
-          "curl": 0.6
+          "curl": 0.6,
+          "skews": [
+            0,
+            20,
+            -20
+          ]
         }
       ]
     },
@@ -774,6 +784,104 @@
         "curls": {
           "Right": 1.0,
           "Left": 1.0
+        }
+      },
+      "grips": []
+    },
+    "tanto_tsuki": {
+      "names": {
+        "short": "Tanto tsuki",
+        "aikikai": "Tanto tsuki (tantodori)",
+        "iwama": "Tanto tsuki",
+        "yoshinkan": "Tanto tsuki",
+        "ki": "Tanto tsuki",
+        "tomiki": "Tanto tsuki (tanto randori)",
+        "english": "knife thrust to the belly",
+        "swedish": "knivstöt mot magen"
+      },
+      "kind": "strike",
+      "relation": "ai hanmi",
+      "from": "front",
+      "description": "Chudan tsuki with a tanto in the right hand, blade forward, the thrust at Tori's belly. The left hand stays back at the hip.",
+      "tori": {
+        "hanmi": "Right",
+        "hands": {}
+      },
+      "uke": {
+        "hanmi": "Right",
+        "distance": 1.0,
+        "lateral": 0.0,
+        "facing": "tori",
+        "hands": {
+          "Right": [
+            0.06,
+            -0.16,
+            0.56
+          ],
+          "Left": [
+            0.1,
+            -0.32,
+            -0.02
+          ]
+        },
+        "curls": {
+          "Left": 1.0
+        },
+        "weapons": [
+          {
+            "type": "tanto",
+            "hand": "Right"
+          }
+        ]
+      },
+      "grips": []
+    },
+    "mae_geri": {
+      "names": {
+        "short": "Mae geri",
+        "aikikai": "Mae geri",
+        "iwama": "Mae geri",
+        "yoshinkan": "Mae geri",
+        "ki": "Mae geri",
+        "tomiki": "Mae geri",
+        "english": "front kick",
+        "swedish": "framåtspark"
+      },
+      "kind": "strike",
+      "relation": "ai hanmi",
+      "from": "front",
+      "description": "Uke in left hanmi at ma-ai, the right foot driven forward at Tori's belly, the knee high, the hands up as a guard. Rare in aikido; here for the techniques that answer it.",
+      "tori": {
+        "hanmi": "Right",
+        "hands": {}
+      },
+      "uke": {
+        "hanmi": "Left",
+        "distance": 1.0,
+        "lateral": 0.0,
+        "facing": "tori",
+        "hands": {
+          "Right": [
+            -0.1,
+            -0.05,
+            0.3
+          ],
+          "Left": [
+            0.12,
+            -0.1,
+            0.28
+          ]
+        },
+        "curls": {
+          "Right": 1.0,
+          "Left": 1.0
+        },
+        "feet": {
+          "Right": [
+            -0.05,
+            -0.3,
+            0.6
+          ]
         }
       },
       "grips": []

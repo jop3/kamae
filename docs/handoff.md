@@ -775,3 +775,20 @@ Two things were learned building it, both of which the joints forced:
 `ONLY=<technique>` in `build_fixtures.gd` plus `Attacks.stage` in place of the hand-placed grab is
 the way when that is wanted. Kicks and knife attacks are not in the catalogue. Staging in the
 app takes a few seconds (the fit solves the skeleton ~50 times) and is not undoable.
+
+
+### The shoulder girdle, and two more attacks (same session)
+
+`src/rig/ShoulderGirdle.gd`: the clavicle rises with the arm, one degree in three past 60° of
+elevation, capped at 20°, first in the modifier stack, computed as a fixed point from where the
+arm is going so that it reads nothing from the previous frame (`tests/test_m4.gd` still round-trips,
+`tests/test_m2.gd`'s IK→FK bake still lands within a millimetre). `docs/joints.md` has the
+paragraph. Protraction was built and taken out again: it moved every shoulder forward into poses
+authored without it. Even elevation alone costs something visible: the shihonage pin has Uke's
+arm folded over his shoulder with the hand at his head, and a raised shoulder puts his forearm
+6.5 cm into his own head where it was inside the tolerance before; the motion check for that
+technique went from 26 to 51 frames, all in the held pin. It is listed in both OUTSTANDINGs; the
+fix is the pose (hand further out from the head, which is what the technique looks like), not
+the rule. The catalogue gained `tanto_tsuki` (a weapon in Uke's hand through `Staging.hold`)
+and `mae_geri` (a lifted foot through `Staging.foot_at`, which `feet_on_floor` now leaves in
+the air), and `ryotedori` had its hands raised and widened so both wrists clear.

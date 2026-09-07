@@ -30,7 +30,7 @@ func _initialize() -> void:
 	var st := Staging.new(self, scene, director, ctrl)
 	var verbose := OS.get_environment("ATTACKS_VERBOSE") == "1"
 
-	check(Attacks.keys().size() >= 19, "the catalogue has the attacks a syllabus starts from (%d)" % Attacks.keys().size())
+	check(Attacks.keys().size() >= 21, "the catalogue has the attacks a syllabus starts from (%d)" % Attacks.keys().size())
 	for key in Attacks.keys():
 		var e := Attacks.entry(key)
 		var complete := true
@@ -60,6 +60,14 @@ func _initialize() -> void:
 				if "Hand" in line or "Arm" in line:
 					uke_hands_ok = false
 			check(uke_hands_ok, "%s: nothing refused in Uke's arms (%s)" % [label, ", ".join(uke.joint_limits.report())])
+			if e["uke"].has("weapons"):
+				check(scene.weapons.size() == e["uke"]["weapons"].size() and director.worst_error() < 0.012, "%s: the weapon is in Uke's hand (%d weapons, error %.3f)" % [label, scene.weapons.size(), director.worst_error()])
+			if e["uke"].has("feet"):
+				var lifted := false
+				for side in e["uke"]["feet"]:
+					if uke.bone_world_transform(side + "Foot").origin.y > 0.25:
+						lifted = true
+				check(lifted, "%s: the kicking foot is up" % label)
 			var through := PackedStringArray()
 			for p in Anatomy.scene_problems(scene, director):
 				# A choke's forearm lies across the throat and the shoulder by design, and a hand in
@@ -71,6 +79,8 @@ func _initialize() -> void:
 			for r in [tori, uke]:
 				var feet_ok := true
 				for side in ["Right", "Left"]:
+					if r == uke and e["uke"].get("feet", {}).has(side):
+						continue   # a kicking foot is off the mat by design
 					var y: float = r.bone_world_transform(side + "Toes").origin.y
 					if y < -0.02 or y > 0.08:
 						feet_ok = false

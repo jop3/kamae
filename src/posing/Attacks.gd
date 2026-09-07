@@ -108,6 +108,10 @@ static func stage(st: Staging, key: String, opts: Dictionary = {}) -> Dictionary
 			await st.hang_arm(uke_id, uke_side)
 	for side in u.get("curls", {}):
 		st.fingers(uke_id, _side(side, mirror), float(u["curls"][side]))
+	for side in u.get("feet", {}):
+		await st.foot_at(uke_id, _side(side, mirror), _vec(u["feet"][side], mirror))
+	for w in u.get("weapons", []):
+		await st.hold(uke_id, _side(w["hand"], mirror), w["type"], float(w.get("t", -1.0)))
 	await st.settle(3)
 	var grips: Array = []
 	for g in e.get("grips", []):

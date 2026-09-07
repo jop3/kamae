@@ -51,13 +51,13 @@ How each is situated (Tori in right hanmi, offering the right side; *mirror* swa
 |---|---|---|---|---|
 | `katatedori` | right hand forward, hip height | left hanmi, in front, offset to Tori's right | left hand round the right wrist from the outside, thumb up | 0.57 m away, 0.31 m to Tori's right — 16 cm closer than the old fixture, elbow out |
 | `aihanmi_katatedori` | right hand forward, a little higher | right hanmi, straight in front | right hand over the right wrist, fingers skewed across it (45°) | 0.59 m away, centred |
-| `ryotedori` | both hands forward and apart | left hanmi, in front | each hand on the same-side wrist from the outside | 0.56 m away |
-| `morotedori` | right hand forward | left hanmi, well out on Tori's right | left hand at the wrist, right hand a third of the way up the forearm, fingers skewed | 0.49 m away, 0.40 m to Tori's right: further round the arm than the catalogue guessed, both forearms across it |
+| `ryotedori` | both hands forward and apart, a little high | left hanmi, in front | each hand on the same-side wrist from the outside, fingers skewed a little | 0.56 m away |
+| `morotedori` | right hand forward | left hanmi, well out on Tori's right | left hand at the wrist, right hand a third of the way up the forearm, fingers skewed | 0.58 m away, 0.45 m to Tori's right: further round the arm than the catalogue guessed, both forearms across it |
 | `katadori` | nothing (hands at the sides) | left hanmi, close, a little to the right | left hand on the top of the right shoulder | 0.51 m, where the catalogue put him |
-| `ryokatadori` | nothing | left hanmi, close, square | both hands on the shoulders | 0.49 m, shifted 12 cm left |
+| `ryokatadori` | nothing | left hanmi, close, square | both hands on the shoulders | 0.49 m, shifted 12 cm to Tori's right |
 | `munedori` | nothing | left hanmi, close | left hand on the chest at the lapel | 0.46 m |
 | `eridori` | nothing | left hanmi, close | left hand in the collar at the side of the neck, forearm over the shoulder | 0.44 m |
-| `sodedori` | right arm half offered, low | left hanmi, to the right | left hand on the upper arm above the elbow | 0.50 m |
+| `sodedori` | right arm half offered, low | left hanmi, to the right | left hand on the upper arm above the elbow | 0.46 m |
 | `hijidori` | right arm half offered | left hanmi, to the right | left hand on the forearm below the elbow | 0.51 m |
 | `katadori_menuchi` | nothing | left hanmi, close | left on the shoulder, right raised over the head | 0.53 m |
 
@@ -87,11 +87,13 @@ No grip: Uke's hand is placed and the arm follows, at ma-ai.
 | `yokomenuchi` | Yokomenuchi | Yokomen uchi | Yokomenuchi | diagonal cut to the side of the head | sidohugg | right hanmi, 0.90 m, right hand up and out to his right |
 | `chudan_tsuki` | Chudan tsuki / mune tsuki | Shomen tsuki | Mune tsuki | punch to the solar plexus | stöt mot magen | right hanmi, 0.95 m, right fist forward, left at the hip |
 | `jodan_tsuki` | Jodan tsuki | Jodan tsuki | Jodan tsuki | punch to the face | stöt mot ansiktet | as chudan, fist at face height |
+| `tanto_tsuki` | Tanto tsuki (tantodori) | Tanto tsuki | Tanto tsuki | knife thrust to the belly | knivstöt mot magen | as chudan tsuki with a tanto in the right hand, 1.0 m |
+| `mae_geri` | Mae geri | Mae geri | Mae geri | front kick | framåtspark | left hanmi, 1.0 m, right foot driven forward at belly height, hands up as a guard |
 
 ## What is not here yet
 
-- Kicks (mae geri), knife attacks (tanto tsuki, which is `chudan_tsuki` with a tanto held), and
-  the weapon attacks, which the weapon poses in `tools/build_fixtures.gd` already cover.
+- The weapon attacks with bokken and jo, which the weapon poses in `tools/build_fixtures.gd`
+  already cover; a `"weapons"` entry under `uke` (as `tanto_tsuki` has) is how one would go here.
 - Grips with the *other* stance relation (a katatedori from ai hanmi on the left side is
   `aihanmi_katatedori` mirrored; a gyaku hanmi grip taken with the near hand is `katatedori`).
 - Uke's second hand in the single grips hangs; a school that keeps it raised as a guard can add

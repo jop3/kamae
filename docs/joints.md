@@ -119,6 +119,21 @@ wrist's rest, not from wherever the hand was last frame, so a reloaded pose land
 was saved (`tests/test_m4.gd`). It knows joints, not bodies; an elbow can be turned into a chest
 to straighten a wrist. See the note at the top of `LimbTurn.gd` for what was tried.
 
+## The shoulder girdle
+
+An arm does not go overhead on the shoulder joint alone: past about 60° of elevation the shoulder
+blade turns upward on the ribs and the collarbone rises with it, about one degree in three (the
+scapulohumeral rhythm). The rig's clavicle sat at 0° in every pose, so an arm raised for a cut
+read as 180° of pure shoulder and the shoulders never rose. `src/rig/ShoulderGirdle.gd` is first
+in the modifier stack and elevates each clavicle for where its arm is going — the IK target for an
+arm in IK, the wrist under the authored pose for one in FK — as a fixed point (where the arm goes
+depends on where the shoulder is, which depends on where the arm goes; four rounds settle it),
+reading nothing from the previous frame, so a reloaded pose is the pose that was saved. The IK
+then solves from a shoulder that has moved and the hand still lands. Capped at 20°, below the
+book's 30°, and without protraction (the blade sliding forward on a reach across the body):
+both moved shoulders into poses authored without them — the shihonage pin most of all — and are
+left for poses authored with the girdle on.
+
 ## What the model found on the first day
 
 Run against the committed poses and the movements the tool can make, the joints reported (and

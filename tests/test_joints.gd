@@ -190,6 +190,27 @@ func _initialize() -> void:
 	check(hip["flex"] > 40.0, "a forward roll tucks the hips into flexion (%.0f°)" % hip["flex"])
 	check(uke.joint_limits.refused.is_empty(), "the tuck is inside every joint's range (%s)" % ", ".join(uke.joint_limits.report()))
 
+	# --- the shoulder girdle: the clavicle rises with the arm -----------------------------
+	PoseFile.apply(PoseFile.load(POSE), scene, director, ctrl)
+	await settle(4)
+	tori = scene.get_character("tori")
+	ctrl.set_limb_mode(tori, "RightArm", Limb.Mode.IK)
+	var arm2: Limb = tori.limbs["RightArm"]
+	arm2.target.global_position = tori.bone_world_transform("RightUpperArm").origin + Vector3(-0.05, -0.45, 0.15)
+	await settle(3)
+	check(tori.girdle.last.get("Right", [0.0, 0.0])[0] < 0.5, "an arm hanging leaves the clavicle alone (%.1f°)" % tori.girdle.last.get("Right", [0.0, 0.0])[0])
+	var shoulder_low: float = tori.bone_world_transform("RightUpperArm").origin.y
+	var overhead: Vector3 = tori.bone_world_transform("RightUpperArm").origin + Vector3(-0.05, 0.55, 0.10)
+	arm2.target.global_position = overhead
+	await settle(3)
+	var clav: float = tori.girdle.last.get("Right", [0.0, 0.0])[0]
+	check(clav > 15.0 and clav <= ShoulderGirdle.MAX_ELEVATION_DEG + 0.01, "an arm overhead raises the clavicle (%.0f°)" % clav)
+	check(tori.bone_world_transform("RightUpperArm").origin.y > shoulder_low + 0.02, "and the shoulder itself rises (%.3f m)" % (tori.bone_world_transform("RightUpperArm").origin.y - shoulder_low))
+	check(tori.bone_world_transform("RightHand").origin.distance_to(overhead) < 0.01 or arm2.reach_shortfall() > 0.0, "with the hand still on its target (%.3f m off)" % tori.bone_world_transform("RightHand").origin.distance_to(overhead))
+	var shoulder_flex: float = Anatomy.joint_angles(tori, "RightUpperArm")["flex"]
+	check(absf(shoulder_flex) < 175.0 or absf(Anatomy.joint_angles(tori, "RightUpperArm")["abd"]) < 175.0, "and the shoulder joint carries less than the whole elevation (%s)" % Joints.readout(tori.joints.specs["RightUpperArm"], Anatomy.joint_angles(tori, "RightUpperArm")))
+	check(tori.joint_limits.refused.is_empty(), "nothing refused with the arm overhead (%s)" % ", ".join(tori.joint_limits.report()))
+
 	# --- a grip a wrist cannot make is short of its orientation, and says so -------------
 	PoseFile.apply(PoseFile.load(POSE), scene, director, ctrl)
 	await settle(4)

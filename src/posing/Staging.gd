@@ -9,6 +9,8 @@ var tree: SceneTree
 var scene: PosingScene
 var director: GripDirector
 var ctrl: PoseController
+## Feet lifted on purpose ("id/Side"), which feet_on_floor leaves in the air.
+var _lifted: Dictionary = {}
 
 
 func _init(t: SceneTree, s: PosingScene, d: GripDirector, c: PoseController) -> void:
@@ -39,6 +41,38 @@ func hand_at(id: String, side: String, local_offset: Vector3) -> void:
 	var shoulder: Vector3 = r.bone_world_transform(side + "UpperArm").origin
 	r.limbs[side + "Arm"].target.global_position = shoulder + r.global_transform.basis * local_offset
 	r.limbs[side + "Arm"].reset_pole()
+
+
+## Lifts a foot to an offset from its own hip, in the character's frame, keeping the foot level:
+## a kick, a knee raised. The leg goes to IK.
+func foot_at(id: String, side: String, local_offset: Vector3) -> void:
+	var r := rig(id)
+	if r.limbs[side + "Leg"].mode != Limb.Mode.IK:
+		await ctrl.set_limb_mode(r, side + "Leg", Limb.Mode.IK)
+	var limb: Limb = r.limbs[side + "Leg"]
+	var hip: Vector3 = r.bone_world_transform(side + "UpperLeg").origin
+	var foot_now: Transform3D = r.bone_world_transform(side + "Foot")
+	limb.target.global_transform = Transform3D(foot_now.basis, hip + r.global_transform.basis * local_offset)
+	limb.set_orient_to_target(true)
+	limb.reset_pole()
+	_lifted["%s/%s" % [id, side]] = true
+
+
+## Puts a weapon of `type` in `id`'s `hand` at `t` along it (Weapon.default_hold's t when
+## negative), hand-driven, and returns it.
+func hold(id: String, side: String, type: String, t: float = -1.0, weapon_id: String = "") -> Weapon:
+	if weapon_id == "":
+		weapon_id = "%s_%s" % [type, id]
+	var w := scene.get_weapon(weapon_id)
+	if w == null:
+		w = scene.add_weapon(weapon_id, type)
+	var r := rig(id)
+	if r.limbs[side + "Arm"].mode != Limb.Mode.IK:
+		await ctrl.set_limb_mode(r, side + "Arm", Limb.Mode.IK)
+	var at: float = t if t >= 0.0 else float(w.default_hold(side)["t"])
+	director.hold_weapon(r, side, w, at)
+	await settle(3)
+	return w
 
 
 ## A hanmi stance: `front` foot a step forward, rear foot back and turned out, knees bent by
@@ -156,6 +190,9 @@ func release_all(gripper: String) -> void:
 	for grip in director.grips_for(gripper):
 		director._remove(grip)
 		fingers(gripper, grip.hand, 0.0)
+	for w in scene.weapons.duplicate():
+		if w.drive == "hand" and w.hold.get("character", "") == gripper:
+			scene.remove_weapon(w.weapon_id)
 	await settle()
 
 
@@ -176,6 +213,7 @@ func rest_limbs(id: String) -> void:
 		r.skeleton.set_bone_pose_rotation(i, r.skeleton.get_bone_rest(i).basis.get_rotation_quaternion())
 	for side in ["Right", "Left"]:
 		r.fingers.set_hand_curl(side, 0.0)
+		_lifted.erase("%s/%s" % [id, side])
 	await settle(2)
 	for key in r.limbs:
 		(r.limbs[key] as Limb).reset_target_to_pose()
@@ -199,7 +237,7 @@ func feet_on_floor() -> void:
 			var moved := false
 			for side in ["Right", "Left"]:
 				var leg: Limb = r.limbs[side + "Leg"]
-				if leg.mode != Limb.Mode.IK:
+				if leg.mode != Limb.Mode.IK or _lifted.has("%s/%s" % [r.character_id, side]):
 					continue
 				var err: float = 0.02 - r.bone_world_transform(side + "Toes").origin.y
 				if absf(err) > 0.004:
