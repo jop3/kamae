@@ -41,7 +41,8 @@ const SWING := {
 	"RightUpperArm": 170.0, "LeftUpperArm": 170.0,   ## shoulder, arm raised overhead or behind
 	"RightUpperLeg": 125.0, "LeftUpperLeg": 125.0,   ## hip
 	"RightHand": 90.0, "LeftHand": 90.0,             ## wrist: flexion, extension and deviation
-	"RightFoot": 55.0, "LeftFoot": 55.0,             ## ankle
+	"RightFoot": 95.0, "LeftFoot": 95.0,             ## ankle; kneeling lays the foot in line
+	                                                 ## with the shin, which is most of its range
 	"Spine": 60.0, "Chest": 45.0, "UpperChest": 35.0,   ## trunk flexion, most of it lumbar
 	"Neck": 60.0, "Head": 45.0,
 	"RightShoulder": 30.0, "LeftShoulder": 30.0,     ## the clavicle shrugs, it does not rotate

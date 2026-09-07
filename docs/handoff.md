@@ -565,3 +565,47 @@ was a proper fall in it, and 8 of 97 when it was still a man being slid through 
 with Uke standing where the throw left him, and `Ukemi.BACKWARD` and `Ukemi.PRONE` have no
 technique using them yet — they are tested, not exercised. A pin (ikkyo ends face down) is the
 obvious next one, and it is now a few lines rather than a research project.
+
+
+### Knees, pivoting and kneeling (this session)
+
+Asked how the tool was doing on knees, on techniques done kneeling, and on pivoting and turning a
+foot. The honest answer was: no knees at all. **The deepest knee bend in any committed pose was
+zero degrees** — every hanmi stance in every technique stands on straight legs, and the only bent
+knees in the repository are the two ukemi poses from the session before. `hanmi` has carried the
+comment "knees bent by dropping the hips" since M0 and it has never been true.
+
+One cause under all three questions: **the feet are attached to the body, not to the mat.** A
+leg's IK target is `add_child`-ed to the character root, so a foot goes wherever the body goes.
+Measured before the fix:
+
+- drop the hips 26 cm and the knee stays at 0 degrees while the whole figure sinks, the toe ending
+  34 cm below the floor;
+- turn the body 90 degrees and the "planted" foot travels 0.295 m, so nothing can pivot;
+- kneeling was not supported anywhere, and is not in the spec either.
+
+`PoseController.set_root` now takes a list of limbs to leave on the mat, and `src/rig/Stance.gd`
+is that idea applied to the four movements:
+
+| | before | after |
+|---|---|---|
+| `drop_hips(0.22)` | 0°, foot dragged down with the hips | 83° knee, foot moved 0.011 m |
+| `pivot("Right", 90)` | foot dragged 0.295 m | 0.003 m; the other foot swings 0.636 m |
+| `turn_foot("Left", 30)` | no control at all | 39° to 69°, foot moved 0.000 m |
+| `kneel(SEIZA)` | impossible | knee 0.021 m, toe 0.007 m, hips 0.250 m, 149° fold |
+| `kneel(KIZA)` | impossible | knee 0.076 m, toe 0.017 m, hips 0.330 m, 138° fold |
+
+`tests/test_stance.gd` covers all of it, and every check verifies the foot stayed on the mat while
+the body did something, since that is the whole mechanism.
+
+Two things worth knowing for later. Kneeling needs the foot to *keep* the flat orientation it had
+while standing: left to follow the shin it carries on past it and points through the floor, and
+the fix is the target's rotation, not its position. And the ankle limit of 55 degrees was mine and
+was wrong — a kneeling foot lies in line with its shin, which is most of the ankle's range, so it
+is 95 now; every committed pose still passes.
+
+**Not done, and it is a decision rather than an omission:** none of this is switched on for the
+eight existing techniques. Making `hanmi` bend the knees changes every committed pose, every
+render and every golden, which is the instructor's acceptance content — the same rebuild question
+as the wrists. It is a small change to `hanmi` plus a rebuild whenever that is wanted. Suwari-waza
+techniques can be authored from now on either way.
