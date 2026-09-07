@@ -37,8 +37,10 @@ func _initialize() -> void:
 	Stance.drop_hips(ctrl, rig, 0.22)
 	await settle(5)
 	var bent := Anatomy.flexion_deg(rig, "RightLeg")
-	check(straight < 10.0, "the stance starts with the leg straight (%.0f°)" % straight)
-	check(bent > 60.0, "dropping the hips 22 cm bends the knee (%.0f° to %.0f°)" % [straight, bent])
+	# The committed stances have bent knees now that hanmi drops the hips onto planted feet; before
+	# that this pose started at exactly zero and there was no way to change it.
+	check(straight > 15.0, "the committed stance already has the knee bent (%.0f°)" % straight)
+	check(bent > straight + 30.0, "dropping the hips 22 cm bends it further (%.0f° to %.0f°)" % [straight, bent])
 	check(foot_was.distance_to(rig.bone_world_transform("RightFoot").origin) < PLANTED,
 		"the foot stayed on the mat while the hips dropped (%.3f m)"
 		% foot_was.distance_to(rig.bone_world_transform("RightFoot").origin))

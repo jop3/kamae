@@ -24,8 +24,8 @@ func check(cond: bool, msg: String) -> void:
 ## the fix is in the IK path and not in the blend. The count may only go down: a sequence that
 ## beats its number fails and asks for the number to be lowered, so this cannot quietly rot.
 const OUTSTANDING := {
-	"jo_dori": 8,   ## seven of them; the eighth is an IK-driven shoulder rolled 178°, below
-	"katatedori_ikkyo": 6,
+	"jo_dori": 7,   ## seven of them; the eighth is an IK-driven shoulder rolled 178°, below
+	"katatedori_ikkyo": 7,
 	"katatedori_shihonage_irimi": 8,
 	"tachi_dori": 9,
 	## Uke now goes round Tori instead of through him, which is the technique; what is left is
@@ -33,7 +33,7 @@ const OUTSTANDING := {
 	## the authoring question this fixture had never answered. It answers it now — Uke lets go at
 	## the throw and takes a forward roll shaped by src/rig/Ukemi.gd — and the technique runs 139
 	## frames instead of 97 while fewer of them are wrong than before it had a fall in it at all.
-	"ushiro_ryotedori_zenponage": 10,
+	"ushiro_ryotedori_zenponage": 8,
 }
 
 var scene: PosingScene

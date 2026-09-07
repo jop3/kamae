@@ -8,31 +8,31 @@ func check(cond: bool, msg: String) -> void:
 	if cond: print("PASS ", msg)
 	else: failures += 1; print("FAIL ", msg)
 
-## Wrists bent far past a real one, in poses that are committed today. Every entry is a hand
-## forced onto a weapon or a grip while the forearm points somewhere else, so the wrist takes up
-## the difference; the fix is to choose the elbow that leaves the wrist neutral when a hand is
-## placed, and to rebuild the fixtures, which changes every weapon pose and wants the
-## instructor's eye first (docs/handoff.md, "The wrists in weapon holds"). Listed here so the
-## measurement stays on and nothing new or worse can slip in: an entry that stops happening is
-## itself a failure, so this list cannot rot.
+## What the committed poses still get wrong, pose by pose, so the measurement stays on and nothing
+## new or worse can slip in. An entry that stops happening is itself a failure, so this cannot rot:
+## a fix lands with its entry removed.
+##
+## These are wrists, and they are all the same thing: a hand placed on a weapon or a grip has its
+## position and its orientation both decided for it, and the wrist takes up whatever the forearm
+## does not. Choosing the elbow to suit the hand was tried and did not work — see docs/handoff.md,
+## "The wrists, and why the elbow is not the answer". The fix is to move the hand: where it sits
+## along the shaft and how it is rolled about it, which is a decision about the technique.
 const OUTSTANDING := {
-	"jo_dori_tsuki": ["uke1: LeftHand swung"],
-	"jo_dori_uke": ["tori: RightHand swung", "uke1: LeftHand swung"],
+	"jo_dori_tsuki": ["uke"],
+	"jo_dori_uke": ["tori: RightHand swung", "uke"],
 	"katatedori_ikkyo_kake": ["tori: LeftHand swung"],
 	"katatedori_shihonage_kake": ["tori: LeftHand swung"],
-	"katatedori_shihonage_kuzushi": ["uke1: LeftHand swung"],
-	"kumijo_kamae": ["tori: LeftHand swung", "uke1: LeftHand swung"],
-	"kumijo_tsuki": ["tori: LeftHand swung", "uke1: LeftHand swung"],
-	"kumitachi_awase": ["tori: RightHand swung", "tori: LeftHand swung",
-		"uke1: RightHand swung", "uke1: LeftHand swung"],
-	"kumitachi_uchi": ["tori: RightHand swung", "tori: LeftHand swung",
-		"uke1: RightHand swung", "uke1: LeftHand swung"],
-	"ryotemochi_grepp": ["uke1: RightHand swung", "uke2: LeftHand swung"],
-	"tachi_dori_irimi": ["uke1: RightHand swung", "uke1: LeftHand swung"],
-	"tachi_dori_kamae": ["uke1: RightHand swung", "uke1: LeftHand swung"],
-	"ushiro_ryotedori_zenponage_grepp": ["uke1: RightHand swung", "uke1: LeftHand swung"],
-	"ushiro_ryotedori_zenponage_tenkan": ["uke1: RightHand swung"],
-	"ushiro_ryotedori_zenponage_kake": ["uke1: RightHand swung"],
+	"katatedori_shihonage_kuzushi": ["uke"],
+	"kumijo_kamae": ["tori: LeftHand swung", "uke"],
+	"kumijo_tsuki": ["tori: LeftHand swung", "uke"],
+	"kumitachi_awase": ["tori: RightHand swung", "tori: LeftHand swung", "uke"],
+	"kumitachi_uchi": ["tori: RightHand swung", "tori: LeftHand swung", "uke"],
+	"ryotemochi_grepp": ["uke"],
+	"tachi_dori_irimi": ["uke"],
+	"tachi_dori_kamae": ["uke"],
+	"ushiro_ryotedori_zenponage_grepp": ["uke"],
+	"ushiro_ryotedori_zenponage_kake": ["uke"],
+	"ushiro_ryotedori_zenponage_tenkan": ["uke"],
 }
 
 var scene: PosingScene

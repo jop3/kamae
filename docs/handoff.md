@@ -609,3 +609,44 @@ eight existing techniques. Making `hanmi` bend the knees changes every committed
 render and every golden, which is the instructor's acceptance content — the same rebuild question
 as the wrists. It is a small change to `hanmi` plus a rebuild whenever that is wanted. Suwari-waza
 techniques can be authored from now on either way.
+
+
+### The knees, and the wrists that were not fixed (this session)
+
+**The knees are fixed, and the problem was bigger than it looked.** A leg's IK target hangs under
+the character's root, so a foot follows the body wherever it goes. `hanmi` set the root's height
+to drop the hips, which took the feet down with it: the figure sank, the knees never bent, and the
+docstring has claimed "knees bent by dropping the hips" since M0 without it ever being true. The
+deepest knee bend in twenty-four committed poses was **zero degrees**, in a martial art that is
+done entirely on bent legs.
+
+`PoseController.set_root` takes a list of limbs to leave on the mat, and `src/rig/Stance.gd` is
+that idea applied to the four things legs do: `drop_hips` (bends the knees, foot moves 11 mm),
+`pivot` (turns the body about one foot, that foot moves 3 mm, the other swings 0.64 m),
+`turn_foot` (out and in, without stepping), and `kneel` (seiza and kiza, shins on the mat — no
+suwari-waza was possible before, and the spec never mentioned it). `tests/test_stance.gd` covers
+all of it. `hanmi` now drops onto planted feet, so every committed stance has a real bend (37° at
+the default depth), and `save_pose` puts a standing figure's feet back on the mat afterwards,
+since bending the knees tilts the shins.
+
+One limit had to be corrected to allow it: an ankle may swing 95°, not 55°. A kneeling foot lies
+in line with its shin, which is most of an ankle's range.
+
+**The wrists were not fixed, and here is what was learned.** The plan was to choose the elbow to
+suit the hand: with the shoulder and the hand both pinned, the elbow can be anywhere on a circle
+between them, and each place on it points the forearm differently. That was built, measured, and
+**reverted**. It is worth knowing why before anyone tries it again.
+
+- On its own it works: the worst wrist went from 151° to 118°, and thirteen bad poses became eight.
+- But the arm has exactly *one* degree of freedom once the hand is placed, and on a two-handed
+  weapon hold no point on that circle gives both a straight wrist and a clear arm. Elbows ended up
+  inside the other arm — 8.5 cm deep between two Uke holding one arm.
+- Worse, and this is the part a pose-by-pose check cannot see: moving an elbow makes neighbouring
+  keyframes disagree about which side it is on, and the blend between them **rolls the humerus
+  145°** to get from one to the other. Every keyframe passed; `tests/check_motion.gd` showed
+  kumijo at 70 bad frames out of 70. Straightening a wrist by breaking a shoulder is not a fix.
+
+So the wrist is not the elbow's to solve. What is actually over-constrained is the *hand*: where
+it sits along the shaft and how it is rolled about it are both fixed by the hold, and one of them
+has to give. That is a decision about how the weapon is held — the instructor's, not the tool's.
+The nine remaining wrists are listed in `check_anatomy.gd`'s `OUTSTANDING`, worst 119°.

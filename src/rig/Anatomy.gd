@@ -19,6 +19,15 @@ const RADII := {
 	"RightFoot": 0.035, "LeftFoot": 0.035,
 }
 const PENETRATION := 0.035
+## An arm resting against its own torso is not a body passing through a body — people stand with a
+## forearm across their front, and a jo or a bokken held at the hip puts it there. The capsules are
+## coarse (a chest is one 10 cm cylinder), so that contact reads as several centimetres of overlap.
+## Own arm against own trunk is allowed this much before it counts. Between two characters, and for
+## every other pair, the ordinary limit applies.
+const RESTING := 0.065
+const TRUNK_BONES := ["Hips", "Spine", "Chest", "UpperChest"]
+const ARM_BONES := ["RightUpperArm", "LeftUpperArm", "RightLowerArm", "LeftLowerArm",
+	"RightHand", "LeftHand"]
 const WEAPON_RADIUS := 0.015
 
 ## Joint flexion limits in degrees: [min, max] of the angle between the two bone directions.
@@ -318,10 +327,17 @@ static func self_overlaps(rig: CharacterRig) -> Array:
 			if touching_by_design(a, b, parents):
 				continue
 			var hit := _overlap(segs[a], segs[b])
-			if hit["depth"] > PENETRATION:
+			if hit["depth"] > allowed_overlap(a, b):
 				hit["a"] = a; hit["b"] = b
 				out.append(hit)
 	return out
+
+
+## How deep two of one body's own capsules may overlap before it counts as passing through.
+static func allowed_overlap(a: String, b: String) -> float:
+	if (a in ARM_BONES and b in TRUNK_BONES) or (b in ARM_BONES and a in TRUNK_BONES):
+		return RESTING
+	return PENETRATION
 
 
 ## Two characters: any segment of one deeper than PENETRATION into any of the other, except a

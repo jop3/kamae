@@ -120,7 +120,7 @@ func straighten(id: String, bone: String) -> void:
 
 
 ## A hanmi stance: `front` foot a step forward and turned out a little, rear foot back and
-## turned out more, knees bent by dropping the hips. Feet are planted with leg IK, so later
+## turned out more, knees bent by dropping the hips onto planted feet. Feet are planted with leg IK, so later
 ## root moves (the step-in in save_pose) slide the figure without lifting a foot off the floor
 ## only if the targets move with it: they hang under the rig root, so they do.
 func hanmi(id: String, front: String = "Right", depth: float = 0.32, width: float = 0.16, drop: float = 0.06) -> void:
@@ -144,8 +144,13 @@ func hanmi(id: String, front: String = "Right", depth: float = 0.32, width: floa
 		limb.reset_pole()
 	foot.call(front, depth * 0.5, 0.0)
 	foot.call(rear, -depth * 0.5, 40.0 if rear == "Left" else -40.0)
-	r.position.y = -drop
+	await settle(2)
+	# The hips drop with the feet left on the mat, which is what bends the knees. Setting the
+	# root's height directly (as this did until now) takes the feet down with it, so every stance
+	# in every committed pose had a knee bend of exactly zero degrees.
+	Stance.drop_hips(ctrl, r, drop)
 	await settle(3)
+
 
 
 func fingers(id: String, side: String, curl: float) -> void:
@@ -180,6 +185,27 @@ func release_all(gripper: String) -> void:
 ## keeps a deliberate out-of-reach pose (spec 8.2) as it is.
 func save_pose(name: String, allow_short: bool = false) -> Dictionary:
 	await settle(3)
+	# A hand placed on a weapon or a grip has its orientation decided for it, and the wrist takes
+	# up whatever the forearm does not. Before the pose is kept, any wrist bent past what a wrist
+	# does gets its elbow chosen to suit the hand instead (src/rig/Wrist.gd).
+	# Anyone still on their feet stands on the floor: bending the knees tilts the shins, and the
+	# arm work above can pull a figure about, either of which lifts a foot a centimetre or two.
+	for r in scene.characters:
+		if not r.visible or absf(r.rotation.x) > 0.6 or absf(r.rotation.z) > 0.6:
+			continue
+		for pass_ in 3:
+			var moved := false
+			for side in ["Right", "Left"]:
+				var leg: Limb = r.limbs[side + "Leg"]
+				if leg.mode != Limb.Mode.IK:
+					continue
+				var err: float = 0.02 - r.bone_world_transform(side + "Toes").origin.y
+				if absf(err) > 0.004:
+					leg.target.global_position += Vector3(0.0, err, 0.0)
+					moved = true
+			if not moved:
+				break
+			await settle(3)
 	if not allow_short:
 		for attempt in 12:
 			var moves := {}   # gripper id -> [sum of directions, worst error]
