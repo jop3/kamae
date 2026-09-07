@@ -817,3 +817,15 @@ no entry in `check_anatomy.gd` any more — the first committed grip the joints 
 in — and its motion count is 9 (two frames of Uke's wrist at its edge as the arm is raised).
 The other six techniques still start from the old hand-placed grabs; the same two lines do
 it for any of them.
+
+### A fist bends the wrist less (same session)
+
+Tenodesis, the last of the hand rules: with the four knuckles curled, wrist flexion shrinks
+from 80° toward 50° and extension from 70° toward 45° (`Joints.limits`, gate "wrist";
+`JointLimits` reads the knuckles before it holds the wrist, `Anatomy.hand_context` passes the
+curl to anything that measures a wrist outside the modifier). It found eight more fists on the
+jo and the bokken past what a closed hand can do, all recorded in `check_anatomy.gd`. Two
+things it exposed on the way and that are fixed: an arm let go of a grip kept the grip's
+forearm roll and hand orientation into the roll (`Ukemi.shape` now relaxes the arm bones,
+turns the hand's orientation off and opens the fist), and the joint test's example of a refused
+grip was ikkyo's grepp, which no longer refuses anything, so it is ushiro ryotedori's now.

@@ -36,6 +36,9 @@ func _process_modification_with_delta(_delta: float) -> void:
 		refused = {}
 		return
 	var joints: Joints = rig.joints
+	# The wrist's range depends on how closed the hand is, and the hand is measured after the
+	# wrist (parents first), so the knuckles are read before anything is written.
+	var context := {"Right": {"curl": _curl(sk, joints, "Right")}, "Left": {"curl": _curl(sk, joints, "Left")}}
 	for bone in joints.order:
 		var i := sk.find_bone(bone)
 		if i < 0:
@@ -43,16 +46,31 @@ func _process_modification_with_delta(_delta: float) -> void:
 		var spec: Dictionary = joints.specs[bone]
 		var q := sk.get_bone_pose_rotation(i)
 		var a := Joints.angles(spec, q)
-		var c := Joints.clamp_angles(spec, a)
+		var ctx: Dictionary = context["Right"] if bone.begins_with("Right") else (context["Left"] if bone.begins_with("Left") else {})
+		var c := Joints.clamp_angles(spec, a, ctx)
 		var over := maxf(absf(c["flex"] - a["flex"]), maxf(absf(c["abd"] - a["abd"]), absf(c["twist"] - a["twist"])))
 		if over > 0.01:
 			if over >= RECORDED:
-				_pass[bone] = {"wanted": a, "held": c}
+				_pass[bone] = {"wanted": a, "held": c, "context": ctx}
 			q = Joints.rotation(spec, c["flex"], c["abd"], c["twist"])
 		# Written whether or not it changed: a modifier that skips a bone leaves it as the
 		# skeleton last had it (docs/engine-notes.md).
 		sk.set_bone_pose_rotation(i, q)
 	refused = _pass.duplicate()
+
+
+## How closed a hand is, 0 open to 1 a fist: the mean flexion of its four knuckles over 90°.
+static func _curl(sk: Skeleton3D, joints: Joints, side: String) -> float:
+	var total := 0.0
+	var n := 0
+	for finger in ["Index", "Middle", "Ring", "Little"]:
+		var bone: String = side + finger + "Proximal"
+		var i := sk.find_bone(bone)
+		if i < 0 or not joints.has(bone):
+			continue
+		total += Joints.angles(joints.specs[bone], sk.get_bone_pose_rotation(i))["flex"]
+		n += 1
+	return clampf(total / (90.0 * maxf(n, 1)), 0.0, 1.0)
 
 
 ## What the last pass refused, one line per joint, for the checks and the panel.
@@ -63,7 +81,7 @@ func report() -> PackedStringArray:
 	for bone in rig.joints.order:
 		if not refused.has(bone):
 			continue
-		var line := Joints.describe(rig.joints.specs[bone], refused[bone]["wanted"])
+		var line := Joints.describe(rig.joints.specs[bone], refused[bone]["wanted"], refused[bone].get("context", {}))
 		if line != "":
 			out.append("%s: %s" % [bone, line])
 	return out

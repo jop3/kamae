@@ -51,7 +51,7 @@ Negative is the first-named direction.
 | clavicle | gliding | depression 10 / elevation 45 | retraction 30 / protraction 30 | 15 |
 | shoulder | ball | extension 60 / flexion 180 | adduction 45 / abduction 180 | internal 90 / external 90 |
 | elbow | hinge | 5 / 155 | carrying angle 8 | supination 85 / pronation 80 |
-| wrist | condyloid | extension 70 / flexion 80 | radial 20 / ulnar 30 | roll 45 |
+| wrist | condyloid | extension 70 / flexion 80 (open hand); 45 / 50 with a fist | radial 20 / ulnar 30 | roll 45 |
 | knuckle (MCP) | condyloid | 30 / 90 | 20 (30 little finger) | 10 |
 | finger PIP | hinge | 5 / 100 | 4 | 5 |
 | finger DIP | hinge | 15 / 80 | 4 | 5 |
@@ -69,14 +69,18 @@ loads the midfoot too); the wrist's roll (the forearm bone carries pronation and
 hands the wrist what the forearm and shoulder cannot take); and the thumb joints' roll
 (`FingerCurl` folds the whole thumb about one axis, which each phalanx reads as a little roll).
 
-Four ranges **depend on the joint's own position**, which is what makes them joints rather than
-three sliders:
+Five ranges **depend on the joint's position or its neighbours'**, which is what makes them
+joints rather than three sliders:
 
 - a **knee** turns 5° when straight and about 35° once bent to 90° (the screw-home lock);
 - a **knuckle** spreads 20° while the finger is open and not at all once it has curled;
 - a **shoulder** adducts across the body only as far as the arm is also raised forward;
 - a **forearm's** roll is the elbow's twist, so it is measured on the forearm bone, and which sign
-  is pronation is read off the palm at build time rather than assumed.
+  is pronation is read off the palm at build time rather than assumed;
+- a **wrist** bends less with the fist closed (tenodesis: the finger tendons run over the
+  wrist), flexion shrinking from 80° toward 50° and extension from 70° toward 45° as the four
+  knuckles curl; `JointLimits` reads the knuckles before it holds the wrist, and everything that
+  measures a wrist passes the hand's curl along (`Anatomy.hand_context`).
 
 ## Where the rules take effect
 

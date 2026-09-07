@@ -189,10 +189,19 @@ static func range_problems(rig: CharacterRig) -> PackedStringArray:
 		return rig.joint_limits.report()
 	var out := PackedStringArray()
 	for bone in rig.joints.order:
-		var line := Joints.describe(rig.joints.specs[bone], joint_angles(rig, bone))
+		var line := Joints.describe(rig.joints.specs[bone], joint_angles(rig, bone), hand_context(rig, bone))
 		if line != "":
 			out.append("%s: %s" % [bone, line])
 	return out
+
+
+## What a joint's range depends on besides itself: for a wrist, how closed its hand is
+## (Joints.limits, "wrist"), as JointLimits measures it.
+static func hand_context(rig: CharacterRig, bone: String) -> Dictionary:
+	if not bone.ends_with("Hand") or rig.joints == null:
+		return {}
+	var side := "Right" if bone.begins_with("Right") else "Left"
+	return {"curl": JointLimits._curl(rig.skeleton, rig.joints, side)}
 
 
 ## The joint's angles on screen: {"flex", "abd", "twist"} in degrees, from the solved pose.

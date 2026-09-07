@@ -129,7 +129,16 @@ func _initialize() -> void:
 	tori.fingers.set_hand_curl("Right", 1.0)
 	await settle(2)
 	check(tori.joint_limits.refused.is_empty(), "a closed fist is within every finger joint's range (%s)" % ", ".join(tori.joint_limits.report()))
+	# Tenodesis: the fist bends the wrist less than the open hand did.
+	sk.set_bone_pose_rotation(sk.find_bone("RightHand"), Joints.rotation(j.spec("RightHand"), 78.0, 0.0, 0.0))
+	await settle(2)
+	var fist_flex: float = Anatomy.joint_angles(tori, "RightHand")["flex"]
+	check(fist_flex < 65.0 and tori.joint_limits.refused.has("RightHand"), "a closed fist holds the wrist to less flexion than an open hand (78° asked, %.0f° shown)" % fist_flex)
 	tori.fingers.set_hand_curl("Right", 0.0)
+	await settle(2)
+	check(absf(Anatomy.joint_angles(tori, "RightHand")["flex"] - 78.0) < 0.5, "and the open hand has it back (%.0f°)" % Anatomy.joint_angles(tori, "RightHand")["flex"])
+	ctrl.reset_bone(tori, "RightHand")
+	await settle(2)
 
 	# --- the rest of the limb takes up what a joint cannot -------------------------------
 	# An elbow steered where the humerus cannot twist: the shoulder turns the arm about the
@@ -212,12 +221,14 @@ func _initialize() -> void:
 	check(tori.joint_limits.refused.is_empty(), "nothing refused with the arm overhead (%s)" % ", ".join(tori.joint_limits.report()))
 
 	# --- a grip a wrist cannot make is short of its orientation, and says so -------------
-	PoseFile.apply(PoseFile.load(POSE), scene, director, ctrl)
+	# (Katatedori ikkyo's grepp used to be the example; it starts from the attacks catalogue
+	# now and refuses nothing. Ushiro ryotedori's grepp still bends both wrists past 80°.)
+	PoseFile.apply(PoseFile.load("res://poses/ushiro_ryotedori_zenponage_grepp.json"), scene, director, ctrl)
 	await settle(4)
 	uke = scene.get_character("uke1")
 	tori = scene.get_character("tori")
 	var g: Grip = director.grip_on_limb("uke1", "LeftArm")
-	check(g != null and uke.joint_limits.refused.has("LeftHand"), "Uke's katatedori in the committed pose asks a wrist for more than it has (%s)" % ", ".join(uke.joint_limits.report()))
+	check(g != null and uke.joint_limits.refused.has("LeftHand"), "Uke's ushiro ryotedori in the committed pose asks a wrist for more than it has (%s)" % ", ".join(uke.joint_limits.report()))
 	var off := rad_to_deg(uke.bone_world_transform("LeftHand").basis.orthonormalized().get_rotation_quaternion().angle_to(uke.limbs["LeftArm"].target.global_basis.orthonormalized().get_rotation_quaternion()))
 	check(off > 0.5 and director.error_for(g) < 0.005, "so the hand is on the wrist (%.3f m) but %.1f° short of the orientation asked" % [director.error_for(g), off])
 

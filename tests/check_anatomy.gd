@@ -21,7 +21,9 @@ func check(cond: bool, msg: String) -> void:
 ## asked for the rest. What is left is where no elbow position helps: Uke standing so far from
 ## Tori that his arm is straight (a katatedori needs the forearm across the wrist, so the elbow
 ## out — katatedori ikkyo starts from the attacks catalogue now and has no entry), or a
-## two-handed hold rolled about the shaft to an angle no wrist reaches. Those are
+## two-handed hold rolled about the shaft to an angle no wrist reaches — and since a closed fist
+## bends the wrist less than an open hand (Joints, "wrist"), the fists on the jo and the bokken
+## are held to 50° of extension where an open hand would have 70°. Those are
 ## decisions about the technique — where Uke stands, how the weapon is held — and the
 ## instructor's to make; see docs/handoff.md. The shoulders are the same: an arm behind the
 ## back (ushiro) or across the body further than a shoulder goes. Shihonage was re-authored
@@ -29,21 +31,22 @@ func check(cond: bool, msg: String) -> void:
 ## most of its entries; what is left is Uke's forearm rolled as the grip turns it.
 const OUTSTANDING := {
 	"jo_dori_kake": ["uke1: LeftUpperArm: shoulder internal rotation"],
-	"jo_dori_tsuki": ["uke1: LeftHand: wrist extension"],
-	"jo_dori_uke": ["tori: RightHand: wrist extension", "uke1: LeftHand: wrist extension"],
+	"jo_dori_tsuki": ["uke1: LeftHand: wrist extension", "uke1: RightHand: wrist extension"],
+	"jo_dori_uke": ["tori: RightHand: wrist extension", "uke1: LeftHand: wrist extension", "uke1: RightHand: wrist extension"],
 	"katatedori_ikkyo_kake": ["tori: LeftUpperArm: shoulder adduction", "tori: LeftHand: wrist extension"],
 	"katatedori_shihonage_kake": ["tori: LeftHand: wrist radial deviation", "tori: RightHand: wrist flexion", "uke1: LeftUpperArm: shoulder adduction"],
 	"katatedori_shihonage_kuzushi": ["uke1: LeftHand: wrist flexion"],
-	"kumijo_kamae": ["tori: LeftHand: wrist extension", "uke1: LeftHand: wrist extension"],
-	"kumijo_tsuki": ["tori: LeftUpperArm: shoulder adduction", "tori: LeftHand: wrist extension", "uke1: LeftHand: wrist extension"],
+	"kumijo_kamae": ["tori: LeftHand: wrist extension", "tori: RightHand: wrist extension", "uke1: LeftHand: wrist extension", "uke1: RightHand: wrist extension"],
+	"kumijo_tsuki": ["tori: LeftUpperArm: shoulder adduction", "tori: LeftHand: wrist extension", "tori: RightHand: wrist extension", "uke1: LeftHand: wrist extension", "uke1: RightHand: wrist extension"],
 	"kumitachi_awase": ["tori: LeftHand: wrist extension", "tori: RightHand: wrist extension", "uke1: LeftHand: wrist extension", "uke1: RightHand: wrist extension"],
 	"kumitachi_uchi": ["tori: LeftHand: wrist extension", "tori: RightHand: wrist extension", "uke1: LeftHand: wrist extension", "uke1: RightHand: wrist extension"],
 	"ryotemochi_grepp": ["uke1: RightHand: wrist flexion", "uke2: LeftHand: wrist flexion"],
+	"ryotemochi_kuzushi": ["uke1: RightHand: wrist flexion", "uke2: LeftHand: wrist flexion"],
 	"tachi_dori_irimi": ["uke1: LeftHand: wrist extension", "uke1: RightHand: wrist extension"],
 	"tachi_dori_kamae": ["uke1: LeftHand: wrist extension", "uke1: RightHand: wrist extension"],
 	"ushiro_ryotedori_zenponage_grepp": ["uke1: LeftHand: wrist flexion", "uke1: RightHand: wrist flexion"],
 	"ushiro_ryotedori_zenponage_kake": ["uke1: LeftUpperArm: shoulder extension", "uke1: RightUpperArm: shoulder extension", "uke1: RightHand: wrist extension"],
-	"ushiro_ryotedori_zenponage_kuzushi": ["uke1: LeftHand: wrist radial deviation", "uke1: RightHand: wrist radial deviation"],
+	"ushiro_ryotedori_zenponage_kuzushi": ["uke1: LeftHand: wrist extension", "uke1: RightHand: wrist extension"],
 	"ushiro_ryotedori_zenponage_tenkan": ["uke1: LeftUpperArm: shoulder extension", "uke1: RightUpperArm: shoulder extension", "uke1: LeftLowerArm: elbow supination", "uke1: LeftHand: wrist ulnar deviation", "uke1: RightHand: wrist flexion"],
 }
 

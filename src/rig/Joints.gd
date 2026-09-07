@@ -105,7 +105,7 @@ func _build(sk: Skeleton3D, fingers: FingerCurl) -> void:
 			[-70.0, 80.0], [-20.0, 30.0], [-45.0, 45.0],
 			{"flex": ["extension", "flexion"], "abd": ["radial deviation", "ulnar deviation"],
 				"twist": ["rolled toward the thumb", "rolled toward the little finger"] if side == "Right" \
-					else ["rolled toward the little finger", "rolled toward the thumb"]})
+					else ["rolled toward the little finger", "rolled toward the thumb"]}, "wrist")
 		# Fingers. The flexion axis of every phalanx is the one FingerCurl measured (across the
 		# knuckles, positive toward the palm). A knuckle spreads only while the finger is open.
 		var width: Vector3 = (hand_rest.basis.orthonormalized() * fingers.palm_width(side)).normalized()
@@ -288,12 +288,19 @@ static func rotation(spec: Dictionary, flex: float, abd: float, twist: float) ->
 ## joint's own position, which is what makes them joints rather than three sliders:
 ##   knee — rotation is locked with the knee straight and opens up as it bends (about 35° at 90°);
 ##   mcp  — a finger spreads while it is open and the spread closes as it curls;
-##   shoulder — the arm crosses the body (adduction) only when it is also raised forward.
-static func limits(spec: Dictionary, a: Dictionary) -> Dictionary:
+##   shoulder — the arm crosses the body (adduction) only when it is also raised forward;
+##   wrist — a closed fist bends the wrist less than an open hand (the finger tendons run over
+##     the wrist: with the fingers curled, flexion drops from 80° toward 50° and extension from
+##     70° toward 45°). This one reads the fingers, which `context["curl"]` carries: the mean
+##     knuckle flexion of that hand as a fraction of 90°, 0 when unknown.
+static func limits(spec: Dictionary, a: Dictionary, context: Dictionary = {}) -> Dictionary:
 	var flex: Array = spec["flex"]
 	var abd: Array = spec["abd"]
 	var twist: Array = spec["twist"]
 	match spec["gate"]:
+		"wrist":
+			var curl: float = clampf(float(context.get("curl", 0.0)), 0.0, 1.0)
+			flex = [flex[0] * (1.0 - 0.35 * curl), flex[1] * (1.0 - 0.375 * curl)]
 		"knee":
 			var open: float = clampf(a["flex"] / 90.0, 0.0, 1.0)
 			var t: float = 5.0 + (twist[1] - 5.0) * open
@@ -308,8 +315,8 @@ static func limits(spec: Dictionary, a: Dictionary) -> Dictionary:
 
 
 ## The same angles brought inside the joint's range.
-static func clamp_angles(spec: Dictionary, a: Dictionary) -> Dictionary:
-	var lim := limits(spec, a)
+static func clamp_angles(spec: Dictionary, a: Dictionary, context: Dictionary = {}) -> Dictionary:
+	var lim := limits(spec, a, context)
 	var flex := _nearest_turn(a["flex"], lim["flex"][0], lim["flex"][1])
 	return {
 		"flex": clampf(flex, lim["flex"][0], lim["flex"][1]),
@@ -319,24 +326,24 @@ static func clamp_angles(spec: Dictionary, a: Dictionary) -> Dictionary:
 
 
 ## By how much each angle lies outside its range, degrees; all zero for a plausible joint.
-static func excess(spec: Dictionary, a: Dictionary) -> Dictionary:
-	var c := clamp_angles(spec, a)
+static func excess(spec: Dictionary, a: Dictionary, context: Dictionary = {}) -> Dictionary:
+	var c := clamp_angles(spec, a, context)
 	return {"flex": absf(_nearest_turn(a["flex"], c["flex"], c["flex"]) - c["flex"]),
 		"abd": absf(a["abd"] - c["abd"]), "twist": absf(a["twist"] - c["twist"])}
 
 
 ## The local rotation with the joint held inside its range; `q` itself when it already is.
-static func clamp_rotation(spec: Dictionary, q: Quaternion) -> Quaternion:
+static func clamp_rotation(spec: Dictionary, q: Quaternion, context: Dictionary = {}) -> Quaternion:
 	var a := angles(spec, q)
-	var c := clamp_angles(spec, a)
+	var c := clamp_angles(spec, a, context)
 	if absf(c["flex"] - a["flex"]) < 1e-3 and absf(c["abd"] - a["abd"]) < 1e-3 and absf(c["twist"] - a["twist"]) < 1e-3:
 		return q
 	return rotation(spec, c["flex"], c["abd"], c["twist"])
 
 
 ## A joint that could not be held inside its range, in words: "wrist flexion 119°, past 80°".
-static func describe(spec: Dictionary, a: Dictionary) -> String:
-	var lim := limits(spec, a)
+static func describe(spec: Dictionary, a: Dictionary, context: Dictionary = {}) -> String:
+	var lim := limits(spec, a, context)
 	var parts := PackedStringArray()
 	for key in ["flex", "abd", "twist"]:
 		var v: float = a[key] if key != "flex" else _nearest_turn(a[key], lim[key][0], lim[key][1])
