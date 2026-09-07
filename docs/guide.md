@@ -57,6 +57,19 @@ selected figure's left and right; **Copy pose to** gives another figure the same
    joint can also be clicked and turned on its own (a pointing finger, a spread hand); the curl
    slider then closes it from there.
 
+## Starting from an attack
+
+Every technique begins with an attack, and the panel's **Start from an attack** section sets one
+up for you: pick it (katatedori, ryotedori, morotedori, katadori, munedori, ushiro ryotedori,
+ushiro kubishime, shomenuchi, tsuki, …), tick **mirror** for the other side, press **Stage**.
+Tori stands at the origin in hanmi offering what the attack takes; Uke stands in hanmi where the
+attack has him with his hands on their targets; and Uke is then moved to where his arms can
+actually make the grip, which is usually a little closer and further round than a script would
+put him. The line under the button says what was staged and how far Uke moved. It replaces the
+current pose and cannot be undone, so save first if the pose matters. `docs/attacks.md` lists
+every attack with its names in the different schools and in Swedish; the same list is
+`data/attacks.json`, which you can edit if a name or a distance is not how your dojo does it.
+
 ## Grips (the important part)
 
 A grip keeps one figure's hand on another figure's body while either of them moves.

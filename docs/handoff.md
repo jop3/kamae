@@ -740,3 +740,38 @@ one evaluation per limb per frame.
 - **The goldens.** Every rendered still changed (knees from the hip, wrists at their edge, hips
   tucked in the rolls) and was refreshed with `UPDATE_GOLDEN=1` after looking at the renders; the
   next person should look too.
+
+
+### The attacks catalogue (same session, on request)
+
+"Some kind of cheat list on how every grip from aikido should be situated, to make it faster to
+build specific techniques, connected to the various names." It is `data/attacks.json`, written
+out as `docs/attacks.md`, and it is not only a list: `src/posing/Attacks.gd` stages any entry —
+from the panel ("Start from an attack"), from `tools/stage_attack.gd`, or from a script through
+`src/posing/Staging.gd`, which is `build_fixtures.gd`'s hanmi / hand_at / grab as a class anyone
+can use. Twenty entries: eleven grips from the front, four holds from behind, four strikes, and
+katadori menuchi; names for Aikikai, Iwama, Yoshinkan, Ki Society and Tomiki usage, English and
+Swedish, with the ones I am not sure of marked *check* in the data for the instructor to fix.
+
+Two things were learned building it, both of which the joints forced:
+
+- **A fist takes a wrist from the side, not the top.** Every fixture grabbed from above, which
+  is where a script puts a hand; the wrap then has the fingers across the wrist and the hand at
+  right angles to it, so the forearm must arrive at right angles too — from above that means a
+  forearm coming down vertically, and from a shoulder at 1.3 m that is a wrist bent 50–90°.
+  `Staging.grab` works the side out from Uke's shoulder (perpendicular to the wrist and to the
+  line from the shoulder), tries both such sides and both ways the fingers can run, plus the
+  skews an entry allows (a cross-hand grab wants the fingers diagonal), and keeps the wrap Uke's
+  joints refuse least. `GripDirector.attach_wrapped` grew `flip` and `skew_deg` for it.
+- **Where Uke stands is the joints' to decide.** `Attacks._fit` tries Uke at up to 49 places
+  round the catalogue's and keeps the one with no refusal, no hand short and no body inside
+  another. Every grip in the catalogue now stages with nothing refused (`tests/test_attacks.gd`,
+  `ATTACKS_VERBOSE=1` prints the places). Katatedori ends 16 cm closer than the old fixture had
+  Uke; morotedori has Uke 40 cm round to the side, both forearms across the arm; ushiro ryotedori
+  is 7 cm closer. That is the answer to "where Uke stands", the first item on the earlier list.
+
+**Not done:** the eight committed techniques still start from their old fixture grips (the ones
+`check_anatomy.gd` lists), because rebuilding them changes the instructor's acceptance content;
+`ONLY=<technique>` in `build_fixtures.gd` plus `Attacks.stage` in place of the hand-placed grab is
+the way when that is wanted. Kicks and knife attacks are not in the catalogue. Staging in the
+app takes a few seconds (the fit solves the skeleton ~50 times) and is not undoable.

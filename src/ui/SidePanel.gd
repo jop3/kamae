@@ -32,6 +32,9 @@ var _euler_names: Array[Label] = []
 ## The selected joint's own angles (flexion, abduction, twist), what a person would call them,
 ## and how far each goes: filled from the joint catalogue (Joints) when a joint is selected.
 var _joint_readout: Label
+var _attack_pick: OptionButton
+var _attack_mirror: CheckBox
+var _attack_info: Label
 var _joint_kind: Label
 var _euler_mode := true   ## true: raw X/Y/Z on a bone with no joint entry (the hips)
 var _edit: Dictionary = {}
@@ -232,6 +235,26 @@ func setup(ctrl: PoseController, posing_scene: PosingScene, grip_director: GripD
 		warn.custom_minimum_size.x = 70
 		row.add_child(warn)
 		_limb_warnings[limb_key] = warn
+
+	vb.add_child(_header("Start from an attack"))
+	var attack_hint := Label.new()
+	attack_hint.text = "Sets Tori and Uke up in the chosen attack (data/attacks.json, docs/attacks.md): stances, the hands on their targets, Uke where his arms can make the grip. Replaces the pose; not undoable."
+	attack_hint.add_theme_font_size_override("font_size", 11)
+	attack_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	vb.add_child(attack_hint)
+	var attack_row := HBoxContainer.new(); vb.add_child(attack_row)
+	_attack_pick = OptionButton.new(); _attack_pick.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	for key in Attacks.keys():
+		_attack_pick.add_item(Attacks.names(key).get("short", key))
+		_attack_pick.set_item_metadata(_attack_pick.item_count - 1, key)
+	attack_row.add_child(_attack_pick)
+	_attack_mirror = CheckBox.new(); _attack_mirror.text = "mirror"; attack_row.add_child(_attack_mirror)
+	var stage_btn := Button.new(); stage_btn.text = "Stage"
+	stage_btn.pressed.connect(_on_stage_attack)
+	attack_row.add_child(stage_btn)
+	_attack_info = Label.new(); _attack_info.add_theme_font_size_override("font_size", 11)
+	_attack_info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	vb.add_child(_attack_info)
 
 	vb.add_child(_header("Grips"))
 	var grip_hint := Label.new()
@@ -752,6 +775,31 @@ static func _pretty(bone: String) -> String:
 	for pair in [["Left", "left "], ["Right", "right "], ["UpperArm", "upper arm"], ["LowerArm", "forearm"], ["UpperLeg", "thigh"], ["LowerLeg", "shin"], ["UpperChest", "upper chest"], ["Metacarpal", " base"], ["Proximal", " 1"], ["Intermediate", " 2"], ["Distal", " tip"], ["Little", "pinky"]]:
 		s = s.replace(pair[0], pair[1])
 	return s.to_lower()
+
+
+## Stages the chosen attack on Tori and the first Uke, and says where the joints put Uke.
+func _on_stage_attack() -> void:
+	if _attack_pick.selected < 0:
+		return
+	var key: String = _attack_pick.get_item_metadata(_attack_pick.selected)
+	var tori := scene.get_character("tori")
+	var uke := scene.get_character("uke1")
+	if tori == null or uke == null:
+		_attack_info.text = "Needs Tori and Uke (uke1) in the scene."
+		return
+	_attack_info.text = "Staging…"
+	var st := Staging.new(get_tree(), scene, grips, controller)
+	var report: Dictionary = await Attacks.stage(st, key, {"mirror": _attack_mirror.button_pressed})
+	var n := Attacks.names(key)
+	var text := "%s (%s). %s" % [n.get("short", key), n.get("english", ""), Attacks.entry(key).get("description", "")]
+	if not report["refused"].is_empty():
+		text += "\nUke's arm still cannot: " + ", ".join(report["refused"])
+	if report["uke_offset"] > 0.01:
+		text += "\nUke moved %.0f cm from the catalogue's place to make the grip." % (report["uke_offset"] * 100.0)
+	_attack_info.text = text
+	controller.undo.clear_history()
+	controller.select(null, "")
+	_refresh_values()
 
 
 func _on_limb_toggled(pressed: bool, limb_key: String) -> void:
