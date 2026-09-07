@@ -829,3 +829,29 @@ things it exposed on the way and that are fixed: an arm let go of a grip kept th
 forearm roll and hand orientation into the roll (`Ukemi.shape` now relaxes the arm bones,
 turns the hand's orientation off and opens the fist), and the joint test's example of a refused
 grip was ikkyo's grepp, which no longer refuses anything, so it is ushiro ryotedori's now.
+
+## Where things stand after 2026-09-07
+
+Branch `claude/hand-joint-movement-physics-c6ubtl`, every commit pushed, `tests/run.sh` green
+with the goldens refreshed. What the day added, in the order to read it:
+
+1. `docs/joints.md` — the body knows its joints: kinds, axes measured from the rig, asymmetric
+   ranges, five gates (knee, knuckle, shoulder, forearm sign, fist), `JointLimits` holding
+   every pose inside them and reporting what it refused, the limb turn that spends what a joint
+   cannot, the shoulder girdle. `tests/test_joints.gd`.
+2. `docs/attacks.md` — the cheat sheet: twenty-two attacks named across schools and in Swedish,
+   placed, and staged by the tool from the panel, the CLI or a script, with Uke put where his
+   joints can make the grip. `tests/test_attacks.gd`.
+3. `poses/` — the three rolling poses of ushiro ryotedori zenponage rebuilt (hips tucked),
+   shihonage re-authored (arm past the face, hand behind the shoulder), katatedori ikkyo and
+   shihonage starting from the catalogue's katatedori.
+4. What each check still lists — `tests/check_anatomy.gd`'s and `tests/check_motion.gd`'s
+   `OUTSTANDING` — with the reason in the file. Nearly all of it is the roll of a hand on a
+   weapon or a wrist, which is the instructor's decision, and the re-grip frames, which are
+   intermediate poses to author.
+
+Next, in order: the remaining six techniques from the catalogue (`attack()` in
+`build_fixtures.gd`, two lines each, then look at the renders); the weapon holds' roll
+(`Weapon.default_hold`); the re-grip intermediate poses (`tools/add_step.gd`); coupled fingers
+(a DIP that follows its PIP when either is posed by hand). Kicks and knives are in the catalogue;
+bokken and jo attacks are not.
