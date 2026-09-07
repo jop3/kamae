@@ -64,11 +64,16 @@ func build(character_rig: Node3D, sk: Skeleton3D, target_node: Node3D, pole_node
 	twist.middle_bone = middle_bone
 	twist.end_bone = end_bone
 	twist.rest_bend_local = Anatomy.rest_bend_local(skeleton, key)
+	twist.rig = rig
 	twist.enabled = false
 	skeleton.add_child(twist)   # after the IK node: it corrects the solve before the hand is oriented
 	hand_orient = HandOrient.new()
 	hand_orient.name = "Orient_" + key
 	hand_orient.bone_name = end_bone
+	hand_orient.root_bone = root_bone
+	hand_orient.middle_bone = middle_bone
+	hand_orient.is_arm = is_arm
+	hand_orient.rig = rig
 	hand_orient.target = target
 	hand_orient.enabled = false
 	skeleton.add_child(hand_orient)  # after the IK node, so it runs after the solve

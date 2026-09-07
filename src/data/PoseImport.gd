@@ -268,7 +268,12 @@ static func _aim(rig: CharacterRig, bone: String, toward: String, want: Vector3)
 	var new_basis := Basis(axis_skel, angle) * g_skel.basis.orthonormalized()
 	var parent := sk.get_bone_parent(idx)
 	var parent_basis := (sk.global_transform.affine_inverse() * rig.bone_world_transform(sk.get_bone_name(parent))).basis.orthonormalized() if parent >= 0 else Basis.IDENTITY
-	sk.set_bone_pose_rotation(idx, (parent_basis.inverse() * new_basis).orthonormalized().get_rotation_quaternion())
+	var q := (parent_basis.inverse() * new_basis).orthonormalized().get_rotation_quaternion()
+	# Landmarks come from a camera and a guess at depth; a bone aimed at them can be asked for a
+	# joint no body has. The draft is a possible person: the joint goes as far as it goes.
+	if rig.joints and rig.joints.has(bone):
+		q = Joints.clamp_rotation(rig.joints.specs[bone], q)
+	sk.set_bone_pose_rotation(idx, q)
 
 
 # ---------------------------------------------------------------- grips

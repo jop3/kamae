@@ -149,7 +149,10 @@ func _initialize() -> void:
 	await settle()
 	var hand_gap := director.contact_gap(jo, 0.9, bokken, 0.5)
 	var short: float = tori.limbs["RightArm"].reach_shortfall()
-	check(hand_gap < 0.01 or absf(hand_gap - short) < 0.01, "gap closed by moving the holder's hand, or short by exactly its reach (gap %.3f, shortfall %.3f)" % [hand_gap, short])
+	# The hand is moved with the jo's angle fixed; at full stretch the arm has nothing left to
+	# turn, so a jo held at an angle the wrist cannot make leaves the gap open and says so.
+	var wrist_refused: bool = tori.joint_limits.refused.has("RightHand")
+	check(hand_gap < 0.01 or absf(hand_gap - short) < 0.01 or wrist_refused, "gap closed by moving the holder's hand, or short by exactly its reach, or the wrist could not take the jo's angle (gap %.3f, shortfall %.3f, refused %s)" % [hand_gap, short, tori.joint_limits.report()])
 	check(tori.limbs["RightArm"].mode == Limb.Mode.IK, "the holding arm switched to IK")
 	ctrl.undo.undo()
 	await settle()

@@ -22,6 +22,7 @@ var _mode_change_pending: Dictionary = {}   ## "id/limb" -> true while an IK/FK 
 var selected_bone := ""
 var selected_limb := ""      ## limb key while an IK handle is selected, else ""
 var _drag_old_rot := Quaternion.IDENTITY
+var _drag_edit: Dictionary = {}
 var _dragging_handle: LimbHandle
 var _drag_plane := Plane()
 var _drag_handle_start := Vector3.ZERO
@@ -196,8 +197,17 @@ func set_bone_rotation(rig: CharacterRig, bone_name: String, q: Quaternion) -> v
 		var parent_basis := rig.bone_world_transform(sk.get_bone_name(parent)).basis.orthonormalized()
 		_set_target_basis(rig, limb, (parent_basis * Basis(q.normalized())).orthonormalized())
 	else:
-		rig.skeleton.set_bone_pose_rotation(rig.skeleton.find_bone(bone_name), q.normalized())
+		rig.skeleton.set_bone_pose_rotation(rig.skeleton.find_bone(bone_name), within_range(rig, bone_name, q))
 	pose_changed.emit()
+
+
+## A rotation asked of a bone, held inside what that joint can do (Joints): the rings and the
+## sliders stop at the joint's range rather than posing a wrist a wrist cannot make. A bone that
+## is not a joint in the catalogue (the hips) is free.
+func within_range(rig: CharacterRig, bone_name: String, q: Quaternion) -> Quaternion:
+	if rig.joints and rig.joints.has(bone_name):
+		return Joints.clamp_rotation(rig.joints.specs[bone_name], q.normalized())
+	return q.normalized()
 
 
 ## Turns a target-driven hand: the IK target takes the orientation, and a grip on that hand
@@ -225,12 +235,12 @@ func rotate_selected_world(axis_world: Vector3, angle: float) -> void:
 	var parent := sk.get_bone_parent(idx)
 	var parent_basis := sk.get_bone_global_pose(parent).basis if parent >= 0 else Basis.IDENTITY
 	var local := (parent_basis.inverse() * new_basis).orthonormalized()
-	sk.set_bone_pose_rotation(idx, local.get_rotation_quaternion())
+	sk.set_bone_pose_rotation(idx, within_range(selected_rig, selected_bone, local.get_rotation_quaternion()))
 	pose_changed.emit()
 
 
 func _on_gizmo_drag_started() -> void:
-	_drag_old_rot = get_bone_rotation(selected_rig, selected_bone)
+	_drag_edit = begin_bone_edit(selected_rig, selected_bone)
 
 
 func _on_gizmo_rotated(axis_world: Vector3, angle: float) -> void:
@@ -238,10 +248,44 @@ func _on_gizmo_rotated(axis_world: Vector3, angle: float) -> void:
 
 
 func _on_gizmo_drag_ended() -> void:
-	commit_bone_rotation(selected_rig, selected_bone, _drag_old_rot, get_bone_rotation(selected_rig, selected_bone))
+	commit_bone_edit(selected_rig, selected_bone, _drag_edit)
 
 
-## Record an undoable rotation change (the new value is already applied).
+## Where a bone is before an edit, for commit_bone_edit: its local rotation, and for a
+## target-driven hand the target's orientation as well. The local rotation of such a hand is
+## measured against a forearm that rolls to suit the hand (HandOrient), so it is not a value
+## that can be handed back and land in the same place; the target's orientation is.
+func begin_bone_edit(rig: CharacterRig, bone_name: String) -> Dictionary:
+	var edit := {"q": get_bone_rotation(rig, bone_name)}
+	var limb := target_driven_limb(rig, bone_name)
+	if limb:
+		edit["basis"] = limb.target.global_basis.orthonormalized()
+	return edit
+
+
+## Records the edit begun with begin_bone_edit as one undo step (the new value is already applied).
+func commit_bone_edit(rig: CharacterRig, bone_name: String, edit: Dictionary) -> void:
+	var limb := target_driven_limb(rig, bone_name)
+	if limb and edit.has("basis"):
+		var old_b: Basis = edit["basis"]
+		var new_b := limb.target.global_basis.orthonormalized()
+		if old_b.is_equal_approx(new_b):
+			return
+		undo.create_action("Rotate %s" % bone_name)
+		undo.add_do_method(_set_target_basis_and_notify.bind(rig, limb, new_b))
+		undo.add_undo_method(_set_target_basis_and_notify.bind(rig, limb, old_b))
+		undo.commit_action(false)
+		return
+	commit_bone_rotation(rig, bone_name, edit["q"], get_bone_rotation(rig, bone_name))
+
+
+func _set_target_basis_and_notify(rig: CharacterRig, limb: Limb, basis: Basis) -> void:
+	_set_target_basis(rig, limb, basis)
+	pose_changed.emit()
+
+
+## Record an undoable rotation change (the new value is already applied). For a target-driven
+## hand prefer begin_bone_edit / commit_bone_edit, which undo through the target.
 func commit_bone_rotation(rig: CharacterRig, bone_name: String, old_q: Quaternion, new_q: Quaternion) -> void:
 	if old_q.is_equal_approx(new_q):
 		return
@@ -249,6 +293,22 @@ func commit_bone_rotation(rig: CharacterRig, bone_name: String, old_q: Quaternio
 	undo.add_do_method(set_bone_rotation.bind(rig, bone_name, new_q))
 	undo.add_undo_method(set_bone_rotation.bind(rig, bone_name, old_q))
 	undo.commit_action(false)
+
+
+## Poses a joint by its anatomical angles (Joints): flexion, abduction and twist in degrees,
+## clamped to what the joint can do. Only for bones in the joint catalogue.
+func set_joint_angles(rig: CharacterRig, bone_name: String, flex: float, abd: float, twist: float) -> void:
+	var spec: Dictionary = rig.joints.specs[bone_name]
+	var c := Joints.clamp_angles(spec, {"flex": flex, "abd": abd, "twist": twist})
+	set_bone_rotation(rig, bone_name, Joints.rotation(spec, c["flex"], c["abd"], c["twist"]))
+
+
+## The selected bone's anatomical angles as they are on screen, or empty for a bone that is not
+## a joint in the catalogue (the hips).
+func get_joint_angles(rig: CharacterRig, bone_name: String) -> Dictionary:
+	if rig.joints == null or not rig.joints.has(bone_name):
+		return {}
+	return Joints.angles(rig.joints.specs[bone_name], get_bone_rotation(rig, bone_name))
 
 
 func reset_bone(rig: CharacterRig, bone_name: String) -> void:

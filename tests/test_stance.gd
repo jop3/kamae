@@ -34,17 +34,17 @@ func _initialize() -> void:
 	var rig := await _fresh()
 	var straight := Anatomy.flexion_deg(rig, "RightLeg")
 	var foot_was: Vector3 = rig.bone_world_transform("RightFoot").origin
-	Stance.drop_hips(ctrl, rig, 0.22)
+	Stance.drop_hips(ctrl, rig, 0.12)   # 22 cm with the rear foot turned out asks 46° of an ankle
 	await settle(5)
 	var bent := Anatomy.flexion_deg(rig, "RightLeg")
 	# The committed stances have bent knees now that hanmi drops the hips onto planted feet; before
 	# that this pose started at exactly zero and there was no way to change it.
 	check(straight > 15.0, "the committed stance already has the knee bent (%.0f°)" % straight)
-	check(bent > straight + 30.0, "dropping the hips 22 cm bends it further (%.0f° to %.0f°)" % [straight, bent])
+	check(bent > straight + 20.0, "dropping the hips 12 cm bends it further (%.0f° to %.0f°)" % [straight, bent])
 	check(foot_was.distance_to(rig.bone_world_transform("RightFoot").origin) < PLANTED,
 		"the foot stayed on the mat while the hips dropped (%.3f m)"
 		% foot_was.distance_to(rig.bone_world_transform("RightFoot").origin))
-	check(Anatomy.problems(rig).is_empty(), "the bent stance is plausible")
+	check(Anatomy.problems(rig).is_empty(), "the bent stance is plausible (%s)" % ", ".join(Anatomy.problems(rig)))
 
 	# Pivoting turns the body about one foot, and that foot stays put.
 	rig = await _fresh()

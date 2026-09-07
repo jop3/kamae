@@ -25,6 +25,35 @@ is ignored, so a future change does not quietly reintroduce the problem.
   bend, and re-expresses the middle bone against the turned root so the hand does not move. Capped
   at 110° so an impossible pose stays visible to `Anatomy.joint_problems` instead of being hidden.
 
+## Joints
+
+- **`TwoBoneIK3D` keeps the authored roll of the bones it solves.** It swings the root and middle
+  bones onto the target and pole and leaves whatever roll about their own axes the authored pose
+  had. So a baked pose reloaded carries yesterday's forearm roll into today's solve, and any
+  modifier that adds roll *relative to where the bone is now* lands somewhere else than it did
+  the first time. `HandOrient` measures the roll a forearm needs from the wrist's rest
+  orientation hanging off the forearm, not from the hand's current orientation, and
+  `TwistFollow` aligns the humerus absolutely; `tests/test_m4.gd` (save, reload, compare every
+  bone) is the check.
+- **A modifier's search must not read the previous frame.** Anything computed from
+  `CharacterRig.bone_world_transform` inside a modifier is one frame old, and a turn chosen from it
+  changes the next frame's reading. A limb turn that kept the elbow out of the *other* character's
+  body (read from the cached solved pose) made a reloaded pose settle a different way from the one
+  it was saved from; it was removed. Own-body walls from the authored pose (`fk_bone_transform`)
+  were deterministic but changed nothing measurable, and went too.
+- **Turning a chain about the line from its root joint to its end joint moves nothing at either
+  end and needs no re-expression of the children.** A child's local pose is relative to its
+  parent, so writing only the root's local rotation turns the whole subtree rigidly, and both
+  ends of the line stay put. That is the whole of `LimbTurn.set_world_basis`; the earlier version
+  that re-expressed the middle bone to hold its *world* orientation moved the wrist instead.
+- **Read the rest of a joint's range from the joint itself.** A knee's rotation depends on its
+  own flexion and a knuckle's spread on its own; both are gates in `Joints.limits`, read from the
+  joint's current angles. Nothing reads a parent's angles.
+- **A phalanx rotated about its own axis is a roll, not a spread.** `tests/test_wrist.gd` used to
+  pose a "spread" as `Quaternion(Vector3(0, 1, 0), 25°)` on the proximal, which is a 25° roll of
+  the bone, something a finger cannot do and the joints now refuse. A spread is
+  `Joints.rotation(spec, 0, 15, 0)`.
+
 ## Grips
 
 - **Capture grip offsets from the cached solved pose, not from the skeleton.** `Skeleton3D` reports
@@ -107,12 +136,13 @@ now asserts against all three, so a bad character cannot be exported silently.
   folds; `FingerCurl.calibrate()` picks the sign of both axes by simulating the chain on the rest
   pose and keeping the combination that lands the tip over the index knuckle. Two attempts at
   deriving the signs from geometry were wrong on this rig.
-- **Let the forearm carry the wrist twist.** `HandOrient` splits the rotation the hand still needs
-  into twist about the elbow-to-wrist axis and the rest, and gives the forearm bone 70 % of the
-  twist (`twist_share`). Rotating the forearm about its own axis moves neither joint, so this is
-  free, and without it every bit of pronation is a kink at the wrist. Twist far beyond what a real
-  forearm does still shears the mesh; that is a sign the pose or elbow pole is wrong, not the
-  modifier.
+- **Let the forearm carry the wrist twist, as far as it goes.** `HandOrient` gives the forearm
+  the roll the hand needs up to the forearm's pronation/supination range (`Joints`), turns the
+  arm about the shoulder-to-wrist line for what a turn can do, and asks the wrist only for the
+  rest; `JointLimits` holds the wrist at its range. Rotating the forearm about its own axis moves
+  neither joint, so the first part is free, and without it every bit of pronation is a kink at the
+  wrist. (Before the joints had ranges the split was a fixed 70 % to the forearm, unbounded;
+  `twist_share` still does that for a rig with no joint catalogue.)
 - **A gripped wrist is a shaft too.** `GripDirector.attach_wrapped()` treats the gripped limb bone
   as a weapon axis: nearest point along the bone, same side the hand is on now, palm centre
   2 cm off the bone line, fingers across it. Attaching without the wrap freezes the hand wherever

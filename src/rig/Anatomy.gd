@@ -42,29 +42,10 @@ const BEND_CHECK_FROM := 12.0
 ## The head and neck: angle between the neck bone direction and the chest direction.
 const NECK_MAX := 70.0
 
-## How far a joint may swing away from where the rest pose points it, in degrees, measured from
-## the parent's frame so a raised arm does not spend the shoulder's budget on the spine's. These
-## are the outer edge of a healthy adult's passive range, not what a technique should use:
-## anything past them is not a hard pose, it is a broken joint.
-const SWING := {
-	"RightUpperArm": 170.0, "LeftUpperArm": 170.0,   ## shoulder, arm raised overhead or behind
-	"RightUpperLeg": 125.0, "LeftUpperLeg": 125.0,   ## hip
-	"RightHand": 90.0, "LeftHand": 90.0,             ## wrist: flexion, extension and deviation
-	"RightFoot": 95.0, "LeftFoot": 95.0,             ## ankle; kneeling lays the foot in line
-	                                                 ## with the shin, which is most of its range
-	"Spine": 60.0, "Chest": 45.0, "UpperChest": 35.0,   ## trunk flexion, most of it lumbar
-	"Neck": 60.0, "Head": 45.0,
-	"RightShoulder": 30.0, "LeftShoulder": 30.0,     ## the clavicle shrugs, it does not rotate
-}
-## How far a bone may be rolled about its own direction, in degrees. The forearm carries the
-## wrist's rotation (docs/engine-notes.md), so its budget is pronation plus supination.
-const TWIST := {
-	"RightUpperArm": 95.0, "LeftUpperArm": 95.0,
-	"RightLowerArm": 100.0, "LeftLowerArm": 100.0,
-	"RightUpperLeg": 50.0, "LeftUpperLeg": 50.0,
-	"RightHand": 45.0, "LeftHand": 45.0,
-	"Neck": 70.0, "Head": 45.0,
-}
+## The joints themselves — which way each one bends and how far, flexion, abduction and twist
+## with their own asymmetric ranges — live in Joints, built from the rig, and are held in range
+## by each character's JointLimits modifier. joint_problems() reports what that modifier had to
+## refuse; with the modifier off it measures the solved pose against the same ranges.
 
 ## Named limb pairs that may legitimately touch and are not tested against each other:
 ## adjacent bones, both bones of a hand on its own forearm, both legs at the crotch.
@@ -189,20 +170,39 @@ static func joint_problems(rig: CharacterRig) -> PackedStringArray:
 			var d := bend_direction(rig, key).dot(allowed_bend_direction(rig, key))
 			if d < -0.2:
 				out.append("%s bends the wrong way (%.0f°, alignment %.2f)" % [key, f, d])
-	for bone: String in SWING:
-		var m := swing_twist(rig, bone)
-		if m.is_empty():
-			continue
-		if m["swing"] > SWING[bone] + 1.0:
-			out.append("%s swung %.0f° off rest, past %.0f°" % [bone, m["swing"], SWING[bone]])
-		if TWIST.has(bone) and absf(m["twist"]) > TWIST[bone] + 1.0:
-			out.append("%s twisted %.0f°, past %.0f°" % [bone, m["twist"], TWIST[bone]])
+	out.append_array(range_problems(rig))
 	var neck := rig.bone_world_transform("Head").origin - rig.bone_world_transform("Neck").origin
 	var chest := rig.bone_world_transform("Neck").origin - rig.bone_world_transform("Chest").origin
 	var neck_deg := rad_to_deg(neck.angle_to(chest))
 	if neck_deg > NECK_MAX:
 		out.append("neck folded %.0f° against the chest" % neck_deg)
 	return out
+
+
+## Every joint asked to go past its range (Joints), as "RightHand: wrist flexion 119°, past 80°".
+## Taken from the JointLimits modifier when it is on — that is the pose that was asked for,
+## which the modifier has since held back — and measured from the solved pose when it is off.
+static func range_problems(rig: CharacterRig) -> PackedStringArray:
+	if rig.joints == null:
+		return PackedStringArray()
+	if rig.joint_limits and rig.joint_limits.enabled:
+		return rig.joint_limits.report()
+	var out := PackedStringArray()
+	for bone in rig.joints.order:
+		var line := Joints.describe(rig.joints.specs[bone], joint_angles(rig, bone))
+		if line != "":
+			out.append("%s: %s" % [bone, line])
+	return out
+
+
+## The joint's angles on screen: {"flex", "abd", "twist"} in degrees, from the solved pose.
+static func joint_angles(rig: CharacterRig, bone: String) -> Dictionary:
+	var sk := rig.skeleton
+	var i := sk.find_bone(bone)
+	var p := sk.get_bone_parent(i)
+	var parent_basis: Basis = rig.bone_world_transform(sk.get_bone_name(p)).basis.orthonormalized()
+	var here: Basis = rig.bone_world_transform(bone).basis.orthonormalized()
+	return Joints.angles(rig.joints.specs[bone], (parent_basis.inverse() * here).get_rotation_quaternion())
 
 
 ## How far a joint is from its rest pose: {"swing": degrees away from the rest direction,

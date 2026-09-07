@@ -49,7 +49,11 @@ static func shape(rig: CharacterRig, kind: int, t: float) -> void:
 		bend_about(rig, bone, side, TUCK[bone] * tuck)
 	for leg in ["Right", "Left"]:
 		rig.set_limb_mode(leg + "Leg", Limb.Mode.FK)
-		bend_about(rig, leg + "UpperLeg", side, HIP_TUCK * tuck)
+		# A thigh hangs down where the spine stands up, so the same turn about the body's
+		# sideways axis that folds the spine forward swings the thigh *backwards*: the first
+		# roll extended the hips 65° behind the body, which no hip does. The hip flexes toward
+		# the chest, the knee folds the heel toward the seat.
+		bend_about(rig, leg + "UpperLeg", side, -HIP_TUCK * tuck)
 		bend_about(rig, leg + "LowerLeg", side, KNEE_TUCK * tuck)   # heel towards the seat
 	# The arms are put where the fall wants them, which means taking them over: call this after
 	# the grips are released, or it will fight whatever is holding the hand.

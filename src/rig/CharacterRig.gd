@@ -18,6 +18,10 @@ var arm_bridge: ArmBridge
 ## The white gi (spec §7.1), built on first use and toggled per character; saved with the pose.
 var gi: Gi
 var gi_visible := false
+## The anatomy of this body's joints (Joints), built once from the rest pose, and the modifier
+## that holds every solved pose inside it (JointLimits), last in the stack.
+var joints: Joints
+var joint_limits: JointLimits
 ## Bone global poses as the modifier stack left them, refreshed every skeleton_updated.
 ## Reading Skeleton3D directly outside that signal returns the *authored* pose, not the posed one
 ## (see docs/engine-notes.md), so everything that asks "where is this bone now" goes through here.
@@ -110,6 +114,11 @@ func _build_limbs() -> void:
 			arm_bridge = ArmBridge.new()
 			arm_bridge.name = "ArmBridge"
 			skeleton.add_child(arm_bridge)   # between the two arms' solvers
+	joints = Joints.build(skeleton, fingers)
+	joint_limits = JointLimits.new()
+	joint_limits.name = "JointLimits"
+	joint_limits.rig = self
+	skeleton.add_child(joint_limits)   # last: whatever the limbs asked for, the joints decide
 
 
 ## Orders the modifiers so `key`'s arm solves first, then the bridge, then the other arm.

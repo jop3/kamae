@@ -65,7 +65,9 @@ func _initialize() -> void:
 	arm.twist.enabled = false
 	await settle(3)
 	var bad := Anatomy.joint_problems(tori)
-	check(bad.size() >= 1 and bad[0].begins_with("RightArm bends the wrong way"), "without it, the backwards elbow is reported (%s)" % ", ".join(bad))
+	# The joint model holds the elbow at its range and says what was asked of it; with it off,
+	# the older check sees the elbow bent the wrong way. Either way it is reported.
+	check(bad.size() >= 1 and (bad[0].begins_with("RightArm bends the wrong way") or "elbow" in bad[0]), "without it, the backwards elbow is reported (%s)" % ", ".join(bad))
 	arm.twist.enabled = true
 	arm.reset_pole()
 	await settle(3)
@@ -86,7 +88,7 @@ func _initialize() -> void:
 	leg.twist.enabled = false
 	await settle(3)
 	var kbad := Anatomy.joint_problems(tori)
-	check(kbad.size() >= 1 and kbad[0].begins_with("LeftLeg bends the wrong way"), "a knee folded forward is reported (%s)" % ", ".join(kbad))
+	check(kbad.size() >= 1 and (kbad[0].begins_with("LeftLeg bends the wrong way") or "knee" in kbad[0]), "a knee folded forward is reported (%s)" % ", ".join(kbad))
 	leg.twist.enabled = true
 	leg.reset_pole()
 	ctrl.set_limb_mode(tori, "LeftLeg", Limb.Mode.FK)

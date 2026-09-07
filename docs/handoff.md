@@ -650,3 +650,93 @@ So the wrist is not the elbow's to solve. What is actually over-constrained is t
 it sits along the shaft and how it is rolled about it are both fixed by the hold, and one of them
 has to give. That is a decision about how the weapon is held — the instructor's, not the tool's.
 The nine remaining wrists are listed in `check_anatomy.gd`'s `OUTSTANDING`, worst 119°.
+
+
+## Session 2026-09-07: the body learns its joints
+
+"The models don't have any built-in understanding of how hands, fingers, joints, knees, feet
+work or can move and turn." True, and it was the reason for the slow going: every earlier
+session fixed one symptom of it (the elbow crease, the finger axis, the knees that never bent,
+the wrist that was not the elbow's to solve) without the thing itself existing. Now it exists.
+`docs/joints.md` is the reference; this is the story and the state.
+
+**What was built.** `src/rig/Joints.gd` is a catalogue of every joint of the body — kind (hinge,
+ball, condyloid, saddle, gliding), a neutral direction, a flexion axis and an abduction direction,
+all measured from the rig's rest geometry, and asymmetric ranges in degrees for flexion/extension,
+abduction/adduction and twist, in a physiotherapist's words. Any bone rotation reads as those
+three angles and any three angles make a rotation, exactly. Four ranges depend on the joint's own
+position (a knee turns only once bent, a knuckle spreads only while open, a shoulder crosses the
+body only when raised, a forearm's roll is pronation with the sign read off the palm).
+`JointLimits.gd` is the last modifier on every skeleton and holds the solved pose inside all of it,
+recording what it refused; `Anatomy.range_problems` reports that (the old `SWING`/`TWIST` cones
+are gone); `PoseController.within_range` stops the rings and sliders at the edge; the side panel's
+three sliders are the selected joint's own, with its names and its range, and read the pose out
+in words. `LimbTurn.gd` is the one freedom a placed limb has left — the elbow's circle about the
+shoulder-to-wrist line — and `TwistFollow` and `HandOrient` spend it: an elbow the shoulder cannot
+twist to goes round instead, a hand orientation is served by the forearm's roll, then by the turn,
+and only then by the wrist. Legs turn at the hip for where the foot points and never to help an
+ankle. `tests/test_joints.gd` covers all of it.
+
+**What it found, and what was fixed because of it.** Three real bugs no check had seen: kneeling
+folded the foot onto the *front* of the shin (90° of dorsiflexion — the foot kept its standing
+orientation while the shin lay back), the forward roll *extended* the hips 65° behind the body
+(the same turn that curls a spine up straightens a thigh down), and every hanmi stance twisted a
+nearly straight knee 27–28° to turn the rear foot out. `Stance.kneel` turns the foot over the
+ankle now, `Ukemi.shape` flexes the hips, and `HandOrient` sends a foot's yaw to the hip. The
+three rolling poses of ushiro ryotedori zenponage were rebuilt (`ONLY=ushiro_ryotedori_zenponage`
+— and *only* those three kept: the rebuilt tenkan put Uke back inside Tori, which a hand
+correction had fixed, so grepp/kuzushi/tenkan/kake stay as committed).
+
+**What it refuses, honestly.** The wrists in every weapon hold and wrapped grip were never
+possible (extension 107–134° onto a jo, a fist bent 86° sideways onto a wrist, forearms pronated
+171°). They are now held at their range on screen, the hand on its point but short of its
+orientation, and listed in `check_anatomy.gd`'s `OUTSTANDING` in the model's own words — thirty
+lines, nearly all wrists, three shoulders. The arm does everything it anatomically can first, so
+what is left is geometry only the instructor can change: Uke stands where his arm is straight
+(a katatedori needs the forearm across the wrist, so the elbow out and Uke closer), and the
+two-handed holds are rolled about the shaft to angles no wrist reaches. The knees, thumbs and
+ankles that the first survey flagged all cleared once the mechanics were right.
+
+**The motion counts changed, both ways.** `check_motion.gd` now drops only the joints already
+refused at a sequence's keyframes (a pose fault, tracked per pose) and counts a joint carried past
+its range *between* poses by more than 3°; before, every wrist message was dropped wholesale. And
+elbows go where the joints allow rather than where the pole put them, so the sweep between two
+poses is not what it was. Ikkyo 7 → 6, jo dori 7 → 18, shihonage 8 → 26, kumijo 0 → 9,
+kumitachi 0 → 1, tachi dori 9 → 11, ushiro 8 → 11, ryotemochi 0. `MOTION_VERBOSE=1` lists every
+frame; most are a re-gripping forearm through the partner while its wrist is refused, which is an
+intermediate pose to author (`tools/add_step.gd`), and a few are a joint riding its edge between
+two poses that both sit on it.
+
+**Tried and dropped, so nobody tries it again the same way.** Keeping the turned elbow out of
+bodies inside the search. With the other character's capsules as walls it made a reloaded pose
+settle differently from the one it was saved from (the walls are read from the previous frame);
+with only the character's own trunk as walls, from the authored pose, it was deterministic and
+changed no count at all. `LimbTurn.gd` says so at the top. Also the fixed 70 % forearm share of
+the wrist's roll: it is now "as far as pronation goes", and the share only survives for a rig
+without a catalogue.
+
+**Numbers a reader might want.** Rest pose: shoulder abduction 42°, elbow flexion 43°, knee 7°,
+wrist 6° flexion 3° radial. Seiza: 46° plantarflexion, nothing refused. Squat 12 cm on planted
+feet: knee 37° → 60°-odd, nothing refused; 22 cm with the rear foot turned out asks 46° of
+dorsiflexion and is refused, which is what a heel coming up is for. The turned-out rear foot of
+hanmi: hip external rotation ~30°, knee ≤ 5°. `HandOrient`'s search runs only when a joint is
+over-asked at the pole's own elbow (cost zero at no turn wins outright), so a plausible pose costs
+one evaluation per limb per frame.
+
+**Still open, in the order I would take them.**
+
+- **Where Uke stands.** Every katatedori in the fixtures has Uke too far from Tori to take the
+  wrist with his forearm across it. Moving him in a step (and the elbow out, which the arm now
+  does by itself) would clear a dozen entries in `OUTSTANDING` and is the instructor's call.
+- **How the weapons are held.** The two-handed holds' roll about the shaft decides the wrists;
+  `Weapon.default_hold` is where.
+- **The re-grip frames** in `check_motion.gd`, one intermediate pose each.
+- **The scapula.** The clavicle bone is at 0° in every pose, so the shoulder's ranges are doing
+  the scapula's work too; an arm overhead reads as 180° of pure glenohumeral flexion. A rule
+  that elevates the clavicle with the arm would make the shoulder's numbers honest.
+- **Coupled fingers.** `FingerCurl` distributes a curl 1 : 0.85 : 0.65 over the three joints,
+  which is a fair tenodesis; a DIP that follows its PIP when either is posed by hand is not
+  there yet, and neither is the wrist's flexion shrinking as the fist closes.
+- **The goldens.** Every rendered still changed (knees from the hip, wrists at their edge, hips
+  tucked in the rolls) and was refreshed with `UPDATE_GOLDEN=1` after looking at the renders; the
+  next person should look too.

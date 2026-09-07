@@ -171,6 +171,16 @@ func _thumb_tip(sk: Skeleton3D, bones: Array[int], axes: Array, amount: float) -
 	return world.origin + world.basis.y.normalized() * distal_len * 0.8
 
 
+## The flexion axis of a phalanx in the character's rest space (positive toward the palm), as
+## measured by calibrate(); zero for a bone that is not a phalanx. Joints builds the finger
+## joints from these so the two never disagree about which way a finger bends.
+func flex_axis_rest(bone: int) -> Vector3:
+	var sk := get_skeleton()
+	if sk == null or not _axes.has(bone):
+		return Vector3.ZERO
+	return (sk.get_bone_global_rest(bone).basis.orthonormalized() * _axes[bone]).normalized()
+
+
 ## True for a phalanx bone (thumb included): the bones this modifier drives.
 static func is_finger_bone(bone_name: String) -> bool:
 	for finger in FINGERS:
