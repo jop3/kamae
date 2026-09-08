@@ -23,11 +23,15 @@ const SEIZA_ANKLE := Vector3(0.0, 0.05, -0.08)
 const KIZA_ANKLE := Vector3(0.0, 0.06, -0.10)
 const KNEEL_WIDTH := 0.10
 const KNEEL_POLE_FORWARD := 0.60
-## How the foot is turned at the ankle when kneeling, in degrees about the body's sideways axis.
-## Seiza lies the instep flat on the mat behind the knee; kiza stands on the ball of the foot with
-## the heel up. Without this the foot simply follows the shin and points down through the floor.
-const SEIZA_FOOT_PITCH := -45.0
-const KIZA_FOOT_PITCH := -45.0
+## How the foot is turned when kneeling, in degrees about the body's sideways axis from the way
+## it points when standing. A kneeling foot points *backwards*: in seiza the instep lies flat on
+## the mat behind the knee with the sole up, in kiza the foot stands on the ball with the heel
+## up. Left to follow the shin the foot points down through the floor; kept as it stood, toes
+## forward, it is folded onto the front of the shin, which is 90° of dorsiflexion and no ankle
+## does that — the joint model (Joints) is what caught it. Seiza plantarflexes the ankle close
+## to its limit, which is exactly what seiza feels like.
+const SEIZA_FOOT_TURN := 138.0
+const KIZA_FOOT_TURN := 103.0
 ## How far the hips sit above the mat when kneeling.
 const SEIZA_HIP_HEIGHT := 0.25
 const KIZA_HIP_HEIGHT := 0.33
@@ -79,16 +83,20 @@ static func foot_turn(rig: CharacterRig, side: String) -> float:
 static func kneel(ctrl: PoseController, rig: CharacterRig, kind: int = Kneel.SEIZA) -> void:
 	var ankle: Vector3 = SEIZA_ANKLE if kind == Kneel.SEIZA else KIZA_ANKLE
 	var hip_height: float = SEIZA_HIP_HEIGHT if kind == Kneel.SEIZA else KIZA_HIP_HEIGHT
+	var turn_over: float = SEIZA_FOOT_TURN if kind == Kneel.SEIZA else KIZA_FOOT_TURN
 	var basis := rig.global_transform.basis
 	var ground := Vector3(rig.global_position.x, 0.0, rig.global_position.z)
 	for side in ["Right", "Left"]:
 		var limb: Limb = rig.limbs[side + "Leg"]
 		rig.set_limb_mode(side + "Leg", Limb.Mode.IK)
 		var lateral := -KNEEL_WIDTH if side == "Right" else KNEEL_WIDTH
-		# The foot keeps the flat orientation it had while standing. Left to follow the shin it
-		# would carry on past it and point through the floor; held flat, the instep lies on the
-		# mat, which is what kneeling on it means. Use turn_foot() to point it out or in.
-		limb.target.global_transform = Transform3D(rig.bone_world_transform(side + "Foot").basis,
+		# The foot is turned from how it stood to point straight back along the shin (see the
+		# constants): first squared to the body, so a foot that stood turned out does not kneel
+		# rolled onto its edge, then turned over the ankle. Use turn_foot() to point it out or in.
+		var standing: Basis = rig.bone_world_transform(side + "Foot").basis.orthonormalized()
+		var squared := (Basis(Vector3.UP, -deg_to_rad(foot_turn(rig, side))) * standing).orthonormalized()
+		limb.target.global_transform = Transform3D(
+			(Basis(basis.x.normalized(), deg_to_rad(turn_over)) * squared).orthonormalized(),
 			ground + basis * (ankle + Vector3(lateral, 0.0, 0.0)))
 		limb.pole.global_position = ground + basis * Vector3(lateral, 0.0, KNEEL_POLE_FORWARD)
 		limb.set_orient_to_target(true)

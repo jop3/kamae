@@ -137,11 +137,15 @@ static func curl_for_bone(bone: String) -> float:
 ## with the shaft across its palm and the fingers closing round it. Any bone will do: on the
 ## neck, the torso or a thigh the palm lands on the skin at that bone's radius (hold_radius).
 ## With `snap` false this is an ordinary `attach` that freezes the hand wherever it is.
-func attach_wrapped(gripper: CharacterRig, hand: String, target_rig: CharacterRig, bone: String, snap := true) -> Grip:
+## `flip` runs the fingers the other way along the bone (thumb toward the elbow instead of the
+## hand), which is the other way a fist can close on a wrist; Staging tries both.
+## `skew_deg` turns the fist about the line from the bone to the palm, so the fingers run
+## diagonally across the bone instead of square to it: a cross-hand grab takes a wrist that way.
+func attach_wrapped(gripper: CharacterRig, hand: String, target_rig: CharacterRig, bone: String, snap := true, flip := false, skew_deg := 0.0) -> Grip:
 	var target := GripTarget.for_bone(scene, target_rig.character_id, bone)
 	if not snap:
 		return attach(gripper, hand, target)
-	var hand_world := wrapped_hand_transform(gripper, hand, target_rig, bone)
+	var hand_world := wrapped_hand_transform(gripper, hand, target_rig, bone, flip, skew_deg)
 	gripper.set_limb_mode(hand + "Arm", Limb.Mode.IK)
 	var limb: Limb = gripper.limbs[hand + "Arm"]
 	limb.target.global_transform = hand_world
@@ -163,7 +167,7 @@ func attach_wrapped(gripper: CharacterRig, hand: String, target_rig: CharacterRi
 
 ## Where `gripper`'s `hand` should be to wrap around `bone` of `target_rig`, given where the
 ## hand is now (nearest point along the bone, same side of it).
-func wrapped_hand_transform(gripper: CharacterRig, hand: String, target_rig: CharacterRig, bone: String) -> Transform3D:
+func wrapped_hand_transform(gripper: CharacterRig, hand: String, target_rig: CharacterRig, bone: String, flip := false, skew_deg := 0.0) -> Transform3D:
 	var bone_xf := target_rig.bone_world_transform(bone)
 	var joint := bone_xf.origin
 	var child := _child_joint(target_rig, bone)
@@ -180,10 +184,13 @@ func wrapped_hand_transform(gripper: CharacterRig, hand: String, target_rig: Cha
 	radial = radial.normalized()
 	# The shaft frame: +Y along the bone, the palm-facing side (-Z of a weapon) toward the bone.
 	var width_now: Vector3 = gripper.bone_world_transform(hand + "Hand").basis * gripper.fingers.palm_width(hand)
-	var y := axis if width_now.dot(axis) >= 0.0 else -axis
+	var y := axis if (width_now.dot(axis) >= 0.0) != flip else -axis
 	var z := radial
 	var x := y.cross(z).normalized()
-	var shaft := Transform3D(Basis(x, y, z).orthonormalized(), on_axis + radial * hold_radius(bone))
+	var frame := Basis(x, y, z).orthonormalized()
+	if absf(skew_deg) > 1e-4:
+		frame = (Basis(z, deg_to_rad(skew_deg)) * frame).orthonormalized()
+	var shaft := Transform3D(frame, on_axis + radial * hold_radius(bone))
 	var hold := Transform3D(Weapon.canonical_basis(gripper, hand), Weapon.palm_centre(gripper, hand))
 	return shaft * hold.affine_inverse()
 
@@ -210,11 +217,11 @@ func attach_to_weapon(gripper: CharacterRig, hand: String, weapon: Weapon, t: fl
 	return grip
 
 
-func _attach_to_weapon_raw(gripper: CharacterRig, hand: String, weapon: Weapon, t: float, snap := true, roll_deg := 0.0) -> Grip:
+func _attach_to_weapon_raw(gripper: CharacterRig, hand: String, weapon: Weapon, t: float, snap := true, roll_deg := 0.0, skew_deg := 0.0) -> Grip:
 	if snap:
 		gripper.set_limb_mode(hand + "Arm", Limb.Mode.IK)
 		var limb: Limb = gripper.limbs[hand + "Arm"]
-		limb.target.global_transform = weapon.global_transform * weapon.hold_offset(gripper, hand, t, roll_deg).affine_inverse()
+		limb.target.global_transform = weapon.global_transform * weapon.hold_offset(gripper, hand, t, roll_deg, skew_deg).affine_inverse()
 		limb.reset_pole()
 	var grip := Grip.new()
 	grip.gripper_id = gripper.character_id
@@ -222,7 +229,7 @@ func _attach_to_weapon_raw(gripper: CharacterRig, hand: String, weapon: Weapon, 
 	grip.target = GripTarget.for_weapon(scene, weapon.weapon_id, t)
 	grip.target.bind(scene)
 	if snap:
-		grip.offset = grip.target.world_transform().affine_inverse() * (weapon.global_transform * weapon.hold_offset(gripper, hand, t, roll_deg).affine_inverse())
+		grip.offset = grip.target.world_transform().affine_inverse() * (weapon.global_transform * weapon.hold_offset(gripper, hand, t, roll_deg, skew_deg).affine_inverse())
 	else:
 		grip.offset = grip.target.world_transform().affine_inverse() * gripper.bone_world_transform(hand + "Hand")
 	_add(grip)

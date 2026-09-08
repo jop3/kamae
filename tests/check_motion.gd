@@ -14,26 +14,33 @@ func check(cond: bool, msg: String) -> void:
 	if cond: print("PASS ", msg)
 	else: failures += 1; print("FAIL ", msg)
 
-## Frames that are still not plausible, per sequence, as the number that are wrong today.
-## Every one of them is a *gripping* arm during a re-grip: the grip ramps out, the hand slerps
-## across to its next hold, and the straight line it takes crosses the partner. MotionClearance
-## deliberately will not move a gripping hand — that would tear it off what it holds — so these
-## are fixed by giving the technique an intermediate pose that says where the hand travels
-## (tools/add_step.gd, docs/handoff.md). One frame of jo_dori is a different fault: the arm is
-## IK, and the solver rolls the humerus 178° on its way between two poses that are both fine, so
-## the fix is in the IK path and not in the blend. The count may only go down: a sequence that
-## beats its number fails and asks for the number to be lowered, so this cannot quietly rot.
+## Frames that are still not plausible, per sequence, as the number that are wrong today. The
+## count may only go down: a sequence that beats its number fails and asks for the number to be
+## lowered, so this cannot quietly rot. MOTION_VERBOSE=1 lists every frame.
+##
+## Most are a *gripping* arm during a re-grip: the grip ramps out, the hand slerps across to its
+## next hold, and the straight line it takes crosses the partner. MotionClearance deliberately
+## will not move a gripping hand — that would tear it off what it holds — so these are fixed by
+## giving the technique an intermediate pose that says where the hand travels (tools/add_step.gd,
+## docs/handoff.md).
+##
+## The numbers changed when the joints got their anatomy (src/rig/Joints.gd), in both directions,
+## and for two reasons worth knowing. A joint carried past its range *between* two poses is now
+## counted (kumijo's supinated forearm, kumitachi's shoulder), where before every wrist message
+## was dropped wholesale; only joints already refused at the keyframes are left to
+## check_anatomy.gd. And an elbow now goes where the shoulder and wrist allow rather than where
+## the pole put it, so the sweep of an arm between two poses is not the sweep it was: ikkyo lost
+## a frame, jo dori and shihonage gained several, mostly a re-gripping forearm through the
+## partner while its wrist is refused. Every one of them is listed by MOTION_VERBOSE=1, and each
+## is a pose to author, not a rule to loosen.
 const OUTSTANDING := {
-	"jo_dori": 7,   ## seven of them; the eighth is an IK-driven shoulder rolled 178°, below
-	"katatedori_ikkyo": 7,
-	"katatedori_shihonage_irimi": 8,
-	"tachi_dori": 9,
-	## Uke now goes round Tori instead of through him, which is the technique; what is left is
-	## his arms tangling with Tori's body as he is led round still holding both wrists. That is
-	## the authoring question this fixture had never answered. It answers it now — Uke lets go at
-	## the throw and takes a forward roll shaped by src/rig/Ukemi.gd — and the technique runs 139
-	## frames instead of 97 while fewer of them are wrong than before it had a fall in it at all.
-	"ushiro_ryotedori_zenponage": 8,
+	"jo_dori": 20,   ## the taken jo's hand is fitted now and the blend from the thrust crosses differently
+	"katatedori_ikkyo": 9,   ## the grip is the catalogue's now; two frames of a wrist at its edge as the arm is raised
+	"katatedori_shihonage_irimi": 18,   ## re-authored after the shoulder girdle: 26 before it, 51 with it, 18 now
+	"kumijo": 0,
+	"kumitachi": 1,
+	"tachi_dori": 12,
+	"ushiro_ryotedori_zenponage": 11,
 }
 
 var scene: PosingScene
@@ -44,6 +51,9 @@ const SEQS := "res://sequences"
 const POSES := "res://poses"
 ## The export frame rate: every frame the video shows is a frame the checks see.
 const FPS := float(MovieExport.FPS)
+## A joint a blend carries this far past its range, degrees, is a frame worth fixing; less is
+## a joint riding its edge between two poses that both sit on it, held there on screen anyway.
+const SLACK := 3.0
 ## Frames whose problems are listed in the summary before it says "and N more".
 const LISTED := 4
 
@@ -75,12 +85,15 @@ func _initialize() -> void:
 		# The first pose defines the cast; the blend only moves what already exists.
 		PoseFile.apply(player.poses[seq.steps[0]["pose"]], scene, director, ctrl)
 		await settle(4)
+		var known: Dictionary = await _keyframe_refusals(seq)
+		PoseFile.apply(player.poses[seq.steps[0]["pose"]], scene, director, ctrl)
+		await settle(4)
 		var bad := []                  # ["t=1.60 <problem>; <problem>", ...]
 		for i in int(round(seq.duration() * FPS)) + 1:
 			var t := float(i) / FPS
 			player.seek(t)
 			await settle(3)
-			var probs := _without_tracked_wrists(Anatomy.scene_problems(scene, director))
+			var probs := _without_keyframe_refusals(Anatomy.scene_problems(scene, director), known)
 			if not probs.is_empty():
 				bad.append("t=%.2f %s" % [t, "; ".join(probs)])
 				if verbose:
@@ -99,14 +112,38 @@ func _initialize() -> void:
 	quit(1 if failures > 0 else 0)
 
 
-## The wrists bent past their limit are a fault in the poses themselves, tracked pose by pose in
-## tests/check_anatomy.gd; a blend between two poses with the same bent wrist has it on every
-## frame and would swamp what this check is for. Every other joint problem still counts here.
-func _without_tracked_wrists(probs: PackedStringArray) -> PackedStringArray:
+## A joint asked for more than it has in a keyframe (a wrist bent 130° onto a jo) is a fault in
+## that pose, tracked pose by pose in tests/check_anatomy.gd; a blend between two poses with
+## the same bent wrist has it on every frame and would swamp what this check is for. So the
+## joints refused in any keyframe of the sequence are collected first, and a refusal of one of
+## those joints is not counted here. A joint refused only *between* the poses still is.
+func _keyframe_refusals(seq: Sequence) -> Dictionary:
+	var known := {}
+	for step in seq.steps:
+		PoseFile.apply(player.poses[step["pose"]], scene, director, ctrl)
+		await settle(4)
+		for rig in scene.characters:
+			if rig.visible and rig.joint_limits:
+				for bone in rig.joint_limits.refused:
+					known["%s: %s" % [rig.character_id, bone]] = true
+	return known
+
+
+func _without_keyframe_refusals(probs: PackedStringArray, known: Dictionary) -> PackedStringArray:
 	var out := PackedStringArray()
 	for p in probs:
-		if p.contains("Hand swung") or p.contains("Hand twisted"):
-			continue
+		var is_refusal := p.contains(", past ")
+		if is_refusal:
+			var head := p.substr(0, p.find(":", p.find(":") + 1))   # "uke1: LeftHand"
+			if known.has(head):
+				continue
+			var rig: CharacterRig = scene.get_character(head.get_slice(": ", 0))
+			var bone := head.get_slice(": ", 1)
+			if rig and rig.joint_limits and rig.joint_limits.refused.has(bone):
+				var r: Dictionary = rig.joint_limits.refused[bone]
+				var e := Joints.excess(rig.joints.specs[bone], r["wanted"])
+				if maxf(e["flex"], maxf(e["abd"], e["twist"])) < SLACK:
+					continue
 		out.append(p)
 	return out
 

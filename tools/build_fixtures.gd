@@ -14,6 +14,7 @@ var ctrl: PoseController
 var director: GripDirector
 var cam: OrbitCamera
 var written: Array = []
+var st: Staging
 
 
 func _initialize() -> void:
@@ -24,6 +25,7 @@ func _initialize() -> void:
 	var gizmo := RotationGizmo.new(); world.add_child(gizmo)
 	ctrl = PoseController.new(); world.add_child(ctrl); ctrl.setup(scene, cam, gizmo)
 	director = GripDirector.new(); world.add_child(director); director.setup(scene, ctrl)
+	st = Staging.new(self, scene, director, ctrl)
 	await physics_frame
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(POSES))
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(SEQUENCES))
@@ -71,6 +73,21 @@ func reset(ids: Array = [["tori", "Tori", "Tori"], ["uke1", "Uke", "Uke"]]) -> v
 
 func rig(id: String) -> CharacterRig:
 	return scene.get_character(id)
+
+
+## Starts a technique from an attack in the catalogue (data/attacks.json): Tori at the origin
+## facing +z, Uke where his joints can make the grip. Returns Uke's position, which the poses
+## that follow are placed relative to.
+func attack(key: String, mirror := false) -> Vector3:
+	var report: Dictionary = await Attacks.stage(st, key, {"mirror": mirror})
+	print("  attack %s: Uke at (%.2f, %.2f), refused %s" % [key, report["uke_position"].x, report["uke_position"].z, report["refused"]])
+	return report["uke_position"]
+
+
+## Places Tori relative to Uke's root on the mat, so a technique keeps its shape whatever place
+## the attack put Uke in.
+func stance_from_uke(uke_pos: Vector3, dx: float, dz: float, yaw_deg: float) -> void:
+	stance("tori", uke_pos.x + dx, uke_pos.z + dz, yaw_deg)
 
 
 ## Places a character. `y` lifts or drops it and `pitch_deg`/`roll_deg` tip it over: a figure being
@@ -258,25 +275,21 @@ func settle(frames: int = 2) -> void:
 
 func katatedori_ikkyo() -> void:
 	await reset()
-	stance("tori", 0.12, -0.31, 0)
-	stance("uke1", -0.12, 0.31, 180)   # offset so the front feet do not share a line
-	await settle()
-	await hanmi("tori", "Right")
-	await hanmi("uke1", "Left")
-	await hand_at("tori", "Right", Vector3(0, -0.14, 0.22))
-	await settle(3)
-	await grab("uke1", "Left", "tori", "RightLowerArm")
+	# The grip comes from the catalogue: Uke stands where his wrist can take Tori's, which is
+	# closer and further round than the first draft stood him (docs/attacks.md). The poses
+	# that follow are placed relative to him, where the first draft had them absolute.
+	var uke_at := await attack("katatedori")
 	await save_pose("Katatedori Ikkyo Grepp")
 
 	rig("tori").limbs["RightArm"].target.global_position += Vector3(0.05, 0.18, 0.05)
-	stance("tori", 0.08, -0.26, 15)
+	stance_from_uke(uke_at, 0.185, -0.526, 15)
 	await save_pose("Katatedori Ikkyo Kuzushi")
 
 	# Kake: Uke's grip is off, Uke bends forward, Tori holds Uke's arm at wrist and elbow.
 	await release_all("uke1")
 	await bend_forward("uke1", "Spine", 40)
 	await hand_at("uke1", "Left", Vector3(0.35, -0.10, 0.30))   # out to Uke's left and forward
-	stance("tori", -1.0, -0.20, 110)                             # outside that arm, facing it
+	stance_from_uke(uke_at, -0.895, -0.466, 110)                 # outside that arm, facing it
 	await settle(3)
 	await grab("tori", "Right", "uke1", "LeftLowerArm", Vector3(0, 0.06, 0))
 	await grab("tori", "Left", "uke1", "LeftUpperArm", Vector3(-0.06, 0.05, 0), 0.6)   # just above the elbow, clear of the chest
@@ -361,15 +374,21 @@ func katatedori_shihonage_irimi() -> void:
 	var grepp := PoseFile.load(PoseFile.pose_path(POSES, "Katatedori Ikkyo Grepp"))
 	PoseFile.apply(grepp, scene, director, ctrl)
 	await settle(3)
-	# Kuzushi: Tori steps in beside Uke and raises the gripped arm high.
-	stance("tori", -0.55, 0.20, 180)
-	await hand_at("tori", "Right", Vector3(-0.12, 0.45, 0.08))
+	var uke_at: Vector3 = rig("uke1").position
+	# Kuzushi: Tori steps in beside Uke and raises the gripped arm high — up and *forward*, past
+	# Uke's face as a sword is raised, not straight up over his head, where his own forearm went
+	# through his skull once the joints and the shoulder girdle had their say.
+	stance_from_uke(uke_at, -0.53, -0.10, 180)
+	await hand_at("tori", "Right", Vector3(-0.12, 0.42, 0.30))
 	await save_pose("Katatedori Shihonage Kuzushi")
 	# Kake: the grip reverses. Uke's hand is off; Tori has turned and holds Uke's wrist, the arm
 	# folded back over Uke's shoulder.
 	await release_all("uke1")
-	await hand_at("uke1", "Left", Vector3(0.10, 0.25, -0.20))   # folded back over Uke's own shoulder
-	stance("tori", -0.55, 0.70, 195)
+	# Folded back over Uke's own shoulder: the hand goes down *behind* the shoulder, at shoulder
+	# height and a little out, the elbow pointing up. Placed at the head (25 cm up, where it was)
+	# the forearm went through the skull once the shoulder girdle lifted the shoulder with it.
+	await hand_at("uke1", "Left", Vector3(0.12, 0.02, -0.24))
+	stance_from_uke(uke_at, -0.515, 0.474, 195)
 	await settle(3)
 	await grab("tori", "Left", "uke1", "LeftLowerArm", Vector3(0, 0.06, 0))
 	await grab("tori", "Right", "uke1", "LeftHand", Vector3(0, 0.05, 0))
@@ -412,6 +431,8 @@ func chudan(id: String, weapon: Weapon, forward: float = 0.25, height: float = 1
 	weapon.global_transform = Transform3D(Basis(along.cross(up), along, up), r.global_position + b * Vector3(0.0, height, forward))
 	director.attach_default_hands(r, weapon)
 	await settle(3)
+	# Each hand is then rolled about the shaft to where its wrist can hold it (Staging).
+	await st.fit_weapon_hands(id, weapon)
 
 
 ## Jo in chudan: held level beside the right hip, butt end behind, rear (left) hand at the hip
@@ -425,6 +446,7 @@ func jo_kamae(r: CharacterRig, jo: Weapon) -> void:
 	r.limbs["LeftArm"].pole.global_position = r.global_position + b * Vector3(0.34, 0.78, 0.58)
 	r.limbs["RightArm"].pole.global_position = r.global_position + b * Vector3(-0.42, 0.85, 0.15)   # right elbow out, clear of the crossing forearm
 	await settle(3)
+	await st.fit_weapon_hands(r.character_id, jo)
 
 
 ## Points a limb's elbow (or knee) toward an offset from the character's root, in its frame.
@@ -457,6 +479,7 @@ func tachi_dori() -> void:
 	await place_weapon(bokken, u.global_position + u.global_transform.basis * Vector3(0, 1.58, 0.22), u.global_transform.basis * Vector3(0, 0.5, -0.87), Vector3.UP)
 	pole_at("uke1", "LeftArm", Vector3(0.45, 1.25, 0.15))
 	pole_at("uke1", "RightArm", Vector3(-0.45, 1.25, 0.15))
+	await st.fit_weapon_hands("uke1", bokken)   # the hands turn on the tsuka as the sword rises
 	await save_pose("Tachi dori Furikaburi")
 	await place_weapon(bokken, u.global_position + u.global_transform.basis * Vector3(0, 1.05, 0.30), u.global_transform.basis * Vector3(0, 0.2, 1.0), Vector3.UP)
 	stance("tori", 0.35, -0.10, 40)
@@ -495,6 +518,7 @@ func jo_dori() -> void:
 	stance("tori", 0.42, -0.30, 35)   # off the line of the staff, so it passes beside the arm
 	director.attach_to_weapon(rig("tori"), "Right", jo, 0.80, true)
 	rig("tori").fingers.apply_grip_preset("Right")
+	await st.fit_weapon_hands("tori", jo)
 	await save_pose("Jo dori Uke")
 	# Tori holds the jo; Uke lets go.
 	await release_all("uke1")

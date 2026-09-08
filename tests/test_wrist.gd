@@ -43,42 +43,51 @@ func _initialize() -> void:
 	await settle()
 
 	# --- a gripping hand's wrist turns through the target ------------------
+	# Tori's wrist is offered where Uke can take it with his forearm across it: held low and far,
+	# Uke's arm would be straight, no elbow position brings the forearm across the wrist, and the
+	# wrist would have to bend 90° sideways, which the joints now refuse (tests/test_joints.gd).
+	tori.limbs["RightArm"].target.global_position = tori.bone_world_transform("RightUpperArm").origin + Vector3(0.10, 0.0, 0.25)
+	await settle()
 	await ctrl.set_limb_mode(uke, "LeftArm", Limb.Mode.IK)
-	uke.limbs["LeftArm"].target.global_position = tori.bone_world_transform("RightLowerArm").origin + Vector3(0, 0.06, 0.12)
+	uke.limbs["LeftArm"].target.global_position = tori.bone_world_transform("RightLowerArm").origin + Vector3(-0.06, 0.06, 0.06)
 	await settle(3)
 	var grip := director.attach_wrapped(uke, "Left", tori, "RightLowerArm")
 	await settle(3)
 	check(ctrl.target_driven_limb(uke, "LeftHand") != null, "a gripping hand is target-driven")
+	check(not uke.joint_limits.refused.has("LeftHand"), "the wrapped grip is one the wrist can make (%s)" % uke.joint_limits.report())
 	var forearm: Vector3 = (tori.bone_world_transform("RightHand").origin - tori.bone_world_transform("RightLowerArm").origin).normalized()
 	var hand_before: Basis = uke.bone_world_transform("LeftHand").basis.orthonormalized()
 	var offset_before: Transform3D = grip.offset
 	ctrl.select(uke, "LeftHand")
-	ctrl.rotate_selected_world(forearm, deg_to_rad(40))
+	# 25°: what a wrist has to spare here. Past its range the joints hold the hand back and
+	# say so (Anatomy.range_problems), which is another test's business.
+	ctrl.rotate_selected_world(forearm, deg_to_rad(25))
 	await settle(3)
 	var hand_after: Basis = uke.bone_world_transform("LeftHand").basis.orthonormalized()
 	var turned := rad_to_deg(hand_before.get_rotation_quaternion().angle_to(hand_after.get_rotation_quaternion()))
-	check(turned > 30.0 and turned < 50.0, "the gizmo turns a gripping wrist about the gripped forearm (%.0f deg)" % turned)
+	check(turned > 18.0 and turned < 32.0, "the gizmo turns a gripping wrist about the gripped forearm (%.0f deg, refused %s)" % [turned, uke.joint_limits.report()])
 	check(not grip.offset.is_equal_approx(offset_before), "the grip offset was re-captured with the new wrist angle")
 	check(director.worst_error() < 0.003, "the grip is still exact after the turn (%.4f m)" % director.worst_error())
 	# The new angle is what the grip keeps when the gripped arm moves.
 	var rel_before := (hand_after.inverse() * tori.bone_world_transform("RightLowerArm").basis.orthonormalized())
-	tori.limbs["RightArm"].target.global_position += Vector3(0.05, 0.10, 0.0)
+	tori.limbs["RightArm"].target.global_position += Vector3(0.0, 0.05, 0.0)
 	await settle(3)
 	var rel_now := (uke.bone_world_transform("LeftHand").basis.orthonormalized().inverse() * tori.bone_world_transform("RightLowerArm").basis.orthonormalized())
 	var drift := rad_to_deg(rel_before.get_rotation_quaternion().angle_to(rel_now.get_rotation_quaternion()))
-	check(drift < 2.0, "the turned wrist follows the forearm rigidly (%.1f deg drift)" % drift)
+	check(drift < 2.0, "the turned wrist follows the forearm rigidly (%.1f deg drift, refused %s)" % [drift, uke.joint_limits.report()])
 	# Sliders read and write the same wrist.
 	var shown := ctrl.get_bone_rotation(uke, "LeftHand")
 	var live := (uke.bone_world_transform("LeftLowerArm").basis.orthonormalized().inverse() * uke.bone_world_transform("LeftHand").basis.orthonormalized()).get_rotation_quaternion()
 	check(rad_to_deg(shown.angle_to(live)) < 0.5, "the joint sliders show the solved wrist angle")
 	var undo_from := uke.bone_world_transform("LeftHand").basis.orthonormalized()
-	ctrl.commit_bone_rotation(uke, "LeftHand", shown, shown * Quaternion(Vector3(1, 0, 0), deg_to_rad(20)))
-	ctrl.set_bone_rotation(uke, "LeftHand", shown * Quaternion(Vector3(1, 0, 0), deg_to_rad(20)))
+	var edit := ctrl.begin_bone_edit(uke, "LeftHand")
+	ctrl.set_bone_rotation(uke, "LeftHand", shown * Quaternion(Vector3(1, 0, 0), deg_to_rad(10)))
+	ctrl.commit_bone_edit(uke, "LeftHand", edit)
 	await settle(3)
 	ctrl.undo.undo()
 	await settle(3)
 	var back := rad_to_deg(undo_from.get_rotation_quaternion().angle_to(uke.bone_world_transform("LeftHand").basis.orthonormalized().get_rotation_quaternion()))
-	check(back < 1.5, "undo restores the gripping wrist (%.1f deg off)" % back)
+	check(back < 1.5, "undo restores the gripping wrist (%.1f deg off, refused %s)" % [back, uke.joint_limits.report()])
 	director._remove(grip)
 	await settle()
 
@@ -86,7 +95,9 @@ func _initialize() -> void:
 	var sk := tori.skeleton
 	var idx_prox := sk.find_bone("RightIndexProximal")
 	var rest_q := sk.get_bone_rest(idx_prox).basis.get_rotation_quaternion()
-	var spread := rest_q * Quaternion(Vector3(0, 1, 0), deg_to_rad(25))
+	# Spread 15° at the knuckle, which an open finger can do (Joints): a roll about the
+	# phalanx's own axis, which the first version of this test used, is not a thing a finger does.
+	var spread := Joints.rotation(tori.joints.specs["RightIndexProximal"], 0.0, 15.0, 0.0)
 	ctrl.set_bone_rotation(tori, "RightIndexProximal", spread)
 	await settle()
 	var tip_open: Vector3 = tori.bone_world_transform("RightIndexDistal").origin

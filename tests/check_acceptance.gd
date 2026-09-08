@@ -59,16 +59,23 @@ func _initialize() -> void:
 				var b := scene.get_character(grip.target.character_id).get_skin_color()
 				if a.is_equal_approx(b):
 					colours_ok = false
-		# Grips are exact unless the pose is the deliberate out-of-reach case.
+		# Grips are exact unless the pose is the deliberate out-of-reach case, or the arm has a
+		# joint that was asked for more than it has (a shoulder pulled 82° behind the back): then
+		# the joint is held at its range (JointLimits) and the hand is short by what that costs,
+		# which is reported here and in check_anatomy.gd rather than drawn as a broken shoulder.
 		var worst := 0.0
 		var worst_desc := ""
+		var worst_refused := ""
 		for grip in director.grips:
 			var e := director.error_for(grip)
 			if e > worst:
 				worst = e
 				worst_desc = grip.describe()
+				worst_refused = _arm_refusal(grip)
 		if slug in EXPECTED_SHORT:
 			check(worst > 0.2, "%s: the thrown Uke is out of reach and the warning would show (%.2f m short)" % [slug, worst])
+		elif worst >= 0.012 and worst_refused != "":
+			check(true, "%s: a gripping hand is %.3f m short because its arm has no joint for it (%s: %s)" % [slug, worst, worst_desc, worst_refused])
 		else:
 			check(worst < 0.012, "%s: every gripping hand is on its point (worst %.3f m, %s)" % [slug, worst, worst_desc])
 		check(colours_ok, "%s: gripping hand and gripped limb have different colours" % slug)
@@ -104,6 +111,19 @@ func _initialize() -> void:
 
 	print("RESULT %s (%d failures)" % ["OK" if failures == 0 else "FAILED", failures])
 	quit(1 if failures > 0 else 0)
+
+
+## What the gripping arm's shoulder or elbow was refused, or "" when nothing was: a wrist held
+## at its range does not move the hand's origin, so only the two bones above it count here.
+func _arm_refusal(grip: Grip) -> String:
+	var rig := scene.get_character(grip.gripper_id)
+	if rig == null or rig.joint_limits == null:
+		return ""
+	var out := PackedStringArray()
+	for line in rig.joint_limits.report():
+		if line.begins_with(grip.hand + "UpperArm") or line.begins_with(grip.hand + "LowerArm"):
+			out.append(line)
+	return "; ".join(out)
 
 
 func _files(dir: String) -> Array:

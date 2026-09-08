@@ -1,0 +1,902 @@
+{
+  "_about": "The attacks (grips, strikes, holds) a technique starts from: what they are called, who stands where, which hand takes what, and from which side. Read by src/posing/Attacks.gd, listed in docs/attacks.md. Positions are metres in Tori's frame: x is Tori's LEFT, y up, z forward (Tori faces +z). Hands are offsets from the character's own shoulder in its own frame. A grip's hand meets its target from the side the gripping forearm comes from (palm on the side of a wrist, thumb up), which Staging works out from Uke's shoulder; 'along' is where on the bone (0 its joint, 1 the next), 'curl' how far the fingers close. Names differ between schools and dojos; the ones marked 'check' are the compiler's best knowledge, not the instructor's — edit them here and the panel, the tool and the document follow. 'skews' lists the angles (degrees) the fingers may run across the bone at, tried in turn; square to it when absent.",
+  "attacks": {
+    "katatedori": {
+      "names": {
+        "short": "Katatedori",
+        "aikikai": "Gyaku hanmi katatedori",
+        "iwama": "Katatedori (gyaku hanmi)",
+        "yoshinkan": "Katate mochi (gyaku hanmi)",
+        "ki": "Katatedori",
+        "tomiki": "Katate dori",
+        "english": "single wrist grab, mirror stance",
+        "swedish": "grepp om handleden, spegelvänd ställning"
+      },
+      "kind": "grip",
+      "relation": "gyaku hanmi",
+      "from": "front",
+      "description": "Uke's left hand takes Tori's right wrist (or right takes left): the two stand in mirrored hanmi, the gripping arm on the outside of the offered arm. The thumb goes over the top, the fingers round the inside, and Uke's forearm comes across the wrist — which is why Uke must stand close enough for the elbow to be out; at arm's length the wrist would have to bend 90° sideways.",
+      "tori": {
+        "hanmi": "Right",
+        "hands": {
+          "Right": [
+            0.0,
+            -0.14,
+            0.22
+          ]
+        }
+      },
+      "uke": {
+        "hanmi": "Left",
+        "distance": 0.62,
+        "lateral": -0.24,
+        "facing": "tori"
+      },
+      "grips": [
+        {
+          "hand": "Left",
+          "bone": "RightLowerArm",
+          "along": 0.0,
+          "curl": 0.6
+        }
+      ]
+    },
+    "aihanmi_katatedori": {
+      "names": {
+        "short": "Aihanmi katatedori",
+        "aikikai": "Ai hanmi katatedori",
+        "iwama": "Kosadori",
+        "yoshinkan": "Katate mochi (ai hanmi) — check",
+        "ki": "Katate kosadori",
+        "tomiki": "Ai gamae katate dori — check",
+        "english": "cross-hand wrist grab, same stance",
+        "swedish": "korsgrepp om handleden, samma ställning"
+      },
+      "kind": "grip",
+      "relation": "ai hanmi",
+      "from": "front",
+      "description": "Uke's right hand takes Tori's right wrist: both in right hanmi, the arms cross. Uke's thumb is on top and his palm faces down over the wrist, so the forearm comes at the wrist from Uke's own side.",
+      "tori": {
+        "hanmi": "Right",
+        "hands": {
+          "Right": [
+            0.0,
+            -0.06,
+            0.28
+          ]
+        }
+      },
+      "uke": {
+        "hanmi": "Right",
+        "distance": 0.62,
+        "lateral": 0.12,
+        "facing": "tori"
+      },
+      "grips": [
+        {
+          "hand": "Right",
+          "bone": "RightLowerArm",
+          "along": 0.0,
+          "curl": 0.6,
+          "skews": [
+            0,
+            30,
+            -30,
+            45,
+            -45
+          ]
+        }
+      ]
+    },
+    "ryotedori": {
+      "names": {
+        "short": "Ryotedori",
+        "aikikai": "Ryotedori",
+        "iwama": "Ryotedori",
+        "yoshinkan": "Ryote mochi",
+        "ki": "Ryotedori",
+        "tomiki": "Ryote dori",
+        "english": "both wrists grabbed from the front",
+        "swedish": "grepp om båda handlederna framifrån"
+      },
+      "kind": "grip",
+      "relation": "gyaku hanmi",
+      "from": "front",
+      "description": "Uke takes both of Tori's wrists, each hand from the outside with the thumb on top. Tori offers both hands forward at hip-to-waist height; the pair stands square-ish, a little offset.",
+      "tori": {
+        "hanmi": "Right",
+        "hands": {
+          "Right": [
+            -0.12,
+            -0.12,
+            0.26
+          ],
+          "Left": [
+            0.12,
+            -0.12,
+            0.26
+          ]
+        }
+      },
+      "uke": {
+        "hanmi": "Left",
+        "distance": 0.66,
+        "lateral": 0.0,
+        "facing": "tori"
+      },
+      "grips": [
+        {
+          "hand": "Left",
+          "bone": "RightLowerArm",
+          "along": 0.0,
+          "curl": 0.6,
+          "skews": [
+            0,
+            20,
+            -20
+          ]
+        },
+        {
+          "hand": "Right",
+          "bone": "LeftLowerArm",
+          "along": 0.0,
+          "curl": 0.6,
+          "skews": [
+            0,
+            20,
+            -20
+          ]
+        }
+      ]
+    },
+    "morotedori": {
+      "names": {
+        "short": "Morotedori",
+        "aikikai": "Morotedori / katate ryotedori",
+        "iwama": "Morotedori",
+        "yoshinkan": "Katate mochi ryote mochi — check (some dojos say ryote mochi)",
+        "ki": "Katate ryotedori",
+        "tomiki": "Ryote dori (one wrist) — check",
+        "english": "two hands on one wrist",
+        "swedish": "tvåhandsgrepp om en handled"
+      },
+      "kind": "grip",
+      "relation": "gyaku hanmi",
+      "from": "front",
+      "description": "Both of Uke's hands on Tori's right forearm: the left at the wrist from the outside, the right just above it toward the elbow. Uke stands on the outside of the arm, offset well to Tori's right, so both forearms come across it.",
+      "tori": {
+        "hanmi": "Right",
+        "hands": {
+          "Right": [
+            -0.04,
+            -0.16,
+            0.24
+          ]
+        }
+      },
+      "uke": {
+        "hanmi": "Left",
+        "distance": 0.58,
+        "lateral": -0.3,
+        "facing": "tori"
+      },
+      "grips": [
+        {
+          "hand": "Left",
+          "bone": "RightLowerArm",
+          "along": 0.0,
+          "curl": 0.6
+        },
+        {
+          "hand": "Right",
+          "bone": "RightLowerArm",
+          "along": 0.35,
+          "curl": 0.45,
+          "skews": [
+            0,
+            25,
+            -25,
+            45,
+            -45
+          ]
+        }
+      ]
+    },
+    "katadori": {
+      "names": {
+        "short": "Katadori",
+        "aikikai": "Katadori",
+        "iwama": "Katadori",
+        "yoshinkan": "Kata mochi",
+        "ki": "Katadori",
+        "tomiki": "Kata dori",
+        "english": "shoulder (lapel at the shoulder) grab",
+        "swedish": "axelgrepp"
+      },
+      "kind": "grip",
+      "relation": "gyaku hanmi",
+      "from": "front",
+      "description": "Uke's left hand takes the gi at Tori's right shoulder, palm on the shoulder, thumb inside the collar. Uke is closer than for a wrist: within a forearm's length.",
+      "tori": {
+        "hanmi": "Right",
+        "hands": {}
+      },
+      "uke": {
+        "hanmi": "Left",
+        "distance": 0.5,
+        "lateral": -0.12,
+        "facing": "tori"
+      },
+      "grips": [
+        {
+          "hand": "Left",
+          "bone": "RightUpperArm",
+          "along": 0.08,
+          "curl": 0.4
+        }
+      ]
+    },
+    "ryokatadori": {
+      "names": {
+        "short": "Ryokatadori",
+        "aikikai": "Ryokatadori",
+        "iwama": "Ryokatadori",
+        "yoshinkan": "Ryokata mochi",
+        "ki": "Ryokatadori",
+        "tomiki": "Ryokata dori",
+        "english": "both shoulders grabbed from the front",
+        "swedish": "grepp om båda axlarna framifrån"
+      },
+      "kind": "grip",
+      "relation": "square",
+      "from": "front",
+      "description": "Both of Uke's hands on Tori's shoulders, square on, close in.",
+      "tori": {
+        "hanmi": "Right",
+        "hands": {}
+      },
+      "uke": {
+        "hanmi": "Left",
+        "distance": 0.48,
+        "lateral": 0.0,
+        "facing": "tori"
+      },
+      "grips": [
+        {
+          "hand": "Left",
+          "bone": "RightUpperArm",
+          "along": 0.08,
+          "curl": 0.4
+        },
+        {
+          "hand": "Right",
+          "bone": "LeftUpperArm",
+          "along": 0.08,
+          "curl": 0.4
+        }
+      ]
+    },
+    "munedori": {
+      "names": {
+        "short": "Munedori",
+        "aikikai": "Munedori",
+        "iwama": "Munedori",
+        "yoshinkan": "Mune mochi",
+        "ki": "Munedori",
+        "tomiki": "Mune dori",
+        "english": "chest (lapel) grab with one hand",
+        "swedish": "grepp i bröstet / kragen"
+      },
+      "kind": "grip",
+      "relation": "gyaku hanmi",
+      "from": "front",
+      "description": "Uke's left hand takes Tori's lapel at the chest, knuckles against the sternum. Close in, square.",
+      "tori": {
+        "hanmi": "Right",
+        "hands": {}
+      },
+      "uke": {
+        "hanmi": "Left",
+        "distance": 0.5,
+        "lateral": -0.08,
+        "facing": "tori"
+      },
+      "grips": [
+        {
+          "hand": "Left",
+          "bone": "Chest",
+          "along": 0.5,
+          "curl": 0.5
+        }
+      ]
+    },
+    "eridori": {
+      "names": {
+        "short": "Eridori",
+        "aikikai": "Eridori",
+        "iwama": "Eridori",
+        "yoshinkan": "Eri mochi",
+        "ki": "Eridori",
+        "tomiki": "Eri dori",
+        "english": "collar grab (front)",
+        "swedish": "kraggrepp framifrån"
+      },
+      "kind": "grip",
+      "relation": "gyaku hanmi",
+      "from": "front",
+      "description": "Uke's left hand takes the collar at the side of Tori's neck, thumb in, fingers out on the gi. Near enough to touch.",
+      "tori": {
+        "hanmi": "Right",
+        "hands": {}
+      },
+      "uke": {
+        "hanmi": "Left",
+        "distance": 0.48,
+        "lateral": -0.1,
+        "facing": "tori"
+      },
+      "grips": [
+        {
+          "hand": "Left",
+          "bone": "Neck",
+          "along": 0.3,
+          "curl": 0.3
+        }
+      ]
+    },
+    "sodedori": {
+      "names": {
+        "short": "Sodedori",
+        "aikikai": "Sodedori",
+        "iwama": "Sodedori",
+        "yoshinkan": "Sode mochi",
+        "ki": "Sodedori",
+        "tomiki": "Sode dori",
+        "english": "sleeve grab at the elbow",
+        "swedish": "ärmgrepp vid armbågen"
+      },
+      "kind": "grip",
+      "relation": "gyaku hanmi",
+      "from": "front",
+      "description": "Uke's left hand takes Tori's right sleeve just above the elbow, from the outside, the arm hanging or half offered.",
+      "tori": {
+        "hanmi": "Right",
+        "hands": {
+          "Right": [
+            -0.02,
+            -0.3,
+            0.16
+          ]
+        }
+      },
+      "uke": {
+        "hanmi": "Left",
+        "distance": 0.56,
+        "lateral": -0.22,
+        "facing": "tori"
+      },
+      "grips": [
+        {
+          "hand": "Left",
+          "bone": "RightUpperArm",
+          "along": 0.85,
+          "curl": 0.5
+        }
+      ]
+    },
+    "hijidori": {
+      "names": {
+        "short": "Hijidori",
+        "aikikai": "Hijidori",
+        "iwama": "Hijidori",
+        "yoshinkan": "Hiji mochi",
+        "ki": "Hijidori",
+        "tomiki": "Hiji dori",
+        "english": "elbow grab",
+        "swedish": "armbågsgrepp"
+      },
+      "kind": "grip",
+      "relation": "gyaku hanmi",
+      "from": "front",
+      "description": "Uke's left hand round Tori's right forearm just below the elbow, from the outside.",
+      "tori": {
+        "hanmi": "Right",
+        "hands": {
+          "Right": [
+            -0.02,
+            -0.22,
+            0.2
+          ]
+        }
+      },
+      "uke": {
+        "hanmi": "Left",
+        "distance": 0.56,
+        "lateral": -0.24,
+        "facing": "tori"
+      },
+      "grips": [
+        {
+          "hand": "Left",
+          "bone": "RightLowerArm",
+          "along": 0.15,
+          "curl": 0.6
+        }
+      ]
+    },
+    "katadori_menuchi": {
+      "names": {
+        "short": "Katadori menuchi",
+        "aikikai": "Katadori menuchi",
+        "iwama": "Katadori menuchi",
+        "yoshinkan": "Kata mochi shomen uchi — check",
+        "ki": "Katadori menuchi",
+        "tomiki": "—",
+        "english": "shoulder grab and a strike to the head",
+        "swedish": "axelgrepp med hugg mot huvudet"
+      },
+      "kind": "grip",
+      "relation": "gyaku hanmi",
+      "from": "front",
+      "description": "Uke's left hand on Tori's right shoulder as in katadori, the right hand raised over the head to strike shomen.",
+      "tori": {
+        "hanmi": "Right",
+        "hands": {}
+      },
+      "uke": {
+        "hanmi": "Left",
+        "distance": 0.52,
+        "lateral": -0.12,
+        "facing": "tori",
+        "hands": {
+          "Right": [
+            -0.04,
+            0.42,
+            0.14
+          ]
+        }
+      },
+      "grips": [
+        {
+          "hand": "Left",
+          "bone": "RightUpperArm",
+          "along": 0.08,
+          "curl": 0.4
+        }
+      ]
+    },
+    "ushiro_ryotedori": {
+      "names": {
+        "short": "Ushiro ryotedori",
+        "aikikai": "Ushiro ryotedori",
+        "iwama": "Ushiro ryotedori",
+        "yoshinkan": "Ushiro ryote mochi",
+        "ki": "Ushiro tekubi tori",
+        "tomiki": "Ushiro ryote dori",
+        "english": "both wrists grabbed from behind",
+        "swedish": "grepp om båda handlederna bakifrån"
+      },
+      "kind": "grip",
+      "relation": "behind",
+      "from": "behind",
+      "description": "Uke behind Tori, facing the same way, each hand on the wrist of the same side, thumbs on top, Tori's arms hanging or a little forward. Uke's shoulders are behind Tori's, a short step back.",
+      "tori": {
+        "hanmi": "Right",
+        "hands": {
+          "Right": [
+            -0.12,
+            -0.38,
+            -0.08
+          ],
+          "Left": [
+            0.12,
+            -0.38,
+            -0.08
+          ]
+        }
+      },
+      "uke": {
+        "hanmi": "Right",
+        "distance": 0.36,
+        "lateral": 0.0,
+        "facing": "same"
+      },
+      "grips": [
+        {
+          "hand": "Right",
+          "bone": "RightLowerArm",
+          "along": 0.0,
+          "curl": 0.6,
+          "skews": [
+            0,
+            25,
+            -25
+          ]
+        },
+        {
+          "hand": "Left",
+          "bone": "LeftLowerArm",
+          "along": 0.0,
+          "curl": 0.6,
+          "skews": [
+            0,
+            25,
+            -25
+          ]
+        }
+      ]
+    },
+    "ushiro_ryokatadori": {
+      "names": {
+        "short": "Ushiro ryokatadori",
+        "aikikai": "Ushiro ryokatadori",
+        "iwama": "Ushiro ryokatadori",
+        "yoshinkan": "Ushiro ryokata mochi",
+        "ki": "Ushiro ryokatadori",
+        "tomiki": "Ushiro ryokata dori",
+        "english": "both shoulders grabbed from behind",
+        "swedish": "grepp om båda axlarna bakifrån"
+      },
+      "kind": "grip",
+      "relation": "behind",
+      "from": "behind",
+      "description": "Uke behind Tori with a hand on each shoulder from above and behind.",
+      "tori": {
+        "hanmi": "Right",
+        "hands": {}
+      },
+      "uke": {
+        "hanmi": "Right",
+        "distance": 0.4,
+        "lateral": 0.0,
+        "facing": "same"
+      },
+      "grips": [
+        {
+          "hand": "Right",
+          "bone": "RightUpperArm",
+          "along": 0.08,
+          "curl": 0.4
+        },
+        {
+          "hand": "Left",
+          "bone": "LeftUpperArm",
+          "along": 0.08,
+          "curl": 0.4
+        }
+      ]
+    },
+    "ushiro_eridori": {
+      "names": {
+        "short": "Ushiro eridori",
+        "aikikai": "Ushiro eridori",
+        "iwama": "Ushiro eridori",
+        "yoshinkan": "Ushiro eri mochi",
+        "ki": "Ushiro eridori",
+        "tomiki": "Ushiro eri dori",
+        "english": "collar grabbed from behind",
+        "swedish": "kraggrepp bakifrån"
+      },
+      "kind": "grip",
+      "relation": "behind",
+      "from": "behind",
+      "description": "Uke behind Tori, one hand in the collar at the back of the neck.",
+      "tori": {
+        "hanmi": "Right",
+        "hands": {}
+      },
+      "uke": {
+        "hanmi": "Right",
+        "distance": 0.42,
+        "lateral": 0.04,
+        "facing": "same"
+      },
+      "grips": [
+        {
+          "hand": "Right",
+          "bone": "Neck",
+          "along": 0.3,
+          "curl": 0.3
+        }
+      ]
+    },
+    "ushiro_kubishime": {
+      "names": {
+        "short": "Ushiro kubishime",
+        "aikikai": "Ushiro katatedori kubishime",
+        "iwama": "Ushiro kubishime",
+        "yoshinkan": "Ushiro kubi shime — check",
+        "ki": "Ushiro katatedori kubishime",
+        "tomiki": "—",
+        "english": "choke from behind with one wrist held",
+        "swedish": "strypgrepp bakifrån med grepp om en handled"
+      },
+      "kind": "grip",
+      "relation": "behind",
+      "from": "behind",
+      "description": "Uke behind Tori: the right forearm across Tori's throat (the hand lands on the far side of the neck), the left hand holding Tori's left wrist down and back. Uke is right up against Tori's back.",
+      "tori": {
+        "hanmi": "Right",
+        "hands": {
+          "Left": [
+            0.06,
+            -0.38,
+            -0.04
+          ]
+        }
+      },
+      "uke": {
+        "hanmi": "Right",
+        "distance": 0.3,
+        "lateral": 0.0,
+        "facing": "same"
+      },
+      "grips": [
+        {
+          "hand": "Right",
+          "bone": "Neck",
+          "along": 0.3,
+          "curl": 0.3
+        },
+        {
+          "hand": "Left",
+          "bone": "LeftLowerArm",
+          "along": 0.0,
+          "curl": 0.6
+        }
+      ]
+    },
+    "shomenuchi": {
+      "names": {
+        "short": "Shomenuchi",
+        "aikikai": "Shomenuchi",
+        "iwama": "Shomenuchi",
+        "yoshinkan": "Shomen uchi",
+        "ki": "Shomenuchi",
+        "tomiki": "Shomen uchi",
+        "english": "straight strike to the forehead with the hand-blade",
+        "swedish": "hugg mot huvudet"
+      },
+      "kind": "strike",
+      "relation": "ai hanmi",
+      "from": "front",
+      "description": "Uke in right hanmi at ma-ai, the right hand raised over the head with the fingers up, about to cut down the centre line. No grip: the hand is placed, the arm follows.",
+      "tori": {
+        "hanmi": "Right",
+        "hands": {}
+      },
+      "uke": {
+        "hanmi": "Right",
+        "distance": 0.9,
+        "lateral": 0.0,
+        "facing": "tori",
+        "hands": {
+          "Right": [
+            -0.04,
+            0.44,
+            0.12
+          ]
+        }
+      },
+      "grips": []
+    },
+    "yokomenuchi": {
+      "names": {
+        "short": "Yokomenuchi",
+        "aikikai": "Yokomenuchi",
+        "iwama": "Yokomenuchi",
+        "yoshinkan": "Yokomen uchi",
+        "ki": "Yokomenuchi",
+        "tomiki": "Yokomen uchi",
+        "english": "diagonal strike to the side of the head",
+        "swedish": "sidohugg mot huvudet"
+      },
+      "kind": "strike",
+      "relation": "ai hanmi",
+      "from": "front",
+      "description": "Uke in right hanmi at ma-ai, the right hand raised up and out to his own right, about to cut diagonally to the side of Tori's head.",
+      "tori": {
+        "hanmi": "Right",
+        "hands": {}
+      },
+      "uke": {
+        "hanmi": "Right",
+        "distance": 0.9,
+        "lateral": 0.0,
+        "facing": "tori",
+        "hands": {
+          "Right": [
+            -0.34,
+            0.34,
+            0.06
+          ]
+        }
+      },
+      "grips": []
+    },
+    "chudan_tsuki": {
+      "names": {
+        "short": "Chudan tsuki",
+        "aikikai": "Chudan tsuki / mune tsuki",
+        "iwama": "Tsuki",
+        "yoshinkan": "Shomen tsuki",
+        "ki": "Mune tsuki",
+        "tomiki": "Chudan tsuki",
+        "english": "straight punch to the solar plexus",
+        "swedish": "stöt mot bröstet / magen"
+      },
+      "kind": "strike",
+      "relation": "ai hanmi",
+      "from": "front",
+      "description": "Uke in right hanmi, the right fist driven straight at Tori's centre at the height of the solar plexus, the arm nearly straight, the left hand back at the hip.",
+      "tori": {
+        "hanmi": "Right",
+        "hands": {}
+      },
+      "uke": {
+        "hanmi": "Right",
+        "distance": 0.95,
+        "lateral": 0.0,
+        "facing": "tori",
+        "hands": {
+          "Right": [
+            0.06,
+            -0.12,
+            0.56
+          ],
+          "Left": [
+            0.1,
+            -0.32,
+            -0.02
+          ]
+        },
+        "curls": {
+          "Right": 1.0,
+          "Left": 1.0
+        }
+      },
+      "grips": []
+    },
+    "jodan_tsuki": {
+      "names": {
+        "short": "Jodan tsuki",
+        "aikikai": "Jodan tsuki",
+        "iwama": "Jodan tsuki",
+        "yoshinkan": "Jodan tsuki",
+        "ki": "Jodan tsuki",
+        "tomiki": "Jodan tsuki",
+        "english": "straight punch to the face",
+        "swedish": "stöt mot ansiktet"
+      },
+      "kind": "strike",
+      "relation": "ai hanmi",
+      "from": "front",
+      "description": "As chudan tsuki, the fist at the height of the face.",
+      "tori": {
+        "hanmi": "Right",
+        "hands": {}
+      },
+      "uke": {
+        "hanmi": "Right",
+        "distance": 0.95,
+        "lateral": 0.0,
+        "facing": "tori",
+        "hands": {
+          "Right": [
+            0.04,
+            0.1,
+            0.56
+          ],
+          "Left": [
+            0.1,
+            -0.32,
+            -0.02
+          ]
+        },
+        "curls": {
+          "Right": 1.0,
+          "Left": 1.0
+        }
+      },
+      "grips": []
+    },
+    "tanto_tsuki": {
+      "names": {
+        "short": "Tanto tsuki",
+        "aikikai": "Tanto tsuki (tantodori)",
+        "iwama": "Tanto tsuki",
+        "yoshinkan": "Tanto tsuki",
+        "ki": "Tanto tsuki",
+        "tomiki": "Tanto tsuki (tanto randori)",
+        "english": "knife thrust to the belly",
+        "swedish": "knivstöt mot magen"
+      },
+      "kind": "strike",
+      "relation": "ai hanmi",
+      "from": "front",
+      "description": "Chudan tsuki with a tanto in the right hand, blade forward, the thrust at Tori's belly. The left hand stays back at the hip.",
+      "tori": {
+        "hanmi": "Right",
+        "hands": {}
+      },
+      "uke": {
+        "hanmi": "Right",
+        "distance": 1.0,
+        "lateral": 0.0,
+        "facing": "tori",
+        "hands": {
+          "Right": [
+            0.06,
+            -0.16,
+            0.56
+          ],
+          "Left": [
+            0.1,
+            -0.32,
+            -0.02
+          ]
+        },
+        "curls": {
+          "Left": 1.0
+        },
+        "weapons": [
+          {
+            "type": "tanto",
+            "hand": "Right"
+          }
+        ]
+      },
+      "grips": []
+    },
+    "mae_geri": {
+      "names": {
+        "short": "Mae geri",
+        "aikikai": "Mae geri",
+        "iwama": "Mae geri",
+        "yoshinkan": "Mae geri",
+        "ki": "Mae geri",
+        "tomiki": "Mae geri",
+        "english": "front kick",
+        "swedish": "framåtspark"
+      },
+      "kind": "strike",
+      "relation": "ai hanmi",
+      "from": "front",
+      "description": "Uke in left hanmi at ma-ai, the right foot driven forward at Tori's belly, the knee high, the hands up as a guard. Rare in aikido; here for the techniques that answer it.",
+      "tori": {
+        "hanmi": "Right",
+        "hands": {}
+      },
+      "uke": {
+        "hanmi": "Left",
+        "distance": 1.0,
+        "lateral": 0.0,
+        "facing": "tori",
+        "hands": {
+          "Right": [
+            -0.1,
+            -0.05,
+            0.3
+          ],
+          "Left": [
+            0.12,
+            -0.1,
+            0.28
+          ]
+        },
+        "curls": {
+          "Right": 1.0,
+          "Left": 1.0
+        },
+        "feet": {
+          "Right": [
+            -0.05,
+            -0.3,
+            0.6
+          ]
+        }
+      },
+      "grips": []
+    }
+  }
+}

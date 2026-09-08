@@ -85,9 +85,14 @@ static func palm_centre(rig: CharacterRig, hand: String) -> Vector3:
 
 
 ## hand_world * hold_offset(t, roll) = weapon_world: anchor(t) lands on the palm centre.
-func hold_offset(rig: CharacterRig, hand: String, t: float, roll_deg: float) -> Transform3D:
+## `skew_deg` turns the fist about the line from the shaft out through the palm, so the fingers
+## run diagonally across the shaft instead of square to it — which is how a hand holds a bokken
+## or a jo whose shaft runs on from the forearm rather than across it.
+func hold_offset(rig: CharacterRig, hand: String, t: float, roll_deg: float, skew_deg: float = 0.0) -> Transform3D:
 	var cb := canonical_basis(rig, hand)
 	var b := cb.rotated(cb.y, deg_to_rad(roll_deg))
+	if absf(skew_deg) > 1e-4:
+		b = b.rotated(b.z, deg_to_rad(skew_deg))
 	return Transform3D(b, palm_centre(rig, hand)) * Transform3D(Basis.IDENTITY, -(Vector3(0, t * length, 0) + _curve_offset(t)))
 
 

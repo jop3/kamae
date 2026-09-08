@@ -28,6 +28,16 @@ var _contact_gap: Label
 var _joint_label: Label
 var _euler: Array[HSlider] = []
 var _euler_vals: Array[Label] = []
+var _euler_names: Array[Label] = []
+## The selected joint's own angles (flexion, abduction, twist), what a person would call them,
+## and how far each goes: filled from the joint catalogue (Joints) when a joint is selected.
+var _joint_readout: Label
+var _attack_pick: OptionButton
+var _attack_mirror: CheckBox
+var _attack_info: Label
+var _joint_kind: Label
+var _euler_mode := true   ## true: raw X/Y/Z on a bone with no joint entry (the hips)
+var _edit: Dictionary = {}
 var _root_x: SpinBox
 var _root_z: SpinBox
 var _root_yaw: SpinBox
@@ -48,7 +58,6 @@ var _finger_side := "Right"
 var _finger_side_button: OptionButton
 var _finger_old := 0.0
 var _updating := false
-var _slider_old_q := Quaternion.IDENTITY
 var _root_old := {}
 var _weapon_type: OptionButton
 var _weapon_list: ItemList
@@ -179,9 +188,11 @@ func setup(ctrl: PoseController, posing_scene: PosingScene, grip_director: GripD
 
 	vb.add_child(_header("Selected joint"))
 	_joint_label = Label.new(); _joint_label.text = "Click a body part"; vb.add_child(_joint_label)
+	_joint_kind = Label.new(); _joint_kind.add_theme_font_size_override("font_size", 11); vb.add_child(_joint_kind)
 	for i in 3:
 		var row := HBoxContainer.new(); vb.add_child(row)
-		var l := Label.new(); l.text = ["X", "Y", "Z"][i]; l.custom_minimum_size.x = 16; row.add_child(l)
+		var l := Label.new(); l.text = ["X", "Y", "Z"][i]; l.custom_minimum_size.x = 96
+		l.add_theme_font_size_override("font_size", 11); row.add_child(l); _euler_names.append(l)
 		var s := HSlider.new(); s.min_value = -180; s.max_value = 180; s.step = 0.5
 		s.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		s.value_changed.connect(_on_euler_changed)
@@ -189,6 +200,8 @@ func setup(ctrl: PoseController, posing_scene: PosingScene, grip_director: GripD
 		s.drag_ended.connect(_on_euler_drag_ended)
 		row.add_child(s); _euler.append(s)
 		var v := Label.new(); v.custom_minimum_size.x = 48; v.text = "0°"; row.add_child(v); _euler_vals.append(v)
+	_joint_readout = Label.new(); _joint_readout.add_theme_font_size_override("font_size", 11)
+	_joint_readout.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART; vb.add_child(_joint_readout)
 	var reset := Button.new(); reset.text = "Reset joint"
 	reset.tooltip_text = "Back to the rest rotation (Ctrl+Z undoes)"
 	reset.pressed.connect(func(): if controller.selected_rig and controller.selected_bone != "": controller.reset_bone(controller.selected_rig, controller.selected_bone))
@@ -222,6 +235,26 @@ func setup(ctrl: PoseController, posing_scene: PosingScene, grip_director: GripD
 		warn.custom_minimum_size.x = 70
 		row.add_child(warn)
 		_limb_warnings[limb_key] = warn
+
+	vb.add_child(_header("Start from an attack"))
+	var attack_hint := Label.new()
+	attack_hint.text = "Sets Tori and Uke up in the chosen attack (data/attacks.json, docs/attacks.md): stances, the hands on their targets, Uke where his arms can make the grip. Replaces the pose; not undoable."
+	attack_hint.add_theme_font_size_override("font_size", 11)
+	attack_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	vb.add_child(attack_hint)
+	var attack_row := HBoxContainer.new(); vb.add_child(attack_row)
+	_attack_pick = OptionButton.new(); _attack_pick.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	for key in Attacks.keys():
+		_attack_pick.add_item(Attacks.names(key).get("short", key))
+		_attack_pick.set_item_metadata(_attack_pick.item_count - 1, key)
+	attack_row.add_child(_attack_pick)
+	_attack_mirror = CheckBox.new(); _attack_mirror.text = "mirror"; attack_row.add_child(_attack_mirror)
+	var stage_btn := Button.new(); stage_btn.text = "Stage"
+	stage_btn.pressed.connect(_on_stage_attack)
+	attack_row.add_child(stage_btn)
+	_attack_info = Label.new(); _attack_info.add_theme_font_size_override("font_size", 11)
+	_attack_info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	vb.add_child(_attack_info)
 
 	vb.add_child(_header("Grips"))
 	var grip_hint := Label.new()
@@ -582,6 +615,7 @@ func _on_selection_changed(rig: CharacterRig, bone_name: String) -> void:
 		_grip_target_label.text = ("Selected: %s %s" % [rig.display_name, _pretty(bone_name)]) if (rig and bone_name != "") else "No body part selected"
 	_joint_label.text = ("%s: %s" % [rig.display_name, _pretty(bone_name)]) if (rig and bone_name != "") else ("%s: whole body" % rig.display_name if rig else "Click a body part")
 	_set_joint_enabled(rig != null and bone_name != "")
+	_shape_joint_sliders(rig, bone_name)
 	_refresh_character_fields()
 	_refresh_values()
 
@@ -589,6 +623,43 @@ func _on_selection_changed(rig: CharacterRig, bone_name: String) -> void:
 func _set_joint_enabled(on: bool) -> void:
 	for s in _euler:
 		s.editable = on
+
+
+## The three sliders become the selected joint's own: named as a person would name them, each
+## running exactly as far as that joint goes (Joints). A bone that is not a joint in the
+## catalogue (the hips) keeps raw X/Y/Z.
+func _shape_joint_sliders(rig: CharacterRig, bone_name: String) -> void:
+	_updating = true
+	var spec: Dictionary = rig.joints.spec(bone_name) if (rig and rig.joints and bone_name != "") else {}
+	_euler_mode = spec.is_empty()
+	if _euler_mode:
+		_joint_kind.text = ""
+		for i in 3:
+			_euler_names[i].text = ["X", "Y", "Z"][i]
+			_euler[i].min_value = -180; _euler[i].max_value = 180
+			_euler[i].tooltip_text = ""
+	else:
+		_joint_kind.text = "%s, %s joint" % [spec["label"], Joints.KINDS.get(spec["kind"], spec["kind"])]
+		var keys := ["flex", "abd", "twist"]
+		var angles: Dictionary = controller.get_joint_angles(rig, bone_name)
+		var lim := Joints.limits(spec, angles)
+		for i in 3:
+			var names: Array = spec["names"][keys[i]]
+			_euler_names[i].text = "%s / %s" % [_short(names[0]), _short(names[1])]
+			_euler[i].min_value = lim[keys[i]][0]; _euler[i].max_value = lim[keys[i]][1]
+			_euler[i].tooltip_text = "%s (−) … %s (+): %.0f° to %.0f°" % [names[0], names[1], lim[keys[i]][0], lim[keys[i]][1]]
+	_updating = false
+
+
+static func _short(name: String) -> String:
+	var s := name
+	for pair in [["flexion across the palm", "flex"], ["palmar abduction", "abduct"], ["extension (lifted)", "lift"],
+			["flexion (curled)", "curl"], ["internal rotation", "rotate in"], ["external rotation", "rotate out"],
+			["rolled toward the thumb", "roll to thumb"], ["rolled toward the little finger", "roll to little"],
+			["radial deviation", "radial"], ["ulnar deviation", "ulnar"], ["dorsiflexion", "lift"], ["plantarflexion", "point"],
+			["carrying angle in", "in"], ["carrying angle out", "out"], ["side-bend", "bend"], ["rolled to oppose", "oppose"]]:
+		s = s.replace(pair[0], pair[1])
+	return s
 
 
 func _process(_delta: float) -> void:
@@ -642,30 +713,49 @@ func _refresh_values() -> void:
 		_root_pitch.value = rad_to_deg(rig.rotation.x)
 		_root_roll.value = rad_to_deg(rig.rotation.z)
 		if controller.selected_bone != "":
-			var e := controller.get_bone_rotation(rig, controller.selected_bone).get_euler()
-			for i in 3:
-				_euler[i].value = rad_to_deg(e[i])
-				_euler_vals[i].text = "%.0f°" % rad_to_deg(e[i])
+			if _euler_mode:
+				var e := controller.get_bone_rotation(rig, controller.selected_bone).get_euler()
+				for i in 3:
+					_euler[i].value = rad_to_deg(e[i])
+					_euler_vals[i].text = "%.0f°" % rad_to_deg(e[i])
+				_joint_readout.text = ""
+			else:
+				var a: Dictionary = controller.get_joint_angles(rig, controller.selected_bone)
+				var spec: Dictionary = rig.joints.spec(controller.selected_bone)
+				var lim := Joints.limits(spec, a)
+				var keys := ["flex", "abd", "twist"]
+				for i in 3:
+					# A gated range (a knee that only turns once it is bent) moves with the joint.
+					_euler[i].min_value = lim[keys[i]][0]; _euler[i].max_value = lim[keys[i]][1]
+					_euler[i].value = a[keys[i]]
+					_euler_vals[i].text = "%.0f°" % a[keys[i]]
+				var refused: String = ""
+				if rig.joint_limits and rig.joint_limits.refused.has(controller.selected_bone):
+					refused = "\nAsked for more: " + Joints.describe(spec, rig.joint_limits.refused[controller.selected_bone]["wanted"])
+				_joint_readout.text = Joints.readout(spec, a) + refused
 	_updating = false
 
 
 func _on_euler_changed(_v: float) -> void:
 	if _updating or controller.selected_rig == null or controller.selected_bone == "":
 		return
-	var q := Quaternion.from_euler(Vector3(deg_to_rad(_euler[0].value), deg_to_rad(_euler[1].value), deg_to_rad(_euler[2].value)))
-	controller.set_bone_rotation(controller.selected_rig, controller.selected_bone, q)
+	if _euler_mode:
+		var q := Quaternion.from_euler(Vector3(deg_to_rad(_euler[0].value), deg_to_rad(_euler[1].value), deg_to_rad(_euler[2].value)))
+		controller.set_bone_rotation(controller.selected_rig, controller.selected_bone, q)
+	else:
+		controller.set_joint_angles(controller.selected_rig, controller.selected_bone, _euler[0].value, _euler[1].value, _euler[2].value)
 	for i in 3:
 		_euler_vals[i].text = "%.0f°" % _euler[i].value
 
 
 func _on_euler_drag_started() -> void:
 	if controller.selected_rig and controller.selected_bone != "":
-		_slider_old_q = controller.get_bone_rotation(controller.selected_rig, controller.selected_bone)
+		_edit = controller.begin_bone_edit(controller.selected_rig, controller.selected_bone)
 
 
 func _on_euler_drag_ended(changed: bool) -> void:
 	if changed and controller.selected_rig and controller.selected_bone != "":
-		controller.commit_bone_rotation(controller.selected_rig, controller.selected_bone, _slider_old_q, controller.get_bone_rotation(controller.selected_rig, controller.selected_bone))
+		controller.commit_bone_edit(controller.selected_rig, controller.selected_bone, _edit)
 
 
 func _on_root_changed(_v: float) -> void:
@@ -685,6 +775,31 @@ static func _pretty(bone: String) -> String:
 	for pair in [["Left", "left "], ["Right", "right "], ["UpperArm", "upper arm"], ["LowerArm", "forearm"], ["UpperLeg", "thigh"], ["LowerLeg", "shin"], ["UpperChest", "upper chest"], ["Metacarpal", " base"], ["Proximal", " 1"], ["Intermediate", " 2"], ["Distal", " tip"], ["Little", "pinky"]]:
 		s = s.replace(pair[0], pair[1])
 	return s.to_lower()
+
+
+## Stages the chosen attack on Tori and the first Uke, and says where the joints put Uke.
+func _on_stage_attack() -> void:
+	if _attack_pick.selected < 0:
+		return
+	var key: String = _attack_pick.get_item_metadata(_attack_pick.selected)
+	var tori := scene.get_character("tori")
+	var uke := scene.get_character("uke1")
+	if tori == null or uke == null:
+		_attack_info.text = "Needs Tori and Uke (uke1) in the scene."
+		return
+	_attack_info.text = "Staging…"
+	var st := Staging.new(get_tree(), scene, grips, controller)
+	var report: Dictionary = await Attacks.stage(st, key, {"mirror": _attack_mirror.button_pressed})
+	var n := Attacks.names(key)
+	var text := "%s (%s). %s" % [n.get("short", key), n.get("english", ""), Attacks.entry(key).get("description", "")]
+	if not report["refused"].is_empty():
+		text += "\nUke's arm still cannot: " + ", ".join(report["refused"])
+	if report["uke_offset"] > 0.01:
+		text += "\nUke moved %.0f cm from the catalogue's place to make the grip." % (report["uke_offset"] * 100.0)
+	_attack_info.text = text
+	controller.undo.clear_history()
+	controller.select(null, "")
+	_refresh_values()
 
 
 func _on_limb_toggled(pressed: bool, limb_key: String) -> void:

@@ -49,12 +49,25 @@ static func shape(rig: CharacterRig, kind: int, t: float) -> void:
 		bend_about(rig, bone, side, TUCK[bone] * tuck)
 	for leg in ["Right", "Left"]:
 		rig.set_limb_mode(leg + "Leg", Limb.Mode.FK)
-		bend_about(rig, leg + "UpperLeg", side, HIP_TUCK * tuck)
+		# A thigh hangs down where the spine stands up, so the same turn about the body's
+		# sideways axis that folds the spine forward swings the thigh *backwards*: the first
+		# roll extended the hips 65° behind the body, which no hip does. The hip flexes toward
+		# the chest, the knee folds the heel toward the seat.
+		bend_about(rig, leg + "UpperLeg", side, -HIP_TUCK * tuck)
 		bend_about(rig, leg + "LowerLeg", side, KNEE_TUCK * tuck)   # heel towards the seat
 	# The arms are put where the fall wants them, which means taking them over: call this after
 	# the grips are released, or it will fight whatever is holding the hand.
 	for arm in ["Right", "Left"]:
 		var limb: Limb = rig.limbs[arm + "Arm"]
+		# The arm relaxes as it lets go: a forearm keeps whatever roll its last grip baked into
+		# it (the IK solver never touches roll), and a fist that took a wrist from behind was
+		# rolled to the edge of what an elbow does.
+		var sk := rig.skeleton
+		for bone in [arm + "UpperArm", arm + "LowerArm", arm + "Hand"]:
+			var i := sk.find_bone(bone)
+			sk.set_bone_pose_rotation(i, sk.get_bone_rest(i).basis.get_rotation_quaternion())
+		limb.set_orient_to_target(false)   # the hand is no longer turned to a grip's target
+		rig.fingers.set_hand_curl(arm, 0.2)   # and the fist opens to meet the mat
 		rig.set_limb_mode(arm + "Arm", Limb.Mode.IK)
 		var reach: Vector3 = ARM_REACHING.lerp(ARM_ROLLING, tuck)
 		if arm == "Left":

@@ -36,12 +36,16 @@ func _initialize() -> void:
 	# hand orientation follows the target when asked, which plain TwoBoneIK3D never does
 	check(not arm.hand_orient.enabled, "hand orientation is off by default")
 	arm.set_orient_to_target(true)
-	arm.target.rotation = Vector3(0, 0, deg_to_rad(50))
+	# Turned 30° about the forearm, which is a supination the forearm has to give. (An arbitrary
+	# absolute orientation is not something an arm can promise: the joints have ranges now, and
+	# what they refuse is reported rather than shown — tests/test_joints.gd.)
+	var forearm_axis: Vector3 = (tori.bone_world_transform("RightHand").origin - tori.bone_world_transform("RightLowerArm").origin).normalized()
+	arm.target.global_basis = (Basis(forearm_axis, deg_to_rad(30)) * arm.target.global_basis).orthonormalized()
 	await process_frame; await process_frame
 	var hand_basis := tori.bone_world_transform("RightHand").basis.orthonormalized()
 	var want_basis := arm.target.global_basis.orthonormalized()
 	var angle_off := rad_to_deg(hand_basis.get_rotation_quaternion().angle_to(want_basis.get_rotation_quaternion()))
-	check(angle_off < 1.0, "hand orientation follows the target (%.2f deg off)" % angle_off)
+	check(angle_off < 1.0, "hand orientation follows the target (%.2f deg off, refused %s)" % [angle_off, tori.joint_limits.report()])
 
 	# --- the rig must never stretch --------------------------------------
 	# Orienting the hand used to shear the bone and pull the mesh into a ribbon, so bone lengths
@@ -59,11 +63,16 @@ func _initialize() -> void:
 
 	# --- pole moves the elbow without moving the hand ----------------------
 	var elbow_before := tori.bone_world_transform("RightLowerArm").origin
-	arm.pole.global_position = arm.pole.global_position + Vector3(0, 0.9, 0.2)
+	# With the hand's orientation pinned, the elbow can only go where the wrist can follow, so
+	# the pole is a preference (tests/test_joints.gd); here the hand is free to turn with it.
+	# Raised a moderate way: an elbow hoisted far above the shoulder with the hand at the chest
+	# is a shoulder no one has, and the joints would put it back.
+	arm.set_orient_to_target(false)
+	arm.pole.global_position = arm.pole.global_position + Vector3(0, 0.35, 0.1)
 	await process_frame; await process_frame
 	var elbow_after := tori.bone_world_transform("RightLowerArm").origin
 	var hand_after := tori.bone_world_transform("RightHand").origin
-	check(elbow_before.distance_to(elbow_after) > 0.02, "pole moves the elbow (%.3f m)" % elbow_before.distance_to(elbow_after))
+	check(elbow_before.distance_to(elbow_after) > 0.02, "pole moves the elbow (%.3f m, refused %s)" % [elbow_before.distance_to(elbow_after), tori.joint_limits.report()])
 	check(hand_after.distance_to(reachable) < 0.002, "pole does not move the hand off target")
 
 	# --- out of reach ------------------------------------------------------

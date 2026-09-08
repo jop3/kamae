@@ -33,19 +33,43 @@ selected figure's left and right; **Copy pose to** gives another figure the same
 ## Posing a figure
 
 1. **Click a body part.** Three coloured rings appear at the joint. Drag a ring to rotate about
-   that axis; hold **Shift** to snap to 15°. The X/Y/Z sliders do the same with numbers.
-   "Reset joint" returns it to rest.
+   that axis; hold **Shift** to snap to 15°. The three sliders are the joint's own — for a wrist
+   they are extension/flexion, radial/ulnar deviation and roll, for a knee extension/flexion,
+   varus/valgus and rotation — and each runs exactly as far as that joint goes. The line under
+   them says the pose in words ("flexion 32°, ulnar deviation 12°"). "Reset joint" returns it to
+   rest. **Every joint stops where a real one stops**: a ring dragged past the range stays at the
+   edge, a knee only turns once it is bent, a finger only spreads while it is open, a closed fist bends the
+   wrist less than an open hand. When a grip,
+   a weapon or a loaded pose asks a joint for more than it has, the joint is held at its edge and
+   the panel says what was asked ("Asked for more: wrist flexion 119°, past 80°"); the rest of the
+   arm does what it can first — the forearm rolls, the elbow comes round — so a hand stays on its
+   grip and is short only of the angle no arm could give. See `docs/joints.md`.
 2. **Place the whole figure** with the X, Z and Turn boxes, or "Turn 180°".
 3. **Arms and legs** can be switched to **IK**: a blue ball appears at the hand or foot and a grey
    one at the elbow or knee. Drag the blue ball to put the hand where you want it; the arm
    follows. Drag the grey ball to steer the elbow. If the ball turns **red** the hand cannot reach
-   and the panel says by how many centimetres. Switching a limb back to FK keeps its pose.
+   and the panel says by how many centimetres. Switching a limb back to FK keeps its pose. The
+   grey ball is a preference: an elbow steered where the shoulder cannot turn to goes as far round
+   as the shoulder allows, and a foot turned out turns the whole leg at the hip, knee and all.
 4. **Wrists** are joints like any other: click the hand and turn it with the rings or the
    sliders, whether the arm is in FK, in IK, or gripping something. On a gripping hand the new
    angle becomes part of the grip, so it is kept as the figures move.
 5. **Fingers:** one slider per finger, "Grip" closes the hand, "Open" opens it. A single finger
    joint can also be clicked and turned on its own (a pointing finger, a spread hand); the curl
    slider then closes it from there.
+
+## Starting from an attack
+
+Every technique begins with an attack, and the panel's **Start from an attack** section sets one
+up for you: pick it (katatedori, ryotedori, morotedori, katadori, munedori, ushiro ryotedori,
+ushiro kubishime, shomenuchi, tsuki, …), tick **mirror** for the other side, press **Stage**.
+Tori stands at the origin in hanmi offering what the attack takes; Uke stands in hanmi where the
+attack has him with his hands on their targets; and Uke is then moved to where his arms can
+actually make the grip, which is usually a little closer and further round than a script would
+put him. The line under the button says what was staged and how far Uke moved. It replaces the
+current pose and cannot be undone, so save first if the pose matters. `docs/attacks.md` lists
+every attack with its names in the different schools and in Swedish; the same list is
+`data/attacks.json`, which you can edit if a name or a distance is not how your dojo does it.
 
 ## Grips (the important part)
 
