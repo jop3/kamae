@@ -39,6 +39,7 @@ const OUTSTANDING := {
 	"katatedori_shihonage_irimi": 18,   ## re-authored after the shoulder girdle: 26 before it, 51 with it, 18 now
 	"kumijo": 0,
 	"kumitachi": 1,
+	"ryotemochi": 4,   ## the grip is the catalogue's wrap now (0 before); the blend swings the wrist 4° past ulnar deviation for four frames the keyframes themselves do not
 	"tachi_dori": 12,
 	"ushiro_ryotedori_zenponage": 11,
 }

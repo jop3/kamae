@@ -873,3 +873,47 @@ tachi dori 11 → 12 in the blends. What is left on the weapons is the *left* (r
 two-handed hold: the shaft reaches it at an angle no fist takes square, and the search found
 no roll or skew inside the wrist's range. That is the hold itself — where along the tsuka the
 rear hand sits and how far apart the hands are (`Weapon.default_hold`) — and is the instructor's.
+
+## Session 2026-09-08: Ryotemochi's grip from the catalogue
+
+Picked up the next item on the previous session's list: "ryotemochi ... from the catalogue".
+Ushiro ryotedori zenponage was left alone — a full rebuild of it was already tried and reverted
+once (it put Uke back inside Tori in the Tenkan pose), so redoing that without new information
+would only repeat the same failure.
+
+Ryotemochi (`tools/build_fixtures.gd`'s `three_person()`) had never used the catalogue at all:
+its two grabs (Uke 1's right hand on Tori's right wrist, Uke 2's left hand on Tori's left,
+mirrors of `data/attacks.json`'s `aihanmi_katatedori`) were still taken with the fixture script's
+old local `grab()` helper, which places a hand from directly above rather than from the side a
+straight wrist can reach — the exact bug `Staging.grab`'s skew search exists to fix, and exactly
+what `check_anatomy.gd`'s `OUTSTANDING` recorded for both files (a wrist flexion fault on each
+Uke's gripping hand). Swapping those two calls for `st.grab(..., skews)` with the catalogue's own
+skew list, and leaving every stance, hanmi and position untouched, was enough: both faults are
+gone, `ryotemochi_grepp` and `ryotemochi_kuzushi` are dropped from `check_anatomy.gd`'s
+`OUTSTANDING` entirely, and the grip errors are still exact (0.0000 m). Looked at the render
+before accepting it (`exports/ryotemochi_grepp_side.png`, cropped in close): the gripping hand
+wraps the forearm from the side with the thumb on top, not flat across the top of the wrist.
+
+One new cost: the blend between Grepp and Kuzushi now swings a wrist 4° past ulnar deviation for
+4 of 67 frames that neither keyframe has — `tests/check_motion.gd`'s `OUTSTANDING` gained
+`"ryotemochi": 4` (was 0). A narrower skew candidate list was tried to see if a milder wrap would
+avoid it; it picked the same skew and made no difference, so the wider list (the catalogue's own)
+was kept rather than trimming it for no benefit. Four frames a few degrees over, traded for two
+real wrist-bend faults at the keyframes themselves, is the same kind of trade the joints session
+made throughout; it is recorded, not hidden.
+
+70 golden thumbnails were rewritten by `UPDATE_GOLDEN=1` (the render pass is not pixel-stable run
+to run); only the four `ryotemochi_*` ones changed for a real reason, the rest are the usual
+antialiasing noise this project has always seen from a re-render.
+
+**Next**, still in the order the previous session left it: the rear hand of the two-handed
+weapon holds (`Weapon.default_hold`, the instructor's call); the ushiro ryotedori zenponage
+grip from the catalogue, if a way is found that does not disturb the already-corrected Tenkan;
+the re-grip intermediate poses (`tools/add_step.gd`) that `check_motion.gd` still lists; coupled
+fingers (a DIP that follows its PIP). The last one is a real gap in `src/rig/FingerCurl.gd` but a
+wide one to take on blind: nearly every committed weapon and grip pose already stores a *baked*
+curl as its phalanges' authored rotation (`PoseFile.capture_baked`), so a coupling rule keyed off
+"the phalanx is authored, not curl-driven" would fire on almost everything already committed, not
+only on a newly hand-posed joint, and would need the full acceptance suite's goldens re-judged
+render by render before it could be trusted. Worth doing, not worth starting with little of a
+session left.

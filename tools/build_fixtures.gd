@@ -410,8 +410,12 @@ func three_person() -> void:
 	await hand_at("tori", "Right", Vector3(0.05, -0.14, 0.25))
 	await hand_at("tori", "Left", Vector3(-0.05, -0.14, 0.25))
 	await settle(3)
-	await grab("uke1", "Right", "tori", "RightLowerArm")
-	await grab("uke2", "Left", "tori", "LeftLowerArm")
+	# The wrap, not the stance: each hand comes at the wrist from the side its own forearm can
+	# reach with a straight wrist (Staging.grab's skew search, catalogue's aihanmi katatedori
+	# skews), rather than the fixed from-above approach the old fixture used.
+	var skews := [0.0, 30.0, -30.0, 45.0, -45.0]
+	await st.grab("uke1", "Right", "tori", "RightLowerArm", Vector3.ZERO, 0.0, 0.6, skews)
+	await st.grab("uke2", "Left", "tori", "LeftLowerArm", Vector3.ZERO, 0.0, 0.6, skews)
 	await save_pose("Ryotemochi Grepp")
 	await hand_at("tori", "Right", Vector3(0.05, 0.15, 0.30))
 	await hand_at("tori", "Left", Vector3(-0.05, 0.15, 0.30))

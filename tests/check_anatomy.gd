@@ -42,8 +42,6 @@ const OUTSTANDING := {
 	"kumijo_tsuki": ["tori: LeftHand: wrist extension", "uke1: LeftHand: wrist extension"],
 	"kumitachi_awase": ["tori: LeftHand: wrist extension", "tori: RightHand: wrist extension", "uke1: LeftHand: wrist extension", "uke1: RightHand: wrist extension"],
 	"kumitachi_uchi": ["tori: LeftHand: wrist extension", "tori: RightHand: wrist extension", "uke1: LeftHand: wrist extension", "uke1: RightHand: wrist extension"],
-	"ryotemochi_grepp": ["uke1: RightHand: wrist flexion", "uke2: LeftHand: wrist flexion"],
-	"ryotemochi_kuzushi": ["uke1: RightHand: wrist flexion", "uke2: LeftHand: wrist flexion"],
 	"tachi_dori_furikaburi": ["uke1: LeftHand: wrist flexion"],
 	"tachi_dori_irimi": ["uke1: LeftHand: wrist extension", "uke1: RightHand: wrist extension"],
 	"tachi_dori_kamae": ["uke1: LeftHand: wrist extension", "uke1: RightHand: wrist extension"],
