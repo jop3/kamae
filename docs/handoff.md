@@ -917,3 +917,40 @@ curl as its phalanges' authored rotation (`PoseFile.capture_baked`), so a coupli
 only on a newly hand-posed joint, and would need the full acceptance suite's goldens re-judged
 render by render before it could be trusted. Worth doing, not worth starting with little of a
 session left.
+
+## Session 2026-09-11: a re-grip attempt that did not work, and coupled fingers that did
+
+**tools/add_step.gd on tachi_dori, tried and reverted.** The furikaburi→irimi transition has
+tori's chest sweeping up to 13.9 cm into Uke's raised sword arm across several frames
+(`check_motion.gd`). `add_step.gd` bakes the pose the technique is already showing at a chosen
+moment and splits the transition there, which is exactly the tool built for this — but baking
+the peak-overlap moment and splitting around it did not reduce the frame count: it swapped the
+body-interpenetration for a different fault, a hand grip transfer that now swings tori's wrist
+104–123° past its range and the bokken through his own chest as the two short new transitions
+each cross their own bit of bad geometry. 14 bad frames against 12 before, and arguably worse
+ones. Reverted rather than kept as a lateral trade with a bigger `OUTSTANDING` number to match.
+The lesson, which matches what `docs/handoff.md` already said about these frames: mechanically
+baking the raw blend is not the fix. The Tenkan waypoint that worked for ushiro ryotedori worked
+because it was placed to route *around* the obstacle; a waypoint that is just "whatever the
+straight line already shows at its worst point" inherits the same conflict on both of its new,
+shorter sides. Anyone trying this again should move the offending limb by hand after baking, as
+the tool's own printed instruction says, not treat the bake as the answer.
+
+**Coupled fingers, done.** `src/rig/FingerCurl.gd` now has `DIP_FOLLOWS_PIP` (0.6): a DIP's own
+authored bend gets an added share of whatever its PIP was posed by hand *beyond* the curl
+slider's own contribution (`_flex_angle` measures that share off the same axis `calibrate()`
+already found, the same way `Joints.angles` does for the joint catalogue, so the two never
+disagree about which way a finger bends). The worry going in was real — nearly every weapon-hold
+pose does carry a non-zero authored Intermediate and Distal rotation from the wrap-and-skew
+fitting, not just baked curl, so the coupling fires on almost everything already committed — but
+it turned out to be small in practice: `tests/run.sh` end to end, goldens included, came back
+with **zero** thumbnails changed, and a before/after crop of a jo grip at normal render distance
+is indistinguishable by eye. A synthetic test (bend the PIP alone, curl at 0, measure the DIP's
+*own* rotation relative to its now-bent parent — not the DIP's world position, which would move
+just from being a rigid child of a rotated bone) shows the effect is real, about 34° of a 40°
+PIP bend giving 0.6× at the DIP as designed; `tests/test_wrist.gd` covers it. Caught one bug of
+my own on the way: `get_bone_pose_rotation` is transient per `docs/engine-notes.md` (a modifier's
+write is applied to the skin and then reverted), so the first version of the test read the DIP's
+pose rotation straight after the modifier ran and always saw the untouched authored value —
+`bone_world_transform`, or a relative-basis comparison for an effect that a rigid child would
+also show, is what has to be read instead.
