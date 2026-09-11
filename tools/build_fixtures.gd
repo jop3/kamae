@@ -285,14 +285,18 @@ func katatedori_ikkyo() -> void:
 	stance_from_uke(uke_at, 0.185, -0.526, 15)
 	await save_pose("Katatedori Ikkyo Kuzushi")
 
-	# Kake: Uke's grip is off, Uke bends forward, Tori holds Uke's arm at wrist and elbow.
+	# Kake: Uke's grip is off, Uke bends forward, Tori holds Uke's arm at wrist and elbow. Both
+	# hands take theirs the way the catalogue's do — from the side the holding forearm can reach
+	# with a straight wrist (Staging.grab's skew search) — rather than the fixed from-above
+	# approach the old fixture used, which is what bent Tori's own wrist controlling the pin.
 	await release_all("uke1")
 	await bend_forward("uke1", "Spine", 40)
 	await hand_at("uke1", "Left", Vector3(0.35, -0.10, 0.30))   # out to Uke's left and forward
 	stance_from_uke(uke_at, -0.895, -0.466, 110)                 # outside that arm, facing it
 	await settle(3)
-	await grab("tori", "Right", "uke1", "LeftLowerArm", Vector3(0, 0.06, 0))
-	await grab("tori", "Left", "uke1", "LeftUpperArm", Vector3(-0.06, 0.05, 0), 0.6)   # just above the elbow, clear of the chest
+	var skews := [0.0, 30.0, -30.0, 45.0, -45.0]
+	await st.grab("tori", "Right", "uke1", "LeftLowerArm", Vector3.ZERO, 0.0, 0.6, skews)
+	await st.grab("tori", "Left", "uke1", "LeftUpperArm", Vector3.ZERO, 0.6, 0.6, skews)   # just above the elbow, clear of the chest
 	await save_pose("Katatedori Ikkyo Kake")
 	save_sequence("Katatedori Ikkyo", [["Katatedori Ikkyo Grepp", 0.0, 0.5], ["Katatedori Ikkyo Kuzushi", 0.6, 0.3], ["Katatedori Ikkyo Kake", 0.6, 1.0]])
 

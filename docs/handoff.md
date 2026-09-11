@@ -954,3 +954,39 @@ write is applied to the skin and then reverted), so the first version of the tes
 pose rotation straight after the modifier ran and always saw the untouched authored value —
 `bone_world_transform`, or a relative-basis comparison for an effect that a rigid child would
 also show, is what has to be read instead.
+
+## Session 2026-09-11 (continued): katatedori ikkyo's kake grip from the catalogue
+
+Same trick as ryotemochi, on a different fault: `katatedori_ikkyo()`'s kake still took both of
+Tori's holds on Uke's arm with the fixture script's old fixed-approach `grab()` — the same
+from-above wrap ryotemochi had, and the same fix, `st.grab(...)` with the catalogue's skew list
+for both the wrist hold and the elbow control. Tori's own `LeftUpperArm: shoulder adduction 31°`
+and `LeftHand: wrist extension 82°` are gone; what is left is `RightHand: wrist flexion 67°`,
+past 63° — 4° over instead of 26°. Looked at the render (`exports/katatedori_ikkyo_kake_side.png`,
+cropped in): both hands wrap the forearm from the side, not flat across the top.
+
+One thing to know before touching this technique again. Rebuilding it (any edit to
+`katatedori_ikkyo()` forces the whole function to rerun, grepp through kake) reruns `attack()`'s
+fit search under this session's earlier finger-coupling change, and the search's cost function —
+which reads joint refusals — comes out very slightly different with it than without, enough to
+shift Uke's fitted stance a little. Grepp and Kuzushi came back numerically different even though
+neither line of code that builds them changed at all, and that shift alone (confirmed by
+reverting the kake fix entirely and rebuilding again — the shift persisted) added 3 frames to
+`katatedori_ikkyo`'s motion count in the grepp→kuzushi blend (a gripping wrist over its range,
+not a new kind of fault, just three more frames of one that already existed elsewhere in the
+sequence) and *removed* 2 from `katatedori_shihonage_irimi`, which starts from the same Grepp
+file. Both are recorded in `check_motion.gd`'s `OUTSTANDING` with the reason. Nothing about this
+is wrong, but it means **any** future rebuild of a technique already in `poses/` can move numbers
+in a sibling technique that shares one of its files, for reasons that have nothing to do with
+what was actually being worked on — worth checking `check_motion.gd` across the board after a
+rebuild, not just the technique that was touched.
+
+**Where the empty-hand OUTSTANDING stands now.** What is left in `check_anatomy.gd` is, without
+exception, either a weapon hold's roll (`Weapon.default_hold`, the rear hand) or — now confirmed
+by looking at `katatedori_shihonage_kake`/`_kuzushi`'s numbers directly (wrist flexion 144°,
+radial deviation 55°, shoulder external rotation 106°: all much larger than ikkyo's kake ever
+was) — the same category of question for an empty-hand hold: as the grip carries the wrist round
+through the throw, something has to give, and which the instructor decides, the way
+`Weapon.default_hold` already needs to for a two-handed weapon grip. Shihonage's is a genuinely
+different, bigger problem than ikkyo's kake was (which turned out to be the wrap, not the hold),
+so it should not be assumed to be the same fix in disguise.

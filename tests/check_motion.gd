@@ -35,8 +35,11 @@ func check(cond: bool, msg: String) -> void:
 ## is a pose to author, not a rule to loosen.
 const OUTSTANDING := {
 	"jo_dori": 20,   ## the taken jo's hand is fitted now and the blend from the thrust crosses differently
-	"katatedori_ikkyo": 9,   ## the grip is the catalogue's now; two frames of a wrist at its edge as the arm is raised
-	"katatedori_shihonage_irimi": 18,   ## re-authored after the shoulder girdle: 26 before it, 51 with it, 18 now
+	"katatedori_ikkyo": 12,   ## the grip is the catalogue's now; two frames of a wrist at its edge as the arm is raised;
+		## the kake grip is the catalogue's wrap too (fixed a real wrist and shoulder fault there), and
+		## rebuilding refit grepp/kuzushi under the finger coupling added this session, which shifted
+		## the grepp->kuzushi blend enough to add 3 frames of Uke's gripping wrist over its range
+	"katatedori_shihonage_irimi": 16,   ## re-authored after the shoulder girdle: 26 before it, 51 with it, 18 then; 16 now that its grepp (shared with katatedori_ikkyo) is refit
 	"kumijo": 0,
 	"kumitachi": 1,
 	"ryotemochi": 4,   ## the grip is the catalogue's wrap now (0 before); the blend swings the wrist 4° past ulnar deviation for four frames the keyframes themselves do not

@@ -35,7 +35,7 @@ func check(cond: bool, msg: String) -> void:
 const OUTSTANDING := {
 	"jo_dori_tsuki": ["uke1: LeftHand: wrist extension"],
 	"jo_dori_uke": ["uke1: LeftHand: wrist extension"],
-	"katatedori_ikkyo_kake": ["tori: LeftUpperArm: shoulder adduction", "tori: LeftHand: wrist extension"],
+	"katatedori_ikkyo_kake": ["tori: RightHand: wrist flexion"],
 	"katatedori_shihonage_kake": ["tori: LeftHand: wrist radial deviation", "tori: RightHand: wrist flexion", "uke1: LeftUpperArm: shoulder adduction"],
 	"katatedori_shihonage_kuzushi": ["uke1: LeftHand: wrist flexion"],
 	"kumijo_kamae": ["tori: LeftHand: wrist extension", "uke1: LeftHand: wrist extension"],
