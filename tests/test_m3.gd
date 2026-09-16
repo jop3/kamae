@@ -142,13 +142,15 @@ func _initialize() -> void:
 	var elbow: Vector3 = tori.bone_world_transform("RightLowerArm").origin
 	var wrist: Vector3 = tori.bone_world_transform("RightHand").origin
 	var forearm_axis: Vector3 = (wrist - elbow).normalized()
-	var palm: Vector3 = uke.bone_world_transform("LeftHand") * Weapon.palm_centre(uke, "Left")
+	# The base of the fingers is what lies on the forearm now (GripDirector.grip_seat), so that
+	# is what is measured; the middle of the palm is a finger's length away from it.
+	var palm: Vector3 = uke.bone_world_transform("LeftHand") * uke.fingers.knuckle_centre("Left")
 	var rel: Vector3 = palm - elbow
 	var off_axis: float = (rel - forearm_axis * rel.dot(forearm_axis)).length()
 	var along: float = rel.dot(forearm_axis) / elbow.distance_to(wrist)
 	var width_world: Vector3 = uke.bone_world_transform("LeftHand").basis * uke.fingers.palm_width("Left")
 	check(grips_hold(), "the wrapped grip holds (error %.4f, shortfall %.4f)" % [director.worst_error(), worst_shortfall()])
-	check(off_axis < 0.035, "the wrapped palm sits on the forearm (%.3f m off its axis)" % off_axis)
+	check(off_axis < 0.055, "the wrapped palm sits on the forearm (%.3f m off its axis)" % off_axis)
 	check(along > 0.2 and along < 0.95, "the wrap is on the forearm, not beyond a joint (%.2f of its length)" % along)
 	check(absf(width_world.normalized().dot(forearm_axis)) > 0.85, "the forearm runs across the palm (%.2f)" % absf(width_world.normalized().dot(forearm_axis)))
 

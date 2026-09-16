@@ -506,7 +506,7 @@ func tachi_dori() -> void:
 	var dh: Dictionary = bokken.default_hold("Right")
 	director.hold_weapon(rig("tori"), "Right", bokken, dh["t"], dh["roll_deg"], true)
 	await settle(2)
-	rig("tori").fingers.apply_grip_preset("Right")
+	GripDirector.close_fingers_on_weapon(rig("tori"), "Right", bokken)
 	await arm_fk("uke1", "Right")
 	await arm_fk("uke1", "Left")
 	stance("uke1", 0.45, 0.85, 220)
@@ -528,12 +528,12 @@ func jo_dori() -> void:
 	# Thrust: jo level at chest height, tip toward Tori, hands at 0.30 and 0.55 along it.
 	jo.drive = "weapon"
 	await jo_kamae(u, jo)
-	u.fingers.apply_grip_preset("Right"); u.fingers.apply_grip_preset("Left")
+	GripDirector.close_fingers_on_weapon(u, "Right", jo); GripDirector.close_fingers_on_weapon(u, "Left", jo)
 	await save_pose("Jo dori Tsuki")
 	# Deflect and take hold of the staff near its tip.
 	stance("tori", 0.42, -0.30, 35)   # off the line of the staff, so it passes beside the arm
 	director.attach_to_weapon(rig("tori"), "Right", jo, 0.80, true)
-	rig("tori").fingers.apply_grip_preset("Right")
+	GripDirector.close_fingers_on_weapon(rig("tori"), "Right", jo)
 	await st.fit_weapon_hands("tori", jo)
 	await save_pose("Jo dori Uke")
 	# Tori holds the jo; Uke lets go.

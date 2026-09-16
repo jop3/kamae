@@ -435,14 +435,35 @@ func _render_grip_closeup(args: PackedStringArray) -> void:
 	var centre: Vector3 = h * Vector3(0, 0.06, 0)
 	var normal: Vector3 = h.basis * r.fingers.palm_normal(hand)
 	var width: Vector3 = h.basis * r.fingers.palm_width(hand)
-	for view in [["back", -normal], ["thumb", width], ["along", h.basis.y]]:
-		camera.look_from(view[1], centre, distance)
+	# Every direction is tried from outside in: a camera 25 cm from a hand that two people are
+	# holding between them can easily sit inside one of them, and an inside-out body fills the
+	# frame with flat colour. A view whose eye is inside a capsule is moved out along its own
+	# direction until it is clear, and dropped if it never is.
+	for view in [["back", -normal], ["thumb", width], ["along", h.basis.y], ["edge", normal.cross(width).normalized()]]:
+		var dir: Vector3 = (view[1] as Vector3).normalized()
+		var clear := distance
+		while clear < distance * 4.0 and _inside_a_body(centre + dir * clear):
+			clear += 0.05
+		if _inside_a_body(centre + dir * clear):
+			print("grip close-up skipped (no clear view): ", view[0])
+			continue
+		camera.look_from(dir, centre, clear)
 		for k in 3:
 			await get_tree().process_frame
 		var p := "%s_%s.png" % [out.get_basename(), view[0]]
 		await StillExport.capture(get_viewport(), p, false, _hide_always(), _hide_for_transparent())
 		print("grip close-up saved: ", p)
 	get_tree().quit()
+
+
+## Is `p` inside anyone's body capsules? Used to keep a close-up camera out of a torso.
+func _inside_a_body(p: Vector3) -> bool:
+	for rig in posing_scene.characters:
+		if not rig.visible:
+			continue
+		if BodyCapsules.penetration(p, 0.02, rig) > 0.0:
+			return true
+	return false
 
 
 ## Test hook: both figures in gi, standing and in a katatedori with one arm raised, so the

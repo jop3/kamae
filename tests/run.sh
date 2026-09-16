@@ -41,6 +41,9 @@ run "$GODOT" --headless -s tests/check_acceptance.gd >/dev/null 2>&1 || status=1
 echo "== anatomy: joints, intersections, weapons and skin on every committed pose"
 run "$GODOT" --headless -s tests/check_anatomy.gd 2>&1 | grep -E "^(FAIL|RESULT)" || true
 run "$GODOT" --headless -s tests/check_anatomy.gd >/dev/null 2>&1 || status=1
+echo "== grips: every gripping finger measured against what its hand holds"
+run "$GODOT" --headless -s tests/check_grips.gd 2>&1 | grep -E "^(FAIL|RESULT)" || true
+run "$GODOT" --headless -s tests/check_grips.gd >/dev/null 2>&1 || status=1
 echo "== motion: the same checks on every frame a video shows, not only on the poses"
 run "$GODOT" --headless -s tests/check_motion.gd 2>&1 | grep -E "^(FAIL|RESULT)" || true
 run "$GODOT" --headless -s tests/check_motion.gd >/dev/null 2>&1 || status=1

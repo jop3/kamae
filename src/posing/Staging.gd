@@ -116,6 +116,9 @@ func _fit_weapon_hands_once(id: String, weapon: Weapon) -> void:
 			continue
 		var hand: String = grip.hand
 		var t: float = grip.target.t
+		# Closed onto the shaft before anything is measured: a fist leaves the wrist less range
+		# than an open hand and the search reads that range (JointLimits).
+		GripDirector.close_fingers_on_weapon(r, hand, weapon)
 		var base: float = float(weapon.default_hold(hand)["roll_deg"])
 		# A hand that already holds the shaft is measured from the hold it has, not from the
 		# weapon's default guess: consecutive poses of a technique refit the same hands, and a
@@ -182,6 +185,12 @@ static func _turn(roll_deg: float, from_deg: float) -> float:
 	return absf(wrapf(roll_deg - from_deg, -180.0, 180.0))
 
 
+## How much of the fitted curl a grip may settle for, tried tightest first (see `grab`).
+const CURL_EASE := [1.0, 0.8, 0.6]
+## The skews a wrapped grip falls back to when the catalogue's own leave the arm refused.
+const WIDE_SKEWS := [0.0, -10.0, 10.0, -20.0, 20.0, -30.0, 30.0, -40.0, 40.0]
+
+
 ## A hanmi stance: `front` foot a step forward, rear foot back and turned out, knees bent by
 ## dropping the hips onto planted feet.
 func hanmi(id: String, front: String = "Right", depth: float = 0.32, width: float = 0.16, drop: float = 0.06) -> void:
@@ -228,6 +237,12 @@ func grab(gripper: String, hand: String, target: String, bone: String, approach_
 	if g.limbs[hand + "Arm"].mode != Limb.Mode.IK:
 		await ctrl.set_limb_mode(g, hand + "Arm", Limb.Mode.IK)
 	var t := rig(target)
+	# Close the fingers onto what is being held before anything is measured: the wrist's range
+	# depends on the hand's curl (a fist bends less than an open hand), so the side and skew
+	# search below must see the hand it is going to end up with. `curl` is now only what a
+	# finger that cannot reach falls back to.
+	var seat_along := clampf(along, 0.25, 0.9)
+	close_fingers_onto(g, hand, t, bone, curl, seat_along)
 	var start: Vector3 = t.bone_world_transform(bone).origin
 	var children := t.skeleton.get_bone_children(t.skeleton.find_bone(bone))
 	var shaft := Vector3.UP
@@ -249,24 +264,52 @@ func grab(gripper: String, hand: String, target: String, bone: String, approach_
 		var reach := GripDirector.hold_radius(bone) + 0.04
 		var best_cost := INF
 		var best_side := radial
-		for candidate in [radial, -radial]:
-			for f in [false, true]:
-				for sk in skews:
-					g.limbs[hand + "Arm"].target.global_position = start + candidate * reach
-					await settle(2)
-					var trial := director.attach_wrapped(g, hand, t, bone, true, f, float(sk))
-					await settle(4)
-					var cost := arm_refusal_excess(g, hand) + 2000.0 * director.error_for(trial) + 0.02 * absf(float(sk))
-					director._remove(trial)
-					if cost < best_cost:
-						best_cost = cost; best_side = candidate; flip = f; skew = float(sk)
+		# ... and how far the fingers close is part of the search too: a hand closed onto what it
+		# holds leaves its wrist less range than an open one (JointLimits reads the curl), so a
+		# grip the joints refuse by a few degrees is worth taking with the fingers a little short
+		# of the surface rather than not at all. CURL_EASE is how much of the fitted curl to try,
+		# tightest first; anything looser than this is a hand not holding anything.
+		var best_ease := 1.0
+		# The catalogue's own skews first; if none of them leaves the arm free, the wider list,
+		# because a grip the joints refuse is worse than one whose fingers run a little more
+		# diagonally across the wrist than the catalogue thought.
+		var rounds := [skews, WIDE_SKEWS]
+		for round_skews in rounds:
+			if best_cost < 1e-3:
+				break
+			for candidate in [radial, -radial]:
+				for f in [false, true]:
+					for sk in round_skews:
+						for ease in CURL_EASE:
+							close_fingers_onto(g, hand, t, bone, curl, seat_along, float(ease))
+							g.limbs[hand + "Arm"].target.global_position = start + candidate * reach
+							await settle(2)
+							var trial := director.attach_wrapped(g, hand, t, bone, true, f, float(sk))
+							await settle(4)
+							var cost := arm_refusal_excess(g, hand) + 2000.0 * director.error_for(trial) + 0.02 * absf(float(sk)) + 2.0 * (1.0 - float(ease))
+							director._remove(trial)
+							if cost < best_cost:
+								best_cost = cost; best_side = candidate; flip = f; skew = float(sk); best_ease = float(ease)
 		approach_offset = best_side * reach
+		close_fingers_onto(g, hand, t, bone, curl, seat_along, best_ease)
 	g.limbs[hand + "Arm"].target.global_position = start + approach_offset
 	await settle()
 	var grip := director.attach_wrapped(g, hand, rig(target), bone, true, flip, skew)
-	fingers(gripper, hand, curl)
 	await settle(3)
 	return grip
+
+
+## Closes each of `hand`'s fingers as far as resting on `bone` takes, no further: the curl is
+## worked out from the mesh's own radius there and the finger's own length
+## (FingerCurl.curls_onto), rather than from a number in the catalogue. A finger that cannot
+## reach round what it holds keeps `fallback`.
+func close_fingers_onto(g: CharacterRig, hand: String, t: CharacterRig, bone: String, fallback: float, along: float = 0.5, ease: float = 1.0) -> void:
+	var seat := GripDirector.grip_seat(g, hand, t, bone, along)
+	var axis: Vector3 = Weapon.canonical_basis(g, hand).y
+	var fitted := g.fingers.curls_onto(hand, seat, axis, t.skin_radius(bone, along))
+	for finger: String in fitted:
+		var c: float = fitted[finger]
+		g.fingers.set_curl(hand, finger, (fallback if is_equal_approx(c, 1.0) else c) * ease)
 
 
 ## Degrees by which `hand`'s arm (shoulder, elbow, wrist) is past its joints' ranges on screen,

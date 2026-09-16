@@ -26,6 +26,10 @@ const FULL_CURL_DEG := 85.0
 const DIP_FOLLOWS_PIP := 0.6
 ## The thumb folds across the palm rather than into it, so it curls less and about the same axis.
 const THUMB_SCALE := 0.6
+## How far past the distal joint the fingertip is, and the flesh on it: both for working out how
+## far a finger has to close to rest on something (curls_onto).
+const TIP_LENGTH := 0.022
+const TIP_PAD := 0.008
 
 ## side -> finger -> 0..1
 var curls: Dictionary = {}
@@ -230,6 +234,88 @@ func palm_normal(side: String) -> Vector3:
 ## Direction across the palm from the little finger to the index finger, hand bone frame.
 func palm_width(side: String) -> Vector3:
 	return _palm_widths.get(side, Vector3.ZERO)
+
+
+## Where `finger`'s joints would sit, in the hand bone's frame, if the hand were at `amount` of
+## curl on the rest pose: the knuckle, the two joints after it and the tip (the distal joint
+## carried on by TIP_LENGTH). The same walk down the chain that _process_modification does, so
+## the two cannot drift apart.
+func chain_at_curl(side: String, finger: String, amount: float) -> Array:
+	var sk := get_skeleton()
+	if sk == null:
+		return []
+	if not _calibrated:
+		calibrate()
+	var hand := sk.find_bone(side + "Hand")
+	if hand < 0:
+		return []
+	var scale: float = THUMB_SCALE if finger == "Thumb" else 1.0
+	var segments: Array = SEGMENTS[finger]
+	var to_hand: Transform3D = sk.get_bone_global_rest(hand).affine_inverse()
+	var parent_rest: Transform3D = sk.get_bone_global_rest(hand)
+	var carried: Transform3D = parent_rest
+	var out: Array = []
+	for i in segments.size():
+		var bone := sk.find_bone("%s%s%s" % [side, finger, segments[i]])
+		if bone < 0:
+			return []
+		var rest: Transform3D = sk.get_bone_global_rest(bone)
+		carried = carried * (parent_rest.affine_inverse() * rest)
+		if _axes.has(bone):
+			carried = carried * Transform3D(Basis(Quaternion(_axes[bone], deg_to_rad(FULL_CURL_DEG) * amount * SEGMENT_WEIGHT[i] * scale)), Vector3.ZERO)
+		parent_rest = rest
+		out.append(to_hand * carried.origin)
+	out.append(to_hand * (carried * Vector3(0, TIP_LENGTH, 0)))
+	return out
+
+
+## How far each finger has to close for the hand to rest on a shaft of `radius` lying along
+## `axis` through `seat` (both in the hand bone's frame): as far as it goes before any part of
+## it — knuckle, joints or tip — would be inside that surface. A finger fitted by its tip alone
+## still lies straight across what it holds with its middle inside it, which is what the
+## close-up renders showed; this closes it until it is resting on the thing.
+##
+## It replaces a guessed number per grip: a fist closed by a constant drives its fingers through
+## a thin wrist and leaves them short of a thick thigh, and what a finger has to do depends on
+## what it is holding.
+func curls_onto(side: String, seat: Vector3, axis: Vector3, radius: float) -> Dictionary:
+	var want := radius + TIP_PAD
+	var dir := axis.normalized()
+	var clear := func(finger: String, amount: float) -> float:
+		var worst := INF
+		for p: Vector3 in chain_at_curl(side, finger, amount):
+			var v: Vector3 = p - seat
+			worst = minf(worst, (v - dir * v.dot(dir)).length())
+		return worst
+	var out := {}
+	for finger in FINGERS:
+		if clear.call(finger, 1.0) >= want:
+			out[finger] = 1.0   # closes fully without ever meeting it
+			continue
+		if clear.call(finger, 0.0) < want:
+			# Open, the finger is already inside what the hand holds — the thumb, usually, lying
+			# across the shaft rather than along it. Closing it may take it over and clear, so
+			# the whole range is tried and the least buried kept.
+			var best := 0.0
+			var best_clear := -INF
+			for step in 21:
+				var c := step / 20.0
+				var d: float = clear.call(finger, c)
+				if d > best_clear:
+					best_clear = d
+					best = c
+			out[finger] = best
+			continue
+		var lo := 0.0   # clear
+		var hi := 1.0   # into it
+		for i in 12:
+			var mid := 0.5 * (lo + hi)
+			if clear.call(finger, mid) >= want:
+				lo = mid
+			else:
+				hi = mid
+		out[finger] = lo
+	return out
 
 
 ## The middle of the four finger knuckles in the hand bone's frame — where the palm ends and the

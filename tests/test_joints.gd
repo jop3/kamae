@@ -225,16 +225,19 @@ func _initialize() -> void:
 	check(tori.joint_limits.refused.is_empty(), "nothing refused with the arm overhead (%s)" % ", ".join(tori.joint_limits.report()))
 
 	# --- a grip a wrist cannot make is short of its orientation, and says so -------------
-	# (Katatedori ikkyo's grepp used to be the example; it starts from the attacks catalogue
-	# now and refuses nothing. Ushiro ryotedori's grepp still bends both wrists past 80°.)
-	PoseFile.apply(PoseFile.load("res://poses/ushiro_ryotedori_zenponage_grepp.json"), scene, director, ctrl)
+	# (Katatedori ikkyo's grepp used to be the example, and then ushiro ryotedori's grepp; both
+	# come from the catalogue now, and the second's wrists came free when its hands were re-seated
+	# where a hand holds a forearm. Shihonage's kake is what still asks a gripping wrist for more
+	# than it has: Tori's hand is on Uke's hand and turning it, which is the open question about
+	# that technique — docs/handoff.md, tests/check_anatomy.gd.)
+	PoseFile.apply(PoseFile.load("res://poses/katatedori_shihonage_kake.json"), scene, director, ctrl)
 	await settle(4)
 	uke = scene.get_character("uke1")
 	tori = scene.get_character("tori")
-	var g: Grip = director.grip_on_limb("uke1", "LeftArm")
-	check(g != null and uke.joint_limits.refused.has("LeftHand"), "Uke's ushiro ryotedori in the committed pose asks a wrist for more than it has (%s)" % ", ".join(uke.joint_limits.report()))
-	var off := rad_to_deg(uke.bone_world_transform("LeftHand").basis.orthonormalized().get_rotation_quaternion().angle_to(uke.limbs["LeftArm"].target.global_basis.orthonormalized().get_rotation_quaternion()))
-	check(off > 0.5 and director.error_for(g) < 0.005, "so the hand is on the wrist (%.3f m) but %.1f° short of the orientation asked" % [director.error_for(g), off])
+	var g: Grip = director.grip_on_limb("tori", "RightArm")
+	check(g != null and tori.joint_limits.refused.has("RightHand"), "Tori's shihonage kake in the committed pose asks a wrist for more than it has (%s)" % ", ".join(tori.joint_limits.report()))
+	var off := rad_to_deg(tori.bone_world_transform("RightHand").basis.orthonormalized().get_rotation_quaternion().angle_to(tori.limbs["RightArm"].target.global_basis.orthonormalized().get_rotation_quaternion()))
+	check(off > 0.5 and director.error_for(g) < 0.005, "so the hand is on the hand it turns (%.3f m) but %.1f° short of the orientation asked" % [director.error_for(g), off])
 
 	print("RESULT %s (%d failures)" % ["OK" if failures == 0 else "FAILED", failures])
 	quit(1 if failures > 0 else 0)

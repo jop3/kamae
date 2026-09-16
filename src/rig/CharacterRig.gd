@@ -29,6 +29,10 @@ var girdle: ShoulderGirdle
 ## Reading Skeleton3D directly outside that signal returns the *authored* pose, not the posed one
 ## (see docs/engine-notes.md), so everything that asks "where is this bone now" goes through here.
 var _solved_poses: Array[Transform3D] = []
+## bone -> the mesh's own radius along it, in BANDS bands from its joint to the next, measured
+## from the rest pose (skin_radius).
+var _skin_radii: Dictionary = {}
+const BANDS := 4
 ## limb key ("RightArm", "LeftLeg", …) -> Limb
 var limbs: Dictionary = {}
 ## False while rendering for export: IK handles stay hidden whatever the limb modes do.
@@ -196,6 +200,80 @@ func set_gi_visible(on: bool) -> void:
 
 func get_skin_color() -> Color:
 	return skin_material.albedo_color
+
+
+## The radius of the *mesh* around `bone` in the rest pose, in metres: the median distance from
+## the bone's axis of the vertices it mostly owns. This is what a hand holding that bone has to
+## close around, and it is not `BodyCapsules.radius`, which is a deliberately coarse collision
+## capsule — a forearm's capsule is 40 mm where the skin is 27 mm, and a grip seated on the
+## capsule floats above the arm. Measured once per rig and kept.
+## `along` is where on the bone (0 its own joint, 1 the next), because a limb tapers: this
+## forearm is 35 mm at the elbow and 23 mm at the wrist, and a grip seated on the average of the
+## two sinks into one end.
+func skin_radius(bone_name: String, along: float = 0.5) -> float:
+	if _skin_radii.is_empty():
+		_measure_skin_radii()
+	var bands: PackedFloat32Array = _skin_radii.get(bone_name, PackedFloat32Array())
+	if bands.is_empty():
+		return BodyCapsules.radius(bone_name)
+	return bands[clampi(int(clampf(along, 0.0, 0.999) * bands.size()), 0, bands.size() - 1)]
+
+
+func _measure_skin_radii() -> void:
+	_skin_radii = {"": 0.0}   # never empty again, even if the mesh cannot be read
+	if body == null or body.mesh == null or body.skin == null or skeleton == null:
+		return
+	var arrays: Array = body.mesh.surface_get_arrays(0)
+	var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+	var bones: PackedInt32Array = arrays[Mesh.ARRAY_BONES]
+	var weights: PackedFloat32Array = arrays[Mesh.ARRAY_WEIGHTS]
+	if verts.is_empty() or bones.is_empty():
+		return
+	var per_vertex := bones.size() / verts.size()
+	var bind_bone := PackedInt32Array()
+	for b in body.skin.get_bind_count():
+		var bone := body.skin.get_bind_bone(b)
+		if bone < 0:
+			bone = skeleton.find_bone(body.skin.get_bind_name(b))
+		bind_bone.append(bone)
+	var axis := {}
+	var by_bone := {}   # bone -> band -> distances
+	for v in verts.size():
+		var best := -1
+		var best_w := 0.0
+		for k in per_vertex:
+			var w := weights[v * per_vertex + k]
+			if w > best_w:
+				best_w = w
+				best = bind_bone[bones[v * per_vertex + k]]
+		# A vertex shared between two bones says nothing about either one's thickness.
+		if best < 0 or best_w < 0.6:
+			continue
+		if not axis.has(best):
+			var kids := skeleton.get_bone_children(best)
+			var a: Vector3 = skeleton.get_bone_global_rest(best).origin
+			var b: Vector3 = a + skeleton.get_bone_global_rest(best).basis.y * 0.08
+			if kids.size() > 0:
+				b = skeleton.get_bone_global_rest(kids[0]).origin
+			axis[best] = [a, b]
+			by_bone[best] = []
+			for band in BANDS:
+				by_bone[best].append(PackedFloat32Array())
+		var a0: Vector3 = axis[best][0]
+		var ab: Vector3 = axis[best][1] - a0
+		var along := clampf((verts[v] - a0).dot(ab) / maxf(ab.length_squared(), 1e-9), 0.0, 0.999)
+		by_bone[best][int(along * BANDS)].append(verts[v].distance_to(BodyCapsules.closest_on_segment(verts[v], a0, axis[best][1])))
+	for bone: int in by_bone:
+		var bands := PackedFloat32Array()
+		var ok := true
+		for band: PackedFloat32Array in by_bone[bone]:
+			if band.size() < 8:
+				ok = false
+				break
+			band.sort()
+			bands.append(band[band.size() / 2])
+		if ok:
+			_skin_radii[skeleton.get_bone_name(bone)] = bands
 
 
 func bone_names() -> PackedStringArray:

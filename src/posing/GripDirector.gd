@@ -120,8 +120,23 @@ const HAND_RADIUS := 0.03
 ## Where the palm centre sits off the axis of `bone`: a thin limb is wrapped (WRAP_RADIUS), a
 ## thick one (neck, thigh, torso, head) has the palm laid on its skin, the palm centre being
 ## PALM_OUT inside the fingers. So a hand on the neck is on the neck, not through it.
+## Kept for how far a hand must reach to take a bone (Staging); where the bone sits in the hand
+## is `grip_seat`.
 static func hold_radius(bone: String) -> float:
 	return maxf(WRAP_RADIUS, BodyCapsules.radius(bone) - Weapon.PALM_OUT)
+
+
+## Where the axis of `bone` lies in the gripping hand, in the hand bone's frame: across the base
+## of the fingers, its own radius plus a palm's thickness out from the knuckles. This is
+## `Weapon.shaft_seat`'s rule with the bone's radius in place of a shaft's half-width, and for
+## the same reason — seated in the middle of the palm instead, at 6 cm along a hand whose
+## knuckles are at 10 cm, the base of the fingers stood 2 cm clear of what the hand was holding
+## and the fingers reached it with their tips alone. A thick bone (a neck, a thigh) comes out
+## further, which lays the palm on its skin rather than wrapping it. The radius is the mesh's own
+## (CharacterRig.skin_radius), not the collision capsule's: a forearm's capsule is 40 mm where
+## the arm is 27 mm, and a hand seated on the capsule holds 13 mm of air.
+static func grip_seat(gripper: CharacterRig, hand: String, target: CharacterRig, bone: String, along: float = 0.5) -> Vector3:
+	return gripper.fingers.knuckle_centre(hand) + gripper.fingers.palm_normal(hand).normalized() * (Weapon.PALM_PAD + target.skin_radius(bone, along))
 
 
 ## How far the fingers close on `bone`: a wrist is gripped in a fist, the neck or a thigh is
@@ -190,8 +205,8 @@ func wrapped_hand_transform(gripper: CharacterRig, hand: String, target_rig: Cha
 	var frame := Basis(x, y, z).orthonormalized()
 	if absf(skew_deg) > 1e-4:
 		frame = (Basis(z, deg_to_rad(skew_deg)) * frame).orthonormalized()
-	var shaft := Transform3D(frame, on_axis + radial * hold_radius(bone))
-	var hold := Transform3D(Weapon.canonical_basis(gripper, hand), Weapon.palm_centre(gripper, hand))
+	var shaft := Transform3D(frame, on_axis)
+	var hold := Transform3D(Weapon.canonical_basis(gripper, hand), grip_seat(gripper, hand, target_rig, bone, t))
 	return shaft * hold.affine_inverse()
 
 
@@ -251,8 +266,20 @@ func attach_default_hands(gripper: CharacterRig, weapon: Weapon) -> void:
 	else:
 		hold_weapon(gripper, "Right", weapon, r["t"], r["roll_deg"])
 		attach_to_weapon(gripper, "Left", weapon, l["t"], true, l["roll_deg"])
-	gripper.fingers.apply_grip_preset("Right")
-	gripper.fingers.apply_grip_preset("Left")
+	close_fingers_on_weapon(gripper, "Right", weapon)
+	close_fingers_on_weapon(gripper, "Left", weapon)
+
+
+## Closes a hand onto a weapon's shaft as far as resting on it takes: the same fit as a hand on
+## a bone (FingerCurl.curls_onto), with the shaft's own half-width. The grip preset it replaces
+## closed every finger to 0.85–0.9 whatever it held, which drove them through the tsuka — the
+## check in tests/check_grips.gd measures exactly that.
+static func close_fingers_on_weapon(gripper: CharacterRig, hand: String, weapon: Weapon) -> void:
+	var seat := weapon.shaft_seat(gripper, hand)
+	var axis: Vector3 = Weapon.canonical_basis(gripper, hand).y
+	var fitted := gripper.fingers.curls_onto(hand, seat, axis, weapon.shaft_half())
+	for finger: String in fitted:
+		gripper.fingers.set_curl(hand, finger, fitted[finger])
 
 
 ## Switches who drives whom without moving anything. "weapon": the holder's hand becomes an
