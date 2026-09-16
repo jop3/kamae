@@ -51,7 +51,6 @@ const OUTSTANDING := {
 	## The thumb comes over the far side of a forearm and the fit cannot clear it: the curl it
 	## needs is not a curl at all — the metacarpal has to swing across the palm first
 	## (FingerCurl's thumb chain), which nothing asks it to do yet.
-	"katatedori_ikkyo_kake: tori right": "thumb",
 	"katatedori_ikkyo_kake: tori left": "thumb, and a middle finger 16 mm into an upper arm",
 	"katatedori_shihonage_kuzushi: uke1 left": "thumb",
 	"ryotemochi_kuzushi: uke1 right": "thumb",
@@ -60,13 +59,9 @@ const OUTSTANDING := {
 	"ushiro_ryotedori_zenponage_grepp: uke1 left": "thumb",
 	"ushiro_ryotedori_zenponage_kuzushi: uke1 right": "thumb",
 	"ushiro_ryotedori_zenponage_kuzushi: uke1 left": "thumb",
-	## An index finger that reaches round a jo and meets the thumb's side of it.
-	"jo_dori_tsuki: uke1 right": "index finger round a jo",
-	"jo_dori_uke: uke1 right": "index finger round a jo",
-	"kumijo_kamae: tori right": "index finger round a jo",
-	"kumijo_kamae: uke1 right": "index finger round a jo",
-	"kumijo_tsuki: tori right": "index finger round a jo",
-	"kumijo_tsuki: uke1 right": "index finger round a jo",
+	## An index finger that reaches round a forearm and meets the thumb's side of it. The jo's
+	## were the same fault and went when the weapon fit started weighing the fingers too
+	## (Staging.fingers_through_shaft).
 	"ryotemochi_grepp: uke1 right": "index finger round a forearm",
 	"ryotemochi_grepp: uke2 left": "index finger round a forearm",
 	## Tori takes Uke's forearm and then the sword is refitted in Uke's hands, which moves that

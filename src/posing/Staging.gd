@@ -142,7 +142,8 @@ func _fit_weapon_hands_once(id: String, weapon: Weapon) -> void:
 				await settle(4)
 				var turn := _turn(base + float(d), from_roll) + absf(float(sk) - from_skew)
 				var excess := arm_refusal_excess(r, hand)
-				var cost := excess + 2000.0 * director.error_for(current) + 0.02 * turn
+				var cost := excess + 2000.0 * director.error_for(current) + 0.02 * turn \
+					+ 30.0 * fingers_through_shaft(r, hand, weapon)
 				if verbose == "2":
 					print("  try %s/%s roll %+.0f skew %+.0f: excess %.1f reach %.3f turn %.0f"
 						% [id, hand, base + float(d), float(sk), excess, director.error_for(current), turn])
@@ -286,7 +287,9 @@ func grab(gripper: String, hand: String, target: String, bone: String, approach_
 							await settle(2)
 							var trial := director.attach_wrapped(g, hand, t, bone, true, f, float(sk))
 							await settle(4)
-							var cost := arm_refusal_excess(g, hand) + 2000.0 * director.error_for(trial) + 0.02 * absf(float(sk)) + 2.0 * (1.0 - float(ease))
+							var cost := arm_refusal_excess(g, hand) + 2000.0 * director.error_for(trial) \
+								+ 0.02 * absf(float(sk)) + 2.0 * (1.0 - float(ease)) \
+								+ 60.0 * fingers_through(g, hand, t, bone)
 							director._remove(trial)
 							if cost < best_cost:
 								best_cost = cost; best_side = candidate; flip = f; skew = float(sk); best_ease = float(ease)
@@ -310,6 +313,50 @@ func close_fingers_onto(g: CharacterRig, hand: String, t: CharacterRig, bone: St
 	for finger: String in fitted:
 		var c: float = fitted[finger]
 		g.fingers.set_curl(hand, finger, (fallback if is_equal_approx(c, 1.0) else c) * ease)
+
+
+## How far `hand`'s fingers are inside `bone`, in metres summed over the joints that are in it.
+## The search reads this as well as the joints: a hold the arm can make with its thumb through
+## the wrist it holds is not a hold, and nothing but this told the search so (tests/check_grips.gd
+## measures the same thing on the poses that are kept).
+static func fingers_through(g: CharacterRig, hand: String, t: CharacterRig, bone: String) -> float:
+	var a: Vector3 = t.bone_world_transform(bone).origin
+	var kids := t.skeleton.get_bone_children(t.skeleton.find_bone(bone))
+	var b: Vector3 = a + t.bone_world_transform(bone).basis.y * 0.2
+	if kids.size() > 0:
+		b = t.bone_world_transform(t.skeleton.get_bone_name(kids[0])).origin
+	var palm: Vector3 = g.bone_world_transform(hand + "Hand").origin
+	var along: float = clampf((palm - a).dot(b - a) / maxf((b - a).length_squared(), 1e-9), 0.0, 1.0)
+	var surface: float = t.skin_radius(bone, along) + FINGER_RADIUS
+	var total := 0.0
+	for finger in FingerCurl.FINGERS:
+		for part: String in FingerCurl.SEGMENTS[finger]:
+			var n: String = "%s%s%s" % [hand, finger, part]
+			if g.skeleton.find_bone(n) < 0:
+				continue
+			var p: Vector3 = g.bone_world_transform(n).origin
+			total += maxf(0.0, surface - p.distance_to(BodyCapsules.closest_on_segment(p, a, b)))
+	return total
+
+
+## The same for a hand on a weapon: how far its fingers are inside the shaft, summed.
+static func fingers_through_shaft(g: CharacterRig, hand: String, weapon: Weapon) -> float:
+	var a: Vector3 = weapon.anchor_transform(0.0).origin
+	var b: Vector3 = weapon.anchor_transform(1.0).origin
+	var surface: float = weapon.shaft_half() + FINGER_RADIUS
+	var total := 0.0
+	for finger in FingerCurl.FINGERS:
+		for part: String in FingerCurl.SEGMENTS[finger]:
+			var n: String = "%s%s%s" % [hand, finger, part]
+			if g.skeleton.find_bone(n) < 0:
+				continue
+			var p: Vector3 = g.bone_world_transform(n).origin
+			total += maxf(0.0, surface - p.distance_to(BodyCapsules.closest_on_segment(p, a, b)))
+	return total
+
+
+## A finger bone's own radius, for measuring how far it is inside what it holds.
+const FINGER_RADIUS := 0.011
 
 
 ## Degrees by which `hand`'s arm (shoulder, elbow, wrist) is past its joints' ranges on screen,

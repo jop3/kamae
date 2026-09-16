@@ -1221,13 +1221,37 @@ in the palm the same way. A fist reads as a smooth blob rather than four fingers
 curl's own fidelity, not the grip code's, and it is why a grip that is right by the numbers can
 still look wrong.
 
+### The curl stops at the palm, and the search sees the fingers
+
+Two more, straight out of those renders.
+
+**A curl that stops at the palm.** `FingerCurl.max_curl` works out, per finger and once per rig,
+how far that finger can close before any part of it would be inside the hand, and the modifier
+clamps every curl to it. The palm is a box measured off the rest mesh (`CharacterRig.palm_box`:
+how far it reaches along the hand, how deep from the back to the palm's own surface, how wide),
+because a plane is the wrong model — a closed finger lies *across the front* of the palm, which
+is not inside it; inside is between the palm's surface and the back of the hand. Two things had
+to be right for it to work at all: the knuckle is part of the hand and sits in that box from the
+start, so only the joints that begin outside it can be driven into it; and `chain_at_curl` had to
+clamp too, so the grip fit and the modifier agree on what a curl of 1 means. A curl of 1 is now a
+closed hand rather than a hand closed through itself, and the fist reads as four fingers.
+
+**A grip search that weighs the fingers.** `Staging.fingers_through` and `fingers_through_shaft`
+measure what `check_grips.gd` measures — how far the fingers are inside what the hand holds — and
+both searches now carry it in their cost alongside the joints. A hold the arm can make with its
+thumb through the wrist it is holding is not a hold, and nothing had told the search that. It
+cleared seven of the thumb entries and all six of the index-through-a-jo ones. What it cost, both
+recorded: Tori's right wrist rides 3° past its radial deviation in katatedori ikkyo's kake, and
+his left 1° past its extension in kumijo's thrust, because at those two holds the fingers and the
+joints pull against each other. In the blends it paid: katatedori ikkyo 16 → 15 and tachi dori
+33 → 30, against jo dori 10 → 11 and kumijo 0 → 4.
+
 **Next, in order.**
-0. A curl that stops at the palm. Nothing keeps a finger out of the hand it belongs to; the
-   renders above are the cheapest way to see it, and `tests/check_grips.gd`'s measurements do not
-   cover a hand holding nothing.
-1. The thumbs. Nine grips are listed in `check_grips.gd` for a thumb 13–22 mm inside what the
-   hand holds. A thumb does not curl round a shaft like a finger — its metacarpal has to swing
-   across the palm first — and `FingerCurl.curls_onto` has no way to ask for that.
+1. The thumbs that are left. `check_grips.gd` still lists a handful 13–32 mm inside what the hand
+   holds, where no side or skew the search tries can clear them. A thumb does not curl round a
+   shaft like a finger — its metacarpal has to swing across the palm first — and a single curl
+   per finger has no way to ask for that. That is a second parameter on the thumb, not a better
+   search.
 2. Ushiro ryotedori zenponage's Tenkan and Kake: hands that hold nothing, which is where
    `tools/refit_grips.gd` gives up and the technique needs authoring rather than fitting.
 3. `tachi_dori_irimi`: Tori takes Uke's forearm and the sword is then refitted in Uke's hands,

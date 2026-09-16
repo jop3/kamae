@@ -41,6 +41,11 @@ var _palm_normals: Dictionary = {}
 var _palm_widths: Dictionary = {}
 ## side -> the middle of the four finger knuckles in the hand bone's rest frame.
 var _knuckles: Dictionary = {}
+## side+finger -> how far it can close before it is inside the palm (max_curl).
+var _max_curls: Dictionary = {}
+## The character this hand belongs to, for the palm's own surface. Null in a bare skeleton test,
+## and then a curl is unclamped as it was.
+var rig: Node = null
 var _calibrated := false
 
 
@@ -91,6 +96,7 @@ func calibrate() -> void:
 	_palm_normals.clear()
 	_palm_widths.clear()
 	_knuckles.clear()
+	_max_curls.clear()
 	for side in SIDES:
 		var wrist_bone := sk.find_bone(side + "Hand")
 		var index_bone := sk.find_bone(side + "IndexProximal")
@@ -241,6 +247,58 @@ func palm_width(side: String) -> Vector3:
 ## carried on by TIP_LENGTH). The same walk down the chain that _process_modification does, so
 ## the two cannot drift apart.
 func chain_at_curl(side: String, finger: String, amount: float) -> Array:
+	return _chain_raw(side, finger, minf(amount, max_curl(side, finger)))
+
+
+## How far `finger` can close before it would be inside the palm: the curl at which its tip
+## meets the palm's own surface (CharacterRig.palm_surface), measured on the rest chain. A curl
+## of 1 means a closed hand, not a hand closed through itself, so this is what 1 now is.
+func max_curl(side: String, finger: String) -> float:
+	var key := side + finger
+	if _max_curls.has(key):
+		return _max_curls[key]
+	var limit := 1.0
+	var box: Dictionary = rig.palm_box(side) if rig != null else {}
+	if not box.is_empty():
+		var n: Vector3 = palm_normal(side).normalized()
+		var w: Vector3 = palm_width(side).normalized()
+		# A curled finger lies *across the front* of the palm, which is not inside it; inside is
+		# between the palm's own surface and the back of the hand. A finger's own thickness keeps
+		# its bones that far out of the box.
+		var inside := func(p: Vector3) -> bool:
+			if p.y < float(box["y_min"]) - TIP_PAD or p.y > float(box["y_max"]) + TIP_PAD:
+				return false
+			if absf(p.dot(w)) > float(box["half_width"]) + TIP_PAD:
+				return false
+			var d: float = p.dot(n)
+			return d < float(box["front"]) + TIP_PAD and d > float(box["back"]) - TIP_PAD
+		# A knuckle is part of the hand and sits inside that box from the start; only the joints
+		# that begin outside it can be driven into it.
+		var rest := _chain_raw(side, finger, 0.0)
+		var loose := []
+		for i in rest.size():
+			loose.append(not inside.call(rest[i]))
+		var in_palm := func(amount: float) -> bool:
+			var chain := _chain_raw(side, finger, amount)
+			for i in chain.size():
+				if loose[i] and inside.call(chain[i]):
+					return true
+			return false
+		if in_palm.call(1.0):
+			var lo := 0.0
+			var hi := 1.0
+			for i in 12:
+				var mid := 0.5 * (lo + hi)
+				if in_palm.call(mid):
+					hi = mid
+				else:
+					lo = mid
+			limit = lo
+	_max_curls[key] = limit
+	return limit
+
+
+func _chain_raw(side: String, finger: String, amount: float) -> Array:
 	var sk := get_skeleton()
 	if sk == null:
 		return []
@@ -349,6 +407,7 @@ func _process_modification_with_delta(_delta: float) -> void:
 				var pip_bone := sk.find_bone("%s%sIntermediate" % [side, finger])
 				if pip_bone >= 0 and _axes.has(pip_bone):
 					pip_authored_flex = _flex_angle(sk, pip_bone, sk.get_bone_pose_rotation(pip_bone))
+			amount = minf(amount, max_curl(side, finger))
 			for i in segments.size():
 				var bone := sk.find_bone("%s%s%s" % [side, finger, segments[i]])
 				if bone < 0:

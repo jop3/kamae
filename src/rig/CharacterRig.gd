@@ -33,6 +33,8 @@ var _solved_poses: Array[Transform3D] = []
 ## from the rest pose (skin_radius).
 var _skin_radii: Dictionary = {}
 const BANDS := 4
+## side -> the palm as a box in the hand bone's frame (palm_box).
+var _palm_boxes: Dictionary = {}
 ## limb key ("RightArm", "LeftLeg", …) -> Limb
 var limbs: Dictionary = {}
 ## False while rendering for export: IK handles stay hidden whatever the limb modes do.
@@ -110,6 +112,7 @@ func _build_limbs() -> void:
 	skeleton.add_child(girdle)
 	fingers = FingerCurl.new()
 	fingers.name = "FingerCurl"
+	fingers.rig = self
 	skeleton.add_child(fingers)
 	fingers.calibrate()
 	for chain in LIMB_CHAINS:
@@ -274,6 +277,71 @@ func _measure_skin_radii() -> void:
 			bands.append(band[band.size() / 2])
 		if ok:
 			_skin_radii[skeleton.get_bone_name(bone)] = bands
+
+
+## The palm as a box in the hand bone's frame, measured off the rest mesh: how far it reaches
+## along the hand (y), how deep it is from the back of the hand to the palm's own surface
+## (along the palm normal) and how wide (along the palm width). This is what a finger closing
+## has to stop at. Nothing told the curl the palm was there before, so a finger at full curl
+## closed *into* the hand rather than onto it, and a fist was a smooth lump rather than four
+## fingers (--demo-hands). Keys: y_min, y_max, back, front, half_width.
+func palm_box(side: String) -> Dictionary:
+	if _palm_boxes.is_empty():
+		_measure_palm_boxes()
+	return _palm_boxes.get(side, {})
+
+
+func _measure_palm_boxes() -> void:
+	_palm_boxes = {"": {}}
+	if body == null or body.mesh == null or body.skin == null or skeleton == null or fingers == null:
+		return
+	var arrays: Array = body.mesh.surface_get_arrays(0)
+	var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+	var bones: PackedInt32Array = arrays[Mesh.ARRAY_BONES]
+	var weights: PackedFloat32Array = arrays[Mesh.ARRAY_WEIGHTS]
+	if verts.is_empty() or bones.is_empty():
+		return
+	var per_vertex := bones.size() / verts.size()
+	var bind_bone := PackedInt32Array()
+	for b in body.skin.get_bind_count():
+		var bone := body.skin.get_bind_bone(b)
+		if bone < 0:
+			bone = skeleton.find_bone(body.skin.get_bind_name(b))
+		bind_bone.append(bone)
+	for side in ["Right", "Left"]:
+		var hand := skeleton.find_bone(side + "Hand")
+		if hand < 0:
+			continue
+		var to_hand: Transform3D = skeleton.get_bone_global_rest(hand).affine_inverse()
+		var n: Vector3 = fingers.palm_normal(side).normalized()
+		var w: Vector3 = fingers.palm_width(side).normalized()
+		var along := PackedFloat32Array()
+		var depth := PackedFloat32Array()
+		var across := PackedFloat32Array()
+		for v in verts.size():
+			var best := -1
+			var best_w := 0.0
+			for k in per_vertex:
+				var weight := weights[v * per_vertex + k]
+				if weight > best_w:
+					best_w = weight
+					best = bind_bone[bones[v * per_vertex + k]]
+			if best != hand or best_w < 0.6:
+				continue
+			var p: Vector3 = to_hand * verts[v]
+			along.append(p.y)
+			depth.append(p.dot(n))
+			across.append(p.dot(w))
+		if along.size() < 20:
+			continue
+		along.sort(); depth.sort(); across.sort()
+		var pct := func(arr: PackedFloat32Array, f: float) -> float:
+			return arr[clampi(int(arr.size() * f), 0, arr.size() - 1)]
+		_palm_boxes[side] = {
+			"y_min": pct.call(along, 0.05), "y_max": pct.call(along, 0.95),
+			"back": pct.call(depth, 0.05), "front": pct.call(depth, 0.90),
+			"half_width": maxf(absf(pct.call(across, 0.05)), absf(pct.call(across, 0.95))),
+		}
 
 
 func bone_names() -> PackedStringArray:
