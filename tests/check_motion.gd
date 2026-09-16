@@ -38,8 +38,11 @@ func check(cond: bool, msg: String) -> void:
 ## refused in a keyframe is not counted between them (see _keyframe_refusals), so every weapon
 ## hold clearing its keyframes (tests/check_anatomy.gd) turned the blends between them on: the
 ## hands roll on the shaft from one pose's fitted hold to the next's, and half-way the wrist is
-## asked for what neither end asks. A fit that prefers the previous pose's roll would shorten
-## that; docs/handoff.md.
+## asked for what neither end asks. The fit now keeps the hold a hand already has wherever the
+## joints allow it (Staging.fit_weapon_hands), which took kumitachi's 13 frames to none. Tachi
+## dori's are not a preference: no roll clears Uke's left wrist in both the kamae and the
+## furikaburi, so the hand must turn on the tsuka between them, and the turn needs an
+## intermediate pose rather than a better fit (docs/handoff.md).
 const OUTSTANDING := {
 	"jo_dori": 21,   ## the taken jo's hand is fitted now and the blend from the thrust crosses differently; +1 with the fist's range
 	"katatedori_ikkyo": 14,   ## the grip is the catalogue's now; two frames of a wrist at its edge as the arm is raised;
@@ -49,7 +52,9 @@ const OUTSTANDING := {
 		## +2 with the fist's range (the kake's own wrist fault is gone: 12 -> 14 is the measurement)
 	"katatedori_shihonage_irimi": 14,   ## re-authored after the shoulder girdle: 26 before it, 51 with it, 18 then; 16 once its grepp (shared with katatedori_ikkyo) was refit; 14 with the arm's turn scoring the fist
 	"kumijo": 0,
-	"kumitachi": 13,   ## 1 while the rear hands were refused in both keyframes and so not counted; the awase->uchi blend rolls both hands on the tsuka between two clean holds
+	"kumitachi": 0,   ## 1 while the rear hands were refused in both keyframes and so not counted; 13 while the
+		## awase->uchi blend rolled both hands right round the tsuka, and none once the cut's fit kept the
+		## holds the awase had (15° of roll and 20° of skew apart, where the default-hold fit was 60° of skew)
 	"ryotemochi": 5,   ## the grip is the catalogue's wrap now (0 before); the blend swings the wrist past ulnar deviation for frames the keyframes themselves do not; +1 with the fist's range
 	"tachi_dori": 32,   ## 12 while Uke's hands were refused in every keyframe and so not counted at all; the raise, the cut and the handover roll them on the tsuka between clean holds
 	"ushiro_ryotedori_zenponage": 11,

@@ -88,6 +88,12 @@ const HOLD_SKEWS := [0.0, -20.0, 20.0, -40.0, 40.0, -60.0, 60.0]
 ## it, to where its wrist, elbow and shoulder refuse least: the roll and the skew of a hold are
 ## what a two-handed weapon grip leaves to the wrist, and the default hold's 45° was a guess. Weapon-driven weapons only
 ## (both hands are grips); a hand-driven holder's own hand is placed by its arm.
+##
+## A hand that already holds the weapon keeps the hold it has wherever its joints allow: the
+## poses of a technique are fitted one after another on the same hands, and a hand rolled one
+## way in one pose and back in the next asks the wrist, half-way between them, for a turn
+## neither pose asks for (tests/check_motion.gd). FIT_VERBOSE=1 prints each hand's chosen hold,
+## =2 every candidate it was chosen over.
 func fit_weapon_hands(id: String, weapon: Weapon) -> void:
 	# Two passes: the arms share a shoulder girdle, so fitting the second hand moves the first
 	# hand's shoulder and can undo its fit; the second pass re-fits each hand against the other
@@ -98,34 +104,76 @@ func fit_weapon_hands(id: String, weapon: Weapon) -> void:
 
 func _fit_weapon_hands_once(id: String, weapon: Weapon) -> void:
 	var r := rig(id)
+	var verbose := OS.get_environment("FIT_VERBOSE")
 	for grip in director.grips_for(id).duplicate():
 		if grip.target.kind != GripTarget.Kind.WEAPON or grip.target.weapon_id != weapon.weapon_id:
 			continue
 		var hand: String = grip.hand
 		var t: float = grip.target.t
 		var base: float = float(weapon.default_hold(hand)["roll_deg"])
+		# A hand that already holds the shaft is measured from the hold it has, not from the
+		# weapon's default guess: consecutive poses of a technique refit the same hands, and a
+		# hand rolled 75° from the default in one pose and back to it in the next asks the wrist
+		# for the whole turn in between, which is what the frames between them were failing on.
+		var from_roll: float = grip.roll_deg if grip.hold_known else base
+		var from_skew: float = grip.skew_deg if grip.hold_known else 0.0
+		# Nearest candidate first, so a hand whose own hold still costs nothing keeps it without
+		# the rest of the grid being tried. Ties keep the lists' own order (Godot's sort is not
+		# stable), so a fit from the default hold tries exactly what it tried before.
+		var rolls := _nearest_first(HOLD_ROLLS, func(d: float) -> float: return _turn(base + d, from_roll))
+		var skews := _nearest_first(HOLD_SKEWS, func(sk: float) -> float: return absf(sk - from_skew))
 		var current: Grip = grip
-		var best_roll := base
-		var best_skew := 0.0
+		var best_roll := from_roll
+		var best_skew := from_skew
 		var best_cost := INF
-		for d in HOLD_ROLLS:
-			for sk in HOLD_SKEWS:
+		for d in rolls:
+			for sk in skews:
 				director._remove(current)
 				current = director._attach_to_weapon_raw(r, hand, weapon, t, true, base + float(d), float(sk))
 				await settle(4)
-				var cost := arm_refusal_excess(r, hand) + 2000.0 * director.error_for(current) + 0.02 * (absf(float(d)) + absf(float(sk)))
+				var turn := _turn(base + float(d), from_roll) + absf(float(sk) - from_skew)
+				var excess := arm_refusal_excess(r, hand)
+				var cost := excess + 2000.0 * director.error_for(current) + 0.02 * turn
+				if verbose == "2":
+					print("  try %s/%s roll %+.0f skew %+.0f: excess %.1f reach %.3f turn %.0f"
+						% [id, hand, base + float(d), float(sk), excess, director.error_for(current), turn])
 				if cost < best_cost:
 					best_cost = cost; best_roll = base + float(d); best_skew = float(sk)
 				if best_cost < 1e-3:
 					break
 			if best_cost < 1e-3:
 				break
+		# Through the default hold, always: an arm's pole is taken from where the arm is now, so
+		# the pose kept would otherwise depend on whichever candidate the search happened to try
+		# last, and that is the order the grid was walked in. Coming to the chosen hold from the
+		# same place every time makes the fit reproducible.
+		director._remove(current)
+		current = director._attach_to_weapon_raw(r, hand, weapon, t, true, base, 0.0)
+		await settle(4)
 		director._remove(current)
 		director._attach_to_weapon_raw(r, hand, weapon, t, true, best_roll, best_skew)
 		await settle(4)
-		if OS.get_environment("FIT_VERBOSE") == "1":
+		if verbose == "1" or verbose == "2":
 			print("fit %s/%s on %s t=%.3f: roll %+.0f skew %+.0f cost %.2f; refused now: %s"
 				% [id, hand, weapon.weapon_id, t, best_roll, best_skew, best_cost, "; ".join(r.joint_limits.report())])
+
+
+## `values` ordered by `distance`, ties in the order they were given.
+static func _nearest_first(values: Array, distance: Callable) -> Array:
+	var order := range(values.size())
+	order.sort_custom(func(i: int, j: int) -> bool:
+		var di: float = distance.call(float(values[i]))
+		var dj: float = distance.call(float(values[j]))
+		return di < dj if not is_equal_approx(di, dj) else i < j)
+	var out := []
+	for i in order:
+		out.append(float(values[i]))
+	return out
+
+
+## How far a hand turns on the shaft to go from one roll to another, in degrees the short way round.
+static func _turn(roll_deg: float, from_deg: float) -> float:
+	return absf(wrapf(roll_deg - from_deg, -180.0, 180.0))
 
 
 ## A hanmi stance: `front` foot a step forward, rear foot back and turned out, knees bent by

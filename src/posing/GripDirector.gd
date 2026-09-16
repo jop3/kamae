@@ -230,6 +230,9 @@ func _attach_to_weapon_raw(gripper: CharacterRig, hand: String, weapon: Weapon, 
 	grip.target.bind(scene)
 	if snap:
 		grip.offset = grip.target.world_transform().affine_inverse() * (weapon.global_transform * weapon.hold_offset(gripper, hand, t, roll_deg, skew_deg).affine_inverse())
+		grip.hold_known = true
+		grip.roll_deg = roll_deg
+		grip.skew_deg = skew_deg
 	else:
 		grip.offset = grip.target.world_transform().affine_inverse() * gripper.bone_world_transform(hand + "Hand")
 	_add(grip)

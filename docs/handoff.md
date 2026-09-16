@@ -12,7 +12,8 @@ where the work stands, how to run it, and what the next session should pick up.
 | `claude/handoff-continuation-8iw00t` | M3W weapons, M4 save/load, camera presets, CI workflow (see "Follow-up session" below) | PR #4 merged |
 | `claude/project-continuation-46gatk` | CI fix (absolute paths in tests), undo for close-the-gap, roll for the second hand | merged |
 | … | one branch per session since; each session's section below names what it did | merged |
-| `claude/continuing-work-g2k02k` | the fist rule in every search, every weapon hold clear (2026-09-16 below) | this branch |
+| `claude/continuing-work-g2k02k` | the fist rule in every search, every weapon hold clear (2026-09-16 below) | PR #10 merged |
+| `claude/handoff-check-wxx58t` | the fit keeps the hold a hand already has (2026-09-16, afternoon) | this branch |
 
 Milestones done: **M0** project and character, **M1** click-to-select FK posing with a gizmo and PNG
 export, **M2** IK arms and legs with finger curls, **M3** grip attachments. Next up is **M3W**
@@ -1060,4 +1061,55 @@ rolled holds is not.
    obstacle, per the 2026-09-11 note.
 3. Ushiro ryotedori zenponage from the catalogue, if a way is found that keeps the Tenkan pose.
 4. Katatedori shihonage's kake and kuzushi, and where Uke's forearm goes as the grip turns it.
+Bokken and jo attacks are still not in the catalogue.
+
+## Session 2026-09-16 (afternoon): the fit keeps the hold a hand already has
+
+The previous session's first "next": `_fit_weapon_hands_once` scored a candidate hold by its
+distance from the weapon's *default* roll and skew, so two consecutive poses of a technique could
+fit the same hand three quarters of a turn apart although both holds were within the wrist's
+range — and the frames between them asked the wrist, half-way, for what neither pose asks.
+
+A `Grip` now records the `roll_deg` and `skew_deg` it was attached with (they were thrown away
+once the offset was captured), `PoseFile` saves them, and the fit measures a candidate from the
+hold the hand already has rather than from the default. The candidates are walked nearest-first,
+so a hand whose own hold still costs nothing keeps it without the rest of the grid being tried,
+and ties keep the lists' own order (Godot's `sort_custom` is not stable, and a fit that starts
+from the default must try exactly what it tried before). `FIT_VERBOSE=2` prints every candidate
+with its excess, its reach error and its turn; that is how the numbers below were read.
+
+**What it bought.** Kumitachi's blend went from 13 frames not plausible to **none**:
+the cut now keeps the awase's holds — 15° of roll and 20° of skew away — where fitting from the
+default put it 60° of skew away and rolled both hands right round the tsuka in between. Kumijo,
+jo dori and every empty-hand technique are unchanged, and `check_anatomy.gd` is unchanged (no
+keyframe hold moved off zero excess: the preference is a tie-break between holds the joints
+allow, never a reason to accept one they refuse).
+
+**What it did not buy, and why.** Tachi dori is still 32 frames, and this is not a preference
+the fit can express. Probed candidate by candidate, Uke's left hand has *no* roll that clears its
+wrist in both the kamae and the furikaburi: zero-excess holds are 105–135° in the kamae and
+−45–45° in the furikaburi, disjoint sets. The hand must turn on the tsuka as the sword is raised,
+the fit already picks the shortest turn that clears both ends (75°), and what is left is where
+the hand travels *during* that turn — an intermediate pose (`tools/add_step.gd`, the next item),
+not a better fit. Rewriting the handoff's expectation honestly: item 1 took kumitachi's frames,
+not tachi dori's.
+
+**One thing found on the way.** The fit was not reproducible. An arm's pole is taken from where
+the arm is now, so the pose that was kept depended on whichever candidate the search happened to
+try last — which the nearest-first order changed. It showed up as kumijo drifting in the fourth
+decimal and one blend frame crossing a 3° slack (33° of ulnar deviation against a 30° limit) that
+it had been sitting just under. The chosen hold is now always come to *through the default hold*,
+from the same place every time, and kumijo is back to zero with the rest unchanged. Worth knowing
+generally: a re-solve of the same target is not the same arm unless it is reached the same way.
+
+`tests/golden` was refreshed for the four weapon poses whose geometry moved (kumitachi awase and
+uchi, tachi dori kamae and furikaburi); all four were inside the 2% tolerance anyway. Looked at
+the cut close up before accepting it: both fists wrap the tsuka, rear fist at the kashira, wrists
+straight.
+
+**Next, in order.**
+1. The re-grip intermediate poses (`tools/add_step.gd`), placed by hand to route round the
+   obstacle — now also what tachi dori's 32 frames need, per the 2026-09-11 note.
+2. Ushiro ryotedori zenponage from the catalogue, if a way is found that keeps the Tenkan pose.
+3. Katatedori shihonage's kake and kuzushi, and where Uke's forearm goes as the grip turns it.
 Bokken and jo attacks are still not in the catalogue.
