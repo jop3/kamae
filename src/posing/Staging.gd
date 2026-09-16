@@ -81,7 +81,13 @@ func hold(id: String, side: String, type: String, t: float = -1.0, weapon_id: St
 ## default's guess (a jo's at 90° past it, a bokken's at 75°), and a cut brought down needs
 ## 60° of skew: up to ±60° of roll the search stopped at its own edge with the cost still
 ## falling and called those hands impossible.
-const HOLD_ROLLS := [0.0, -15.0, 15.0, -30.0, 30.0, -45.0, 45.0, -60.0, 60.0, -75.0, 75.0, -90.0, 90.0]
+##
+## The rolls go in 7.5° steps rather than 15°: with the fit keeping the hold a hand already has,
+## the step is how far a hand must turn between two poses when its own hold stops clearing the
+## wrist, and halving it halved those turns — kumitachi's cut, 11 frames not plausible on the
+## 15° grid, has none on this one. The search costs no more for it, because a hold that still
+## clears its joints is taken before the rest of the grid is tried.
+const HOLD_ROLLS := [0.0, -7.5, 7.5, -15.0, 15.0, -22.5, 22.5, -30.0, 30.0, -37.5, 37.5, -45.0, 45.0, -52.5, 52.5, -60.0, 60.0, -67.5, 67.5, -75.0, 75.0, -82.5, 82.5, -90.0, 90.0]
 const HOLD_SKEWS := [0.0, -20.0, 20.0, -40.0, 40.0, -60.0, 60.0]
 
 ## Turns each of `id`'s hands that grips `weapon` about the shaft, and skews the fingers across

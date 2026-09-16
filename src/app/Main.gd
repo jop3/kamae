@@ -71,6 +71,9 @@ func _ready() -> void:
 	if args.has("--import-draft"):
 		await _import_draft(args)
 		return
+	if args.has("--demo-grip"):
+		await _render_grip_closeup(args)
+		return
 	if args.has("--demo-gi"):
 		await _render_demo_gi(args[args.find("--demo-gi") + 1])
 		return
@@ -331,7 +334,7 @@ func _render_demo_weapon(path: String) -> void:
 	var edge: Vector3 = -w.global_transform.basis.z
 	for side in ["Right", "Left"]:
 		var hand: Transform3D = tori.bone_world_transform(side + "Hand")
-		var palm: Vector3 = hand * Weapon.palm_centre(tori, side)
+		var palm: Vector3 = hand * w.shaft_seat(tori, side)
 		var fingers: Vector3 = (tori.bone_world_transform(side + "MiddleProximal").origin - hand.origin).normalized()
 		var tip: Vector3 = tori.bone_world_transform(side + "MiddleDistal").origin
 		var thumb: Vector3 = tori.bone_world_transform(side + "ThumbDistal").origin
@@ -399,6 +402,46 @@ func _render_demo_hand(path: String) -> void:
 			var p: String = "%s_%s_%.0f.png" % [path.get_basename(), view[0], curl]
 			await StillExport.capture(get_viewport(), p, false, _hide_always(), _hide_for_transparent())
 			print("hand demo saved: ", p)
+	get_tree().quit()
+
+
+## A saved pose with the camera close in on one hand, from the back of the hand, from the thumb
+## and along the forearm: what a hold actually looks like, at a size a wide still cannot show.
+##   --demo-grip <pose.json> <character> <Right|Left> <out.png> [--grip-distance 0.25]
+func _render_grip_closeup(args: PackedStringArray) -> void:
+	var i := args.find("--demo-grip")
+	var pose_path := args[i + 1]
+	var id := args[i + 2]
+	var hand := args[i + 3]
+	var out := args[i + 4]
+	var distance := float(args[args.find("--grip-distance") + 1]) if args.has("--grip-distance") else 0.25
+	var data := PoseFile.load(pose_path)
+	if data.is_empty():
+		push_error("Cannot read pose %s" % pose_path)
+		get_tree().quit(1)
+		return
+	PoseFile.apply(data, posing_scene, grip_director)
+	posing_scene.show_handles = false
+	for rig in posing_scene.characters:
+		rig.set_show_handles(false)
+	for k in 4:
+		await get_tree().process_frame
+	var r: CharacterRig = posing_scene.get_character(id)
+	if r == null:
+		push_error("Pose %s has no character %s" % [pose_path, id])
+		get_tree().quit(1)
+		return
+	var h: Transform3D = r.bone_world_transform(hand + "Hand")
+	var centre: Vector3 = h * Vector3(0, 0.06, 0)
+	var normal: Vector3 = h.basis * r.fingers.palm_normal(hand)
+	var width: Vector3 = h.basis * r.fingers.palm_width(hand)
+	for view in [["back", -normal], ["thumb", width], ["along", h.basis.y]]:
+		camera.look_from(view[1], centre, distance)
+		for k in 3:
+			await get_tree().process_frame
+		var p := "%s_%s.png" % [out.get_basename(), view[0]]
+		await StillExport.capture(get_viewport(), p, false, _hide_always(), _hide_for_transparent())
+		print("grip close-up saved: ", p)
 	get_tree().quit()
 
 

@@ -35,6 +35,8 @@ var _axes: Dictionary = {}
 var _palm_normals: Dictionary = {}
 ## side -> little-finger-to-index direction in the hand bone's rest frame.
 var _palm_widths: Dictionary = {}
+## side -> the middle of the four finger knuckles in the hand bone's rest frame.
+var _knuckles: Dictionary = {}
 var _calibrated := false
 
 
@@ -84,6 +86,7 @@ func calibrate() -> void:
 	_axes.clear()
 	_palm_normals.clear()
 	_palm_widths.clear()
+	_knuckles.clear()
 	for side in SIDES:
 		var wrist_bone := sk.find_bone(side + "Hand")
 		var index_bone := sk.find_bone(side + "IndexProximal")
@@ -128,6 +131,18 @@ func calibrate() -> void:
 				_axes[b] = (sk.get_bone_global_rest(b).basis.inverse() * axis).normalized()
 		if palmward_sum.length_squared() > 0.0:
 			_palm_normals[side] = (sk.get_bone_global_rest(wrist_bone).basis.inverse() * palmward_sum.normalized()).normalized()
+		var knuckle_sum := Vector3.ZERO
+		var knuckle_n := 0
+		for finger in FINGERS:
+			if finger == "Thumb":
+				continue
+			var kb := sk.find_bone("%s%sProximal" % [side, finger])
+			if kb < 0:
+				continue
+			knuckle_sum += sk.get_bone_global_rest(wrist_bone).affine_inverse() * sk.get_bone_global_rest(kb).origin
+			knuckle_n += 1
+		if knuckle_n > 0:
+			_knuckles[side] = knuckle_sum / float(knuckle_n)
 		# The thumb does not curl like a finger. Its metacarpal sweeps across the palm (rotation
 		# about the palm normal) and its two joints then fold the tip in, which together lay the
 		# thumb over the closed fingers as in a grip. The signs of both axes are chosen by
@@ -215,6 +230,12 @@ func palm_normal(side: String) -> Vector3:
 ## Direction across the palm from the little finger to the index finger, hand bone frame.
 func palm_width(side: String) -> Vector3:
 	return _palm_widths.get(side, Vector3.ZERO)
+
+
+## The middle of the four finger knuckles in the hand bone's frame — where the palm ends and the
+## fingers begin, and where anything held in a fist lies across it.
+func knuckle_centre(side: String) -> Vector3:
+	return _knuckles.get(side, Vector3(0, 0.09, 0))
 
 
 func _process_modification_with_delta(_delta: float) -> void:

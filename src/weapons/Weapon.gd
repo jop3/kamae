@@ -22,8 +22,16 @@ const BOKKEN_CURVE := 0.02
 ## the wrist joint, but the shaft sits in the middle of the palm, about 6 cm toward the fingers
 ## and 2 cm out from the palm surface (inside the curled fingers). Without this the weapon passes
 ## through the wrist and the fingers close on air.
+##
+## This is still where a *bone* is held (GripDirector wraps a hand round a forearm through
+## `palm_centre`). A weapon's shaft is seated by `shaft_seat` instead: 6 cm along the hand is the
+## middle of the palm, and the mannequin's knuckles are at 10 cm, so a fist closed on a shaft
+## there shut past it — the shaft crossed the heel of the hand with the fingers reaching it by
+## their tips alone, which is what the close-up renders showed.
 const PALM_ALONG := 0.06
 const PALM_OUT := 0.02
+## Flesh between the knuckle bones and the surface of the palm they are held against.
+const PALM_PAD := 0.012
 
 var weapon_id: String = ""
 var type: String = "bokken"
@@ -84,7 +92,27 @@ static func palm_centre(rig: CharacterRig, hand: String) -> Vector3:
 	return Vector3(0, PALM_ALONG, 0) + rig.fingers.palm_normal(hand).normalized() * PALM_OUT
 
 
-## hand_world * hold_offset(t, roll) = weapon_world: anchor(t) lands on the palm centre.
+## Half the shaft's thickness, for seating it against the palm. A bokken's tsuka is 30 mm by
+## 20 mm and can be held either way about, so its mean half-width is used.
+func shaft_half() -> float:
+	match type:
+		"jo":
+			return 0.012
+		"tanto":
+			return 0.009
+		_:
+			return 0.0125
+
+
+## Where a shaft lies in a closed hand, in the hand bone's frame: across the base of the fingers,
+## a palm's thickness plus its own half out from the knuckles, so the fingers close round it
+## rather than past it. Both parts come from the rig (`knuckle_centre`, `palm_normal`) rather than
+## from a hand-typed constant; measuring the mannequin is what found the fault in the first place.
+func shaft_seat(rig: CharacterRig, hand: String) -> Vector3:
+	return rig.fingers.knuckle_centre(hand) + rig.fingers.palm_normal(hand).normalized() * (PALM_PAD + shaft_half())
+
+
+## hand_world * hold_offset(t, roll) = weapon_world: anchor(t) lands on the shaft's seat.
 ## `skew_deg` turns the fist about the line from the shaft out through the palm, so the fingers
 ## run diagonally across the shaft instead of square to it — which is how a hand holds a bokken
 ## or a jo whose shaft runs on from the forearm rather than across it.
@@ -93,7 +121,7 @@ func hold_offset(rig: CharacterRig, hand: String, t: float, roll_deg: float, ske
 	var b := cb.rotated(cb.y, deg_to_rad(roll_deg))
 	if absf(skew_deg) > 1e-4:
 		b = b.rotated(b.z, deg_to_rad(skew_deg))
-	return Transform3D(b, palm_centre(rig, hand)) * Transform3D(Basis.IDENTITY, -(Vector3(0, t * length, 0) + _curve_offset(t)))
+	return Transform3D(b, shaft_seat(rig, hand)) * Transform3D(Basis.IDENTITY, -(Vector3(0, t * length, 0) + _curve_offset(t)))
 
 
 ## Where a hand goes by default, {t, roll_deg}. Bokken: the right hand in front just below where
