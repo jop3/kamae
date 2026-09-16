@@ -1211,7 +1211,20 @@ take it — re-seating put a hand out of reach — so that technique is half re-
 still holds a hand half a metre from the arm it is supposed to be holding. `check_grips.gd` says
 so now, which is the point.
 
+**The hand by itself.** `--demo-hands <out.png>` renders the hand holding nothing, in ten poses
+(open, relaxed, half closed, fist, one finger to the palm, pointing, thumb across, pinch, hook),
+from the palm, the back and the little-finger edge, with the light following the camera and a 30°
+lens so the shape is not bent by perspective. What it shows about `FingerCurl` on its own, before
+any grip is involved: a finger at full curl does not close *onto* the palm, it closes *into* it —
+the tip and the last phalanx disappear inside the hand — and the thumb at full curl buries itself
+in the palm the same way. A fist reads as a smooth blob rather than four fingers. That is the
+curl's own fidelity, not the grip code's, and it is why a grip that is right by the numbers can
+still look wrong.
+
 **Next, in order.**
+0. A curl that stops at the palm. Nothing keeps a finger out of the hand it belongs to; the
+   renders above are the cheapest way to see it, and `tests/check_grips.gd`'s measurements do not
+   cover a hand holding nothing.
 1. The thumbs. Nine grips are listed in `check_grips.gd` for a thumb 13–22 mm inside what the
    hand holds. A thumb does not curl round a shaft like a finger — its metacarpal has to swing
    across the palm first — and `FingerCurl.curls_onto` has no way to ask for that.

@@ -71,6 +71,9 @@ func _ready() -> void:
 	if args.has("--import-draft"):
 		await _import_draft(args)
 		return
+	if args.has("--demo-hands"):
+		await _render_hand_poses(args[args.find("--demo-hands") + 1])
+		return
 	if args.has("--demo-grip"):
 		await _render_grip_closeup(args)
 		return
@@ -402,6 +405,67 @@ func _render_demo_hand(path: String) -> void:
 			var p: String = "%s_%s_%.0f.png" % [path.get_basename(), view[0], curl]
 			await StillExport.capture(get_viewport(), p, false, _hide_always(), _hide_for_transparent())
 			print("hand demo saved: ", p)
+	get_tree().quit()
+
+
+## The hand by itself, holding nothing, in the poses a hand makes: what the finger curls do,
+## looked at rather than measured. The arm is put out in front so the hand is clear of the body,
+## and each pose is rendered from the palm, the back and the little-finger edge.
+##   --demo-hands <out.png>
+const HAND_POSES := [
+	["open", {}],
+	["relaxed", {"Thumb": 0.25, "Index": 0.3, "Middle": 0.35, "Ring": 0.4, "Little": 0.45}],
+	["fist", {"Thumb": 1.0, "Index": 1.0, "Middle": 1.0, "Ring": 1.0, "Little": 1.0}],
+	["half_closed", {"Thumb": 0.5, "Index": 0.5, "Middle": 0.5, "Ring": 0.5, "Little": 0.5}],
+	["index_to_palm", {"Index": 1.0}],
+	["little_to_palm", {"Little": 1.0}],
+	["pointing", {"Thumb": 0.6, "Middle": 1.0, "Ring": 1.0, "Little": 1.0}],
+	["thumb_across", {"Thumb": 1.0}],
+	["pinch", {"Thumb": 0.9, "Index": 0.85}],
+	["hook", {"Index": 0.8, "Middle": 0.8, "Ring": 0.8, "Little": 0.8}],
+]
+
+func _render_hand_poses(out: String) -> void:
+	var tori: CharacterRig = posing_scene.get_character("tori")
+	posing_scene.remove_character("uke1")
+	posing_scene.show_handles = false
+	tori.set_show_handles(false)
+	floor_grid.visible = false
+	await get_tree().process_frame
+	# The arm out in front and a little to the side, so nothing but the hand is in the picture.
+	await controller.set_limb_mode(tori, "RightArm", Limb.Mode.IK)
+	tori.limbs["RightArm"].target.global_position = tori.bone_world_transform("RightUpperArm").origin + Vector3(-0.12, 0.05, 0.42)
+	tori.limbs["RightArm"].reset_pole()
+	for i in 4:
+		await get_tree().process_frame
+	for entry in HAND_POSES:
+		var name: String = entry[0]
+		var curls: Dictionary = entry[1]
+		for finger in FingerCurl.FINGERS:
+			tori.fingers.set_curl("Right", finger, float(curls.get(finger, 0.0)))
+		for i in 4:
+			await get_tree().process_frame
+		var h: Transform3D = tori.bone_world_transform("RightHand")
+		var centre: Vector3 = h * Vector3(0, 0.07, 0)
+		var normal: Vector3 = h.basis * tori.fingers.palm_normal("Right")
+		var width: Vector3 = h.basis * tori.fingers.palm_width("Right")
+		for view in [["palm", normal], ["back", -normal], ["edge", -width]]:
+			var dir: Vector3 = (view[1] as Vector3).normalized()
+			# A narrow lens from a little further back: 50° at arm's length bends a hand out of
+			# shape, and what these are for is looking at its shape.
+			camera.fov = 30.0
+			camera.look_from(dir, centre, 0.28)
+			# The sun follows the camera for these: the scene's own light comes from one side, and
+			# a hand looked at from the other is a silhouette.
+			var sun := get_node_or_null("Sun") as DirectionalLight3D
+			if sun:
+				sun.global_transform = Transform3D().looking_at(-(dir + Vector3(0.25, 0.4, 0.0)).normalized(), Vector3.UP)
+				sun.global_position = centre + dir * 2.0 + Vector3(0, 1.0, 0)
+			for i in 3:
+				await get_tree().process_frame
+			var p := "%s_%s_%s.png" % [out.get_basename(), name, view[0]]
+			await StillExport.capture(get_viewport(), p, false, _hide_always(), _hide_for_transparent())
+			print("hand pose saved: %s (camera %.2f m away, fov %.0f)" % [p, camera.global_position.distance_to(centre), camera.fov])
 	get_tree().quit()
 
 
