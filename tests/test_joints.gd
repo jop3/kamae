@@ -134,6 +134,10 @@ func _initialize() -> void:
 	await settle(2)
 	var fist_flex: float = Anatomy.joint_angles(tori, "RightHand")["flex"]
 	check(fist_flex < 65.0 and tori.joint_limits.refused.has("RightHand"), "a closed fist holds the wrist to less flexion than an open hand (78° asked, %.0f° shown)" % fist_flex)
+	# And whatever scores that refusal scores it as a fist's: measured as an open hand, 78° is
+	# inside the 80° and the excess is 0, which is how every rear hand on a weapon hid for a week.
+	var fist_excess := Staging.arm_refusal_excess(tori, "Right")
+	check(fist_excess > 10.0 and absf(fist_excess - (78.0 - fist_flex)) < 1.5, "and the arm's refusal excess is the fist's %.0f°, not an open hand's 0" % fist_excess)
 	tori.fingers.set_hand_curl("Right", 0.0)
 	await settle(2)
 	check(absf(Anatomy.joint_angles(tori, "RightHand")["flex"] - 78.0) < 0.5, "and the open hand has it back (%.0f°)" % Anatomy.joint_angles(tori, "RightHand")["flex"])

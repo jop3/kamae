@@ -51,9 +51,12 @@ static func search(cost: Callable) -> float:
 	return best
 
 
-## How many degrees the joint's angles lie outside its range, all three added together.
-static func excess(spec: Dictionary, a: Dictionary) -> float:
-	var e := Joints.excess(spec, a)
+## How many degrees the joint's angles lie outside its range, all three added together. The
+## `context` is the joint's (a wrist's is how closed its hand is, which narrows its range):
+## without it a fist is scored as an open hand, and an arm stops turning to help a wrist that
+## the fist rule is about to refuse another 20°.
+static func excess(spec: Dictionary, a: Dictionary, context: Dictionary = {}) -> float:
+	var e := Joints.excess(spec, a, context)
 	return e["flex"] + e["abd"] + e["twist"]
 
 

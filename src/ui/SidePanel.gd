@@ -642,7 +642,7 @@ func _shape_joint_sliders(rig: CharacterRig, bone_name: String) -> void:
 		_joint_kind.text = "%s, %s joint" % [spec["label"], Joints.KINDS.get(spec["kind"], spec["kind"])]
 		var keys := ["flex", "abd", "twist"]
 		var angles: Dictionary = controller.get_joint_angles(rig, bone_name)
-		var lim := Joints.limits(spec, angles)
+		var lim := Joints.limits(spec, angles, Anatomy.hand_context(rig, bone_name))
 		for i in 3:
 			var names: Array = spec["names"][keys[i]]
 			_euler_names[i].text = "%s / %s" % [_short(names[0]), _short(names[1])]
@@ -722,7 +722,7 @@ func _refresh_values() -> void:
 			else:
 				var a: Dictionary = controller.get_joint_angles(rig, controller.selected_bone)
 				var spec: Dictionary = rig.joints.spec(controller.selected_bone)
-				var lim := Joints.limits(spec, a)
+				var lim := Joints.limits(spec, a, Anatomy.hand_context(rig, controller.selected_bone))
 				var keys := ["flex", "abd", "twist"]
 				for i in 3:
 					# A gated range (a knee that only turns once it is bent) moves with the joint.
@@ -731,7 +731,8 @@ func _refresh_values() -> void:
 					_euler_vals[i].text = "%.0f°" % a[keys[i]]
 				var refused: String = ""
 				if rig.joint_limits and rig.joint_limits.refused.has(controller.selected_bone):
-					refused = "\nAsked for more: " + Joints.describe(spec, rig.joint_limits.refused[controller.selected_bone]["wanted"])
+					var refusal: Dictionary = rig.joint_limits.refused[controller.selected_bone]
+					refused = "\nAsked for more: " + Joints.describe(spec, refusal["wanted"], refusal.get("context", {}))
 				_joint_readout.text = Joints.readout(spec, a) + refused
 	_updating = false
 

@@ -10,7 +10,9 @@ where the work stands, how to run it, and what the next session should pick up.
 |---|---|---|
 | `main` | Spec v2.3, build plan, feasibility, the application M0–M3 | PRs #1–#3 merged |
 | `claude/handoff-continuation-8iw00t` | M3W weapons, M4 save/load, camera presets, CI workflow (see "Follow-up session" below) | PR #4 merged |
-| `claude/project-continuation-46gatk` | CI fix (absolute paths in tests), undo for close-the-gap, roll for the second hand | this branch |
+| `claude/project-continuation-46gatk` | CI fix (absolute paths in tests), undo for close-the-gap, roll for the second hand | merged |
+| … | one branch per session since; each session's section below names what it did | merged |
+| `claude/continuing-work-g2k02k` | the fist rule in every search, every weapon hold clear (2026-09-16 below) | this branch |
 
 Milestones done: **M0** project and character, **M1** click-to-select FK posing with a gizmo and PNG
 export, **M2** IK arms and legs with finger curls, **M3** grip attachments. Next up is **M3W**
@@ -990,3 +992,72 @@ through the throw, something has to give, and which the instructor decides, the 
 `Weapon.default_hold` already needs to for a two-handed weapon grip. Shihonage's is a genuinely
 different, bigger problem than ikkyo's kake was (which turned out to be the wrap, not the hold),
 so it should not be assumed to be the same fix in disguise.
+
+## Session 2026-09-16: the fist rule reaches the searches, and every weapon hold clears
+
+Picked up the first item on every "next" list since 2026-09-07 — the rear hand of the two-handed
+weapon holds — and found it was not the hold. Every rear hand in `check_anatomy.gd`'s
+`OUTSTANDING` read "wrist extension 69–70°, past 50°": exactly the *open-hand* extension limit,
+against the *fist* limit. `JointLimits` records each refusal with its context (the hand's curl,
+which shrinks the wrist's range from 70° to 50° of extension), but nothing that *scored* a wrist
+passed that context back in: `Staging.arm_refusal_excess` (the cost of the weapon fit and of
+`grab`'s side search), `Attacks._excess_of` (the attack fit), `check_motion.gd`'s per-frame excess,
+and — the one that matters most — `HandOrient`'s turn search, which decides how far the arm turns
+to help the wrist. All of them saw a fist at 70° of extension as costing nothing. So the arm
+stopped turning 20° short, the fit search's first candidate (the default roll, no skew) scored
+0.0 and the search broke out of its loop right there, and the rear hands were called impossible
+and handed to the instructor. `LimbTurn.excess`, `Joints.excess/limits/describe` all take the
+context now, `HandOrient` reads the hand's curl the way `JointLimits` does (same `_curl`, same
+knuckles, read before either writes), and the four searches and the motion check pass a refusal's
+recorded context back. The panel's joint sliders and its "Asked for more" line show a fist's
+range too.
+
+With the cost honest, the fit's candidate lists turned out to be too narrow: the cost fell
+monotonically to the corner of `HOLD_ROLLS`/`HOLD_SKEWS` (±60°, ±40°) with the wrist still 18°
+over. A wider probe found zero-excess holds for every remaining hand within ±90° of roll and ±60°
+of skew, so the lists go that far now. The rear hand of a jo sits 90° past the default's guess,
+a bokken's 75°, both without skew; a cut brought down (kumitachi uchi) wants 60° of skew.
+Looked at the renders before accepting them: the bokken holds read as kenjutsu holds now, rear
+fist at the kashira with the tsuka leaving the bottom of the fist, front hand ahead, wrists
+straight; the jo's rear hand sits at the hip wrapped square on the staff.
+
+Two more things the rebuild needed. `fit_weapon_hands` fits the hands in two passes, because the
+arms share a shoulder girdle and fitting the second hand moved the first hand's shoulder and undid
+its fit (the thrust's left hand came back 16° over after a fit that had reported nothing refused).
+And in kumijo's thrust the hands slide 15 cm along the staff, which put the right hand 11 cm
+beyond reach; `save_pose` walks a figure in to any grip its hand cannot reach, but it did so
+*after* the fit, so the fit had scored geometry the saved pose no longer had. That step-in is a
+helper now (`build_fixtures.gd`'s `step_in_to_grips`) and the thrust calls it before the fit; the
+same fit also runs where a weapon moves with hands on it and did not refit before (tachi dori's
+cut coming down, kumitachi's blade rising). `FIT_VERBOSE=1` on a build prints what each hand chose
+and what its arm still refuses, which is how the girdle and the step-in were found.
+
+**Result.** `check_anatomy.gd`'s `OUTSTANDING` lost every weapon entry (ten poses) plus
+`katatedori_ikkyo_kake` (its 4°-over wrist flexion went with the arm's turn scoring the fist) and
+`tachi_dori_furikaburi`. What it still lists is katatedori shihonage's kake and kuzushi and ushiro
+ryotedori zenponage's four poses — the empty-hand holds the previous session already judged to be
+the instructor's.
+
+**The cost, recorded in `check_motion.gd`.** Two effects, both the measurement's. The frame check
+now measures a fist's wrist as a fist (+1 or +2 on jo dori, katatedori ikkyo, ryotemochi; −2 on
+katatedori shihonage irimi, where the arm's turn now helps). And a joint refused in a keyframe is
+not counted in the blends round it (`_keyframe_refusals`), so while Uke's hands were refused in
+every tachi dori keyframe *none* of their frames counted; with all the keyframes clean the blends
+between them count, and they are bad: kumitachi 1 → 13, tachi dori 12 → 32. Each is the hand
+rolling on the shaft from one pose's fitted hold to the next's — the raise from kamae to
+furikaburi, the cut, the handover — with the wrist asked half-way for what neither end asks
+(flexion 128° at t=0.83 of tachi dori). The keyframes are right; the path between two differently
+rolled holds is not.
+
+**Next, in order.**
+1. **The fit should prefer the hold it already has.** `_fit_weapon_hands_once` scores a candidate's
+   distance from the *default* roll and skew, so consecutive poses of a technique can fit the same
+   hand 75° apart when both were within a few degrees of range. Scoring the distance from the
+   hand's *current* roll and skew instead (a `Grip` does not store them — it keeps the resulting
+   offset — so they would need adding and saving) would make the raise and the cut roll the hands
+   as little as the joints allow and take most of tachi dori's and kumitachi's frames with it.
+2. The re-grip intermediate poses (`tools/add_step.gd`), placed by hand to route round the
+   obstacle, per the 2026-09-11 note.
+3. Ushiro ryotedori zenponage from the catalogue, if a way is found that keeps the Tenkan pose.
+4. Katatedori shihonage's kake and kuzushi, and where Uke's forearm goes as the grip turns it.
+Bokken and jo attacks are still not in the catalogue.

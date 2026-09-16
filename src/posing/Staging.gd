@@ -77,14 +77,26 @@ func hold(id: String, side: String, type: String, t: float = -1.0, weapon_id: St
 
 ## The rolls tried for a hand on a weapon, degrees either side of the weapon's default hold,
 ## and the skews (the fingers running diagonally across the shaft rather than square to it).
-const HOLD_ROLLS := [0.0, -15.0, 15.0, -30.0, 30.0, -45.0, 45.0, -60.0, 60.0]
-const HOLD_SKEWS := [0.0, -20.0, 20.0, -40.0, 40.0]
+## The rear hand of a two-handed hold takes the shaft a quarter turn further round than the
+## default's guess (a jo's at 90° past it, a bokken's at 75°), and a cut brought down needs
+## 60° of skew: up to ±60° of roll the search stopped at its own edge with the cost still
+## falling and called those hands impossible.
+const HOLD_ROLLS := [0.0, -15.0, 15.0, -30.0, 30.0, -45.0, 45.0, -60.0, 60.0, -75.0, 75.0, -90.0, 90.0]
+const HOLD_SKEWS := [0.0, -20.0, 20.0, -40.0, 40.0, -60.0, 60.0]
 
 ## Turns each of `id`'s hands that grips `weapon` about the shaft, and skews the fingers across
 ## it, to where its wrist, elbow and shoulder refuse least: the roll and the skew of a hold are
 ## what a two-handed weapon grip leaves to the wrist, and the default hold's 45° was a guess. Weapon-driven weapons only
 ## (both hands are grips); a hand-driven holder's own hand is placed by its arm.
 func fit_weapon_hands(id: String, weapon: Weapon) -> void:
+	# Two passes: the arms share a shoulder girdle, so fitting the second hand moves the first
+	# hand's shoulder and can undo its fit; the second pass re-fits each hand against the other
+	# hand's final hold, and a hand already at cost 0 keeps its hold.
+	for _pass in 2:
+		await _fit_weapon_hands_once(id, weapon)
+
+
+func _fit_weapon_hands_once(id: String, weapon: Weapon) -> void:
 	var r := rig(id)
 	for grip in director.grips_for(id).duplicate():
 		if grip.target.kind != GripTarget.Kind.WEAPON or grip.target.weapon_id != weapon.weapon_id:
@@ -111,6 +123,9 @@ func fit_weapon_hands(id: String, weapon: Weapon) -> void:
 		director._remove(current)
 		director._attach_to_weapon_raw(r, hand, weapon, t, true, best_roll, best_skew)
 		await settle(4)
+		if OS.get_environment("FIT_VERBOSE") == "1":
+			print("fit %s/%s on %s t=%.3f: roll %+.0f skew %+.0f cost %.2f; refused now: %s"
+				% [id, hand, weapon.weapon_id, t, best_roll, best_skew, best_cost, "; ".join(r.joint_limits.report())])
 
 
 ## A hanmi stance: `front` foot a step forward, rear foot back and turned out, knees bent by
@@ -200,14 +215,16 @@ func grab(gripper: String, hand: String, target: String, bone: String, approach_
 	return grip
 
 
-## Degrees by which `hand`'s arm (shoulder, elbow, wrist) is past its joints' ranges on screen.
+## Degrees by which `hand`'s arm (shoulder, elbow, wrist) is past its joints' ranges on screen,
+## with the wrist measured against the range its fist leaves it (the refusal records that).
 static func arm_refusal_excess(r: CharacterRig, hand: String) -> float:
 	var total := 0.0
 	if r.joint_limits == null:
 		return 0.0
 	for bone in [hand + "UpperArm", hand + "LowerArm", hand + "Hand"]:
 		if r.joint_limits.refused.has(bone):
-			var e := Joints.excess(r.joints.specs[bone], r.joint_limits.refused[bone]["wanted"])
+			var refusal: Dictionary = r.joint_limits.refused[bone]
+			var e := Joints.excess(r.joints.specs[bone], refusal["wanted"], refusal.get("context", {}))
 			total += e["flex"] + e["abd"] + e["twist"]
 	return total
 
