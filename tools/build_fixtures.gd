@@ -224,27 +224,7 @@ func save_pose(name: String, allow_short: bool = false) -> Dictionary:
 				break
 			await settle(3)
 	if not allow_short:
-		for attempt in 12:
-			var moves := {}   # gripper id -> [sum of directions, worst error]
-			for grip in director.grips:
-				var e := director.error_for(grip)
-				if e < 0.008:
-					continue
-				var g := rig(grip.gripper_id)
-				var shoulder: Vector3 = g.bone_world_transform(grip.hand + "UpperArm").origin
-				var toward: Vector3 = grip.desired_hand_transform().origin - shoulder
-				toward.y = 0.0
-				if not moves.has(grip.gripper_id):
-					moves[grip.gripper_id] = [Vector3.ZERO, 0.0]
-				moves[grip.gripper_id][0] += toward.normalized()
-				moves[grip.gripper_id][1] = maxf(moves[grip.gripper_id][1], e)
-			if moves.is_empty():
-				break
-			for id in moves:
-				var dir: Vector3 = moves[id][0]
-				if dir.length() > 1e-4:
-					rig(id).position += dir.normalized() * (moves[id][1] * 0.8 + 0.01)
-			await settle(3)
+		await step_in_to_grips()
 	var data: Dictionary = await PoseFile.capture_baked(scene, director, cam, name)
 	var path := PoseFile.pose_path(POSES, name)
 	var err := PoseFile.save(path, data)
@@ -252,6 +232,33 @@ func save_pose(name: String, allow_short: bool = false) -> Dictionary:
 	written.append(path)
 	print("pose %s: grips %d, worst grip error %.4f" % [name, director.grips.size(), director.worst_error()])
 	return data
+
+
+## Walks each gripper toward any grip its hand cannot reach (more than 8 mm short) until every
+## hand is on its point. save_pose does this before it writes; a technique whose hands slide
+## along a weapon does it before the hands are fitted, so the fit sees where the body ends up.
+func step_in_to_grips() -> void:
+	for attempt in 12:
+		var moves := {}   # gripper id -> [sum of directions, worst error]
+		for grip in director.grips:
+			var e := director.error_for(grip)
+			if e < 0.008:
+				continue
+			var g := rig(grip.gripper_id)
+			var shoulder: Vector3 = g.bone_world_transform(grip.hand + "UpperArm").origin
+			var toward: Vector3 = grip.desired_hand_transform().origin - shoulder
+			toward.y = 0.0
+			if not moves.has(grip.gripper_id):
+				moves[grip.gripper_id] = [Vector3.ZERO, 0.0]
+			moves[grip.gripper_id][0] += toward.normalized()
+			moves[grip.gripper_id][1] = maxf(moves[grip.gripper_id][1], e)
+		if moves.is_empty():
+			break
+		for id in moves:
+			var dir: Vector3 = moves[id][0]
+			if dir.length() > 1e-4:
+				rig(id).position += dir.normalized() * (moves[id][1] * 0.8 + 0.01)
+		await settle(3)
 
 
 func save_sequence(name: String, steps: Array, camera: String = "Side") -> void:
@@ -490,6 +497,7 @@ func tachi_dori() -> void:
 	await st.fit_weapon_hands("uke1", bokken)   # the hands turn on the tsuka as the sword rises
 	await save_pose("Tachi dori Furikaburi")
 	await place_weapon(bokken, u.global_position + u.global_transform.basis * Vector3(0, 1.05, 0.30), u.global_transform.basis * Vector3(0, 0.2, 1.0), Vector3.UP)
+	await st.fit_weapon_hands("uke1", bokken)   # and turn again as the cut comes down
 	stance("tori", 0.35, -0.10, 40)
 	await grab("tori", "Right", "uke1", "RightLowerArm", Vector3(0, 0.05, 0))
 	await save_pose("Tachi dori Irimi")
@@ -567,6 +575,7 @@ func kumitachi() -> void:
 	await save_pose("Kumitachi Awase")
 	# Second phase: Tori's blade rises over Uke's.
 	await place_weapon(a, a.global_position + Vector3(0, 0.12, 0), a.global_transform.basis.y.rotated(rig("tori").global_transform.basis.x, -0.25), Vector3.UP)
+	await st.fit_weapon_hands("tori", a)   # the hands turn on the tsuka as the blade rises
 	scene.weapon_contacts = []   # the blades part here; the indicator is not a constraint
 	await save_pose("Kumitachi Uchi")
 	save_sequence("Kumitachi", [["Kumitachi Awase", 0.0, 0.6], ["Kumitachi Uchi", 0.6, 1.0]])
@@ -594,5 +603,7 @@ func kumijo() -> void:
 		grip.target.t = 0.40 if grip.hand == "Left" else 0.62
 	director.refresh_hand_driven()
 	await settle(3)
+	await step_in_to_grips()   # the thrust carries Tori forward with the staff
+	await st.fit_weapon_hands("tori", a)   # and the hands turn on it where they land
 	await save_pose("Kumijo Tsuki")
 	save_sequence("Kumijo", [["Kumijo Kamae", 0.0, 0.5], ["Kumijo Tsuki", 0.8, 1.0]])

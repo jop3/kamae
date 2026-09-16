@@ -115,6 +115,10 @@ does the tool:
   spends its turn freely; a leg turns at the hip only for where the foot *points*, so a knee stays
   over its toes and a foot asked to bend too far is the ankle's to refuse. A standing foot turned
   out 30° is now a hip turned 30°, not a knee twisted 28° as every committed stance used to have.
+  The wrist is scored against the range its fist leaves it (the same knuckles `JointLimits` reads):
+  scored as an open hand, a fist's wrist at 70° of extension looked free, the arm stopped turning
+  there, and the fist rule then refused the last 20° — which is what every rear hand on a jo or a
+  bokken used to show.
 - What is still left is the wrist's, and `JointLimits` holds it. The hand is then on its point
   but short of its orientation by exactly what the wrist could not give, and the panel says so.
 
@@ -156,15 +160,22 @@ in two cases fixed) things no earlier check had seen:
 - **Fists on wrists were bent 86° sideways** (katatedori), forearms pronated up to 171°, and the
   weapon-hold wrists extended 107–134°. These are the poses' own geometry: Uke stands where his
   arm is straight, so no elbow position brings the forearm across Tori's wrist, and a two-handed
-  hold is rolled to an angle no wrist reaches. Each is listed in `tests/check_anatomy.gd`.
+  hold is rolled to an angle no wrist reaches. What is left of them is listed in
+  `tests/check_anatomy.gd`; the weapon holds are not, since `Staging.fit_weapon_hands` rolls and
+  skews each hand on the shaft to where the wrist refuses nothing, once its search and the arm's
+  turn both scored the wrist as a fist (they scored it as an open hand until 2026-09-16, saw 70° of
+  extension as free, and called the rear hands impossible).
 
 ## Working with it
 
 - `Joints.angles(spec, q)` / `Joints.rotation(spec, flex, abd, twist)` — the two directions.
-- `Joints.limits(spec, angles)` — the range in force at those angles; `clamp_angles`,
-  `clamp_rotation`, `excess`, `describe`, `readout`.
+- `Joints.limits(spec, angles, context)` — the range in force at those angles; `clamp_angles`,
+  `clamp_rotation`, `excess`, `describe`, `readout`. The `context` is the joint's gate that lives
+  outside its own angles — a wrist's is `{"curl": 0..1}`, its hand's fist (`Anatomy.hand_context`)
+  — and a wrist measured without it is measured as an open hand.
 - `rig.joints.spec("RightHand")` — the catalogue entry; `rig.joints.order` — parents first.
-- `rig.joint_limits.refused` / `report()` — what the last pass held back.
+- `rig.joint_limits.refused` / `report()` — what the last pass held back: per bone `{"wanted",
+  "held", "context"}`; anything that measures a refusal's excess passes that `context` back in.
 - `Anatomy.joint_angles(rig, bone)` — a joint's angles as shown; `Anatomy.range_problems(rig)`.
 - `PoseController.set_joint_angles` / `get_joint_angles` — pose a joint by its own numbers.
 - `Limb.hand_orient.last_turn_deg`, `last_middle_twist_deg`, `Limb.twist.last_turn_deg` — what

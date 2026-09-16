@@ -207,7 +207,8 @@ static func _excess_of(uke: CharacterRig, line: String) -> float:
 	var bone := line.get_slice(":", 0)
 	if not uke.joint_limits.refused.has(bone):
 		return 0.0
-	var e := Joints.excess(uke.joints.specs[bone], uke.joint_limits.refused[bone]["wanted"])
+	var refusal: Dictionary = uke.joint_limits.refused[bone]
+	var e := Joints.excess(uke.joints.specs[bone], refusal["wanted"], refusal.get("context", {}))
 	return e["flex"] + e["abd"] + e["twist"]
 
 

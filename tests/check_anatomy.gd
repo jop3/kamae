@@ -20,31 +20,20 @@ func check(cond: bool, msg: String) -> void:
 ## anatomically can — the forearm rolls, the elbow goes round (LimbTurn) — before the wrist is
 ## asked for the rest. What is left is where no elbow position helps: Uke standing so far from
 ## Tori that his arm is straight (a katatedori needs the forearm across the wrist, so the elbow
-## out — katatedori ikkyo starts from the attacks catalogue now and has no entry), or a
-## two-handed hold rolled about the shaft to an angle no wrist reaches — and since a closed fist
-## bends the wrist less than an open hand (Joints, "wrist"), the fists on the jo and the bokken
-## are held to 50° of extension where an open hand would have 70°. The weapon holds now roll
-## and skew each hand on the shaft to where its wrist refuses least (Staging.fit_weapon_hands);
-## that cleared every right (front) hand, and what is left is the left (rear) hand of each
-## two-handed hold, which the shaft reaches at an angle no fist takes square. Those are
-## decisions about the technique — where Uke stands, how the weapon is held — and the
-## instructor's to make; see docs/handoff.md. The shoulders are the same: an arm behind the
-## back (ushiro) or across the body further than a shoulder goes. Shihonage was re-authored
-## (the arm raised forward past the face, the hand folded down behind the shoulder) and lost
-## most of its entries; what is left is Uke's forearm rolled as the grip turns it.
+## out — katatedori ikkyo starts from the attacks catalogue now and has no entry). The weapon
+## holds have no entries: each hand is rolled and skewed on the shaft to where its wrist refuses
+## least (Staging.fit_weapon_hands), and since a closed fist bends the wrist less than an open
+## hand (Joints, "wrist") that search, and the arm's own turn (HandOrient), score the wrist
+## against the fist's range — scored as an open hand, every rear hand sat at 70° of extension
+## and looked free, which is what kept them listed here. The shoulders are the same as the
+## wrists: an arm behind the back (ushiro) or across the body further than a shoulder goes.
+## Shihonage was re-authored (the arm raised forward past the face, the hand folded down behind
+## the shoulder) and lost most of its entries; what is left is Uke's forearm rolled as the grip
+## turns it. Those are decisions about the technique — where Uke stands, how the arm is taken —
+## and the instructor's to make; see docs/handoff.md.
 const OUTSTANDING := {
-	"jo_dori_tsuki": ["uke1: LeftHand: wrist extension"],
-	"jo_dori_uke": ["uke1: LeftHand: wrist extension"],
-	"katatedori_ikkyo_kake": ["tori: RightHand: wrist flexion"],
 	"katatedori_shihonage_kake": ["tori: LeftHand: wrist radial deviation", "tori: RightHand: wrist flexion", "uke1: LeftUpperArm: shoulder adduction"],
 	"katatedori_shihonage_kuzushi": ["uke1: LeftHand: wrist flexion"],
-	"kumijo_kamae": ["tori: LeftHand: wrist extension", "uke1: LeftHand: wrist extension"],
-	"kumijo_tsuki": ["tori: LeftHand: wrist extension", "uke1: LeftHand: wrist extension"],
-	"kumitachi_awase": ["tori: LeftHand: wrist extension", "tori: RightHand: wrist extension", "uke1: LeftHand: wrist extension", "uke1: RightHand: wrist extension"],
-	"kumitachi_uchi": ["tori: LeftHand: wrist extension", "tori: RightHand: wrist extension", "uke1: LeftHand: wrist extension", "uke1: RightHand: wrist extension"],
-	"tachi_dori_furikaburi": ["uke1: LeftHand: wrist flexion"],
-	"tachi_dori_irimi": ["uke1: LeftHand: wrist extension", "uke1: RightHand: wrist extension"],
-	"tachi_dori_kamae": ["uke1: LeftHand: wrist extension", "uke1: RightHand: wrist extension"],
 	"ushiro_ryotedori_zenponage_grepp": ["uke1: LeftHand: wrist flexion", "uke1: RightHand: wrist flexion"],
 	"ushiro_ryotedori_zenponage_kake": ["uke1: LeftUpperArm: shoulder extension", "uke1: RightUpperArm: shoulder extension", "uke1: RightHand: wrist extension"],
 	"ushiro_ryotedori_zenponage_kuzushi": ["uke1: LeftHand: wrist extension", "uke1: RightHand: wrist extension"],

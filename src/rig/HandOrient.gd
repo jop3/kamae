@@ -109,6 +109,12 @@ func _through_the_limb(sk: Skeleton3D, wanted: Basis, joints: Joints) -> void:
 	# it got there (a reloaded pose carries yesterday's roll), and a solve that depends on its
 	# own history lands a reloaded pose somewhere else.
 	var hand_rest := Basis(end_spec["rest_q"])
+	# The wrist's range depends on how closed the hand is (JointLimits reads the same knuckles
+	# before it holds the wrist); scored as an open hand, a fist's wrist looks free at 70° of
+	# extension and the arm stops turning 20° before the fist rule refuses it.
+	var end_ctx := {}
+	if is_arm and bone_name.ends_with("Hand"):
+		end_ctx = {"curl": JointLimits._curl(sk, joints, "Right" if bone_name.begins_with("Right") else "Left")}
 	# The outcome of turning the limb by phi about its line, then rolling the forearm as far as
 	# it may toward the hand's orientation: {cost, roll} with roll in radians.
 	var outcome := func(phi_deg: float) -> Dictionary:
@@ -123,7 +129,7 @@ func _through_the_limb(sk: Skeleton3D, wanted: Basis, joints: Joints) -> void:
 		var wrist := LimbTurn.angles_of(end_spec, mid_rolled if is_arm else mid, wanted)
 		var cost: float
 		if is_arm:
-			cost = LimbTurn.excess(end_spec, wrist) + LimbTurn.TURN_COST_PER_DEG * absf(phi_deg)
+			cost = LimbTurn.excess(end_spec, wrist, end_ctx) + LimbTurn.TURN_COST_PER_DEG * absf(phi_deg)
 		else:
 			var e := Joints.excess(end_spec, wrist)
 			cost = e["abd"] + e["twist"] + LEG_TURN_COST_PER_DEG * absf(phi_deg)

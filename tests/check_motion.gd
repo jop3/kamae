@@ -33,17 +33,25 @@ func check(cond: bool, msg: String) -> void:
 ## a frame, jo dori and shihonage gained several, mostly a re-gripping forearm through the
 ## partner while its wrist is refused. Every one of them is listed by MOTION_VERBOSE=1, and each
 ## is a pose to author, not a rule to loosen.
+## The wrists here are measured against the fist's range (a refusal carries its hand's curl),
+## as the poses' are: measured as open hands, a fist's wrist 20° over looked free. And a joint
+## refused in a keyframe is not counted between them (see _keyframe_refusals), so every weapon
+## hold clearing its keyframes (tests/check_anatomy.gd) turned the blends between them on: the
+## hands roll on the shaft from one pose's fitted hold to the next's, and half-way the wrist is
+## asked for what neither end asks. A fit that prefers the previous pose's roll would shorten
+## that; docs/handoff.md.
 const OUTSTANDING := {
-	"jo_dori": 20,   ## the taken jo's hand is fitted now and the blend from the thrust crosses differently
-	"katatedori_ikkyo": 12,   ## the grip is the catalogue's now; two frames of a wrist at its edge as the arm is raised;
+	"jo_dori": 21,   ## the taken jo's hand is fitted now and the blend from the thrust crosses differently; +1 with the fist's range
+	"katatedori_ikkyo": 14,   ## the grip is the catalogue's now; two frames of a wrist at its edge as the arm is raised;
 		## the kake grip is the catalogue's wrap too (fixed a real wrist and shoulder fault there), and
-		## rebuilding refit grepp/kuzushi under the finger coupling added this session, which shifted
-		## the grepp->kuzushi blend enough to add 3 frames of Uke's gripping wrist over its range
-	"katatedori_shihonage_irimi": 16,   ## re-authored after the shoulder girdle: 26 before it, 51 with it, 18 then; 16 now that its grepp (shared with katatedori_ikkyo) is refit
+		## rebuilding refit grepp/kuzushi under the finger coupling, which shifted
+		## the grepp->kuzushi blend enough to add 3 frames of Uke's gripping wrist over its range;
+		## +2 with the fist's range (the kake's own wrist fault is gone: 12 -> 14 is the measurement)
+	"katatedori_shihonage_irimi": 14,   ## re-authored after the shoulder girdle: 26 before it, 51 with it, 18 then; 16 once its grepp (shared with katatedori_ikkyo) was refit; 14 with the arm's turn scoring the fist
 	"kumijo": 0,
-	"kumitachi": 1,
-	"ryotemochi": 4,   ## the grip is the catalogue's wrap now (0 before); the blend swings the wrist 4° past ulnar deviation for four frames the keyframes themselves do not
-	"tachi_dori": 12,
+	"kumitachi": 13,   ## 1 while the rear hands were refused in both keyframes and so not counted; the awase->uchi blend rolls both hands on the tsuka between two clean holds
+	"ryotemochi": 5,   ## the grip is the catalogue's wrap now (0 before); the blend swings the wrist past ulnar deviation for frames the keyframes themselves do not; +1 with the fist's range
+	"tachi_dori": 32,   ## 12 while Uke's hands were refused in every keyframe and so not counted at all; the raise, the cut and the handover roll them on the tsuka between clean holds
 	"ushiro_ryotedori_zenponage": 11,
 }
 
@@ -145,7 +153,7 @@ func _without_keyframe_refusals(probs: PackedStringArray, known: Dictionary) -> 
 			var bone := head.get_slice(": ", 1)
 			if rig and rig.joint_limits and rig.joint_limits.refused.has(bone):
 				var r: Dictionary = rig.joint_limits.refused[bone]
-				var e := Joints.excess(rig.joints.specs[bone], r["wanted"])
+				var e := Joints.excess(rig.joints.specs[bone], r["wanted"], r.get("context", {}))
 				if maxf(e["flex"], maxf(e["abd"], e["twist"])) < SLACK:
 					continue
 		out.append(p)
