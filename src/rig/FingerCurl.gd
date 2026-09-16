@@ -19,6 +19,11 @@ const SEGMENTS := {
 ## How much of the full curl each segment takes. Knuckle bends most, tip least.
 const SEGMENT_WEIGHT := [1.0, 0.85, 0.65]
 const FULL_CURL_DEG := 85.0
+## Tenodesis at the fingertip: a DIP bent by hand (the wrap fit, the gizmo) rather than by the
+## curl slider pulls its own DIP part-way with it, the way the flexor tendon that flexes the PIP
+## flexes the DIP too. The curl slider already gives each segment its own share (SEGMENT_WEIGHT)
+## and is left alone; this only adds to whatever the PIP was posed *beyond* that.
+const DIP_FOLLOWS_PIP := 0.6
 ## The thumb folds across the palm rather than into it, so it curls less and about the same axis.
 const THUMB_SCALE := 0.6
 
@@ -181,6 +186,18 @@ func flex_axis_rest(bone: int) -> Vector3:
 	return (sk.get_bone_global_rest(bone).basis.orthonormalized() * _axes[bone]).normalized()
 
 
+## The phalanx's own bend away from rest about its measured flex axis, radians, positive the
+## way a positive curl closes it. Only the part of the rotation that lies about that axis; a
+## bone posed purely as a hinge (as a finger joint is) has none anywhere else.
+func _flex_angle(sk: Skeleton3D, bone: int, q: Quaternion) -> float:
+	var rest_q := sk.get_bone_rest(bone).basis.get_rotation_quaternion().normalized()
+	var d := (q.normalized() * rest_q.inverse()).normalized()
+	if d.w < 0.0:
+		d = -d
+	var proj := Vector3(d.x, d.y, d.z).dot(_axes[bone].normalized())
+	return 2.0 * atan2(proj, d.w)
+
+
 ## True for a phalanx bone (thumb included): the bones this modifier drives.
 static func is_finger_bone(bone_name: String) -> bool:
 	for finger in FINGERS:
@@ -218,14 +235,24 @@ func _process_modification_with_delta(_delta: float) -> void:
 			var amount: float = curls[side][finger]
 			var scale: float = THUMB_SCALE if finger == "Thumb" else 1.0
 			var segments: Array = SEGMENTS[finger]
+			# The PIP's own hand-authored bend (read before this pass touches it), for the DIP to
+			# partly follow below. Zero for the thumb, which has no PIP in this chain.
+			var pip_authored_flex := 0.0
+			if finger != "Thumb":
+				var pip_bone := sk.find_bone("%s%sIntermediate" % [side, finger])
+				if pip_bone >= 0 and _axes.has(pip_bone):
+					pip_authored_flex = _flex_angle(sk, pip_bone, sk.get_bone_pose_rotation(pip_bone))
 			for i in segments.size():
 				var bone := sk.find_bone("%s%s%s" % [side, finger, segments[i]])
 				if bone < 0:
 					continue
 				var q := sk.get_bone_pose_rotation(bone)
-				if not is_zero_approx(amount) and _axes.has(bone):
-					var weight: float = SEGMENT_WEIGHT[i]
-					var angle := deg_to_rad(FULL_CURL_DEG) * amount * weight * scale
-					var axis: Vector3 = _axes[bone]
-					q = q * Quaternion(axis, angle)
+				if _axes.has(bone):
+					var angle := 0.0
+					if not is_zero_approx(amount):
+						angle += deg_to_rad(FULL_CURL_DEG) * amount * SEGMENT_WEIGHT[i] * scale
+					if finger != "Thumb" and segments[i] == "Distal":
+						angle += DIP_FOLLOWS_PIP * pip_authored_flex
+					if not is_zero_approx(angle):
+						q = q * Quaternion(_axes[bone], angle)
 				sk.set_bone_pose_rotation(bone, q)

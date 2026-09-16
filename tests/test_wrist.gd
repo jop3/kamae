@@ -117,6 +117,22 @@ func _initialize() -> void:
 	ctrl.set_finger_curl(tori, "Right", "Index", 0.0)
 	ctrl.set_bone_rotation(tori, "RightIndexProximal", rest_q)
 
+	# --- a DIP follows its own PIP when the PIP is posed by hand, curl aside ---
+	# The DIP moving with its parent is not the effect being tested (a rigid child moves too);
+	# what matters is whether the DIP's *own* rotation, relative to its now-bent parent, changed.
+	var mid_rest_q := sk.get_bone_rest(sk.find_bone("RightIndexIntermediate")).basis.get_rotation_quaternion()
+	var rel_straight := tori.bone_world_transform("RightIndexIntermediate").basis.inverse() \
+		* tori.bone_world_transform("RightIndexDistal").basis
+	var bend := Joints.rotation(tori.joints.specs["RightIndexIntermediate"], 40.0, 0.0, 0.0)
+	ctrl.set_bone_rotation(tori, "RightIndexIntermediate", bend)
+	await settle()
+	var rel_bent := tori.bone_world_transform("RightIndexIntermediate").basis.inverse() \
+		* tori.bone_world_transform("RightIndexDistal").basis
+	var followed := rad_to_deg(rel_straight.get_rotation_quaternion().angle_to(rel_bent.get_rotation_quaternion()))
+	check(followed > 5.0, "a DIP follows its own PIP when the PIP alone is posed by hand (%.1f deg)" % followed)
+	ctrl.set_bone_rotation(tori, "RightIndexIntermediate", mid_rest_q)
+	await settle()
+
 	# --- a grip on the neck lands on the neck, not through it ---------------
 	await ctrl.set_limb_mode(tori, "RightArm", Limb.Mode.IK)
 	tori.limbs["RightArm"].target.global_position = uke.bone_world_transform("Neck").origin + Vector3(-0.10, 0.02, -0.08)
