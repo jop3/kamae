@@ -1,0 +1,228 @@
+{
+  "name": "Chudan Tsuki Iriminage",
+  "description": "Uke punches with the right fist to Tori's centre. Tori enters off the line past Uke's right side, the right hand guiding the punch on past him, and ends beside and a little behind Uke facing the way Uke faces, the left hand on the base of Uke's neck. Tori turns to the right (tenkan), leading Uke round and down until Uke is bent forward at Tori's right shoulder; as Uke comes up and round to face him, Tori raises the right arm across Uke's face and cuts forward and down past it, stepping in. Uke goes over backward, away from Tori, into ushiro ukemi.",
+  "source": "written from the description above",
+  "camera": "Side",
+  "phases": [
+    {
+      "name": "Tsuki",
+      "hold": 0.3,
+      "do": [
+        {
+          "attack": "chudan_tsuki"
+        }
+      ]
+    },
+    {
+      "name": "Irimi",
+      "transition": 0.5,
+      "hold": 0.1,
+      "do": [
+        {
+          "place": "tori",
+          "of": "uke1",
+          "at": [
+            0.34,
+            -0.22
+          ],
+          "facing": 0
+        },
+        {
+          "hanmi": "tori",
+          "front": "Left"
+        },
+        {
+          "hand": "uke1.Right",
+          "at": [
+            0.0,
+            -0.15,
+            0.55
+          ]
+        },
+        {
+          "hand": "tori.Right",
+          "to": "uke1.RightLowerArm",
+          "along": 0.6,
+          "offset": [
+            0.06,
+            0.04,
+            0.0
+          ]
+        },
+        {
+          "grab": "tori.Left",
+          "target": "uke1.UpperChest",
+          "along": 0.9
+        }
+      ]
+    },
+    {
+      "name": "Tenkan",
+      "transition": 0.6,
+      "hold": 0.1,
+      "do": [
+        {
+          "pivot": "tori",
+          "foot": "Left",
+          "deg": -160
+        },
+        {
+          "place": "uke1",
+          "of": "tori",
+          "at": [
+            0.2,
+            0.3
+          ],
+          "facing": -40
+        },
+        {
+          "hanmi": "uke1",
+          "front": "Right"
+        },
+        {
+          "bend": "uke1.Spine",
+          "forward": 25
+        },
+        {
+          "bend": "uke1.Chest",
+          "forward": 15
+        },
+        {
+          "arm_down": "uke1.Right"
+        },
+        {
+          "refit": "tori.Left"
+        },
+        {
+          "hand": "tori.Right",
+          "at": [
+            0.3,
+            -0.35,
+            0.12
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Kake",
+      "transition": 0.6,
+      "hold": 0.2,
+      "allow_short": true,
+      "do": [
+        {
+          "release": "tori"
+        },
+        {
+          "straighten": "uke1"
+        },
+        {
+          "place": "uke1",
+          "of": "tori",
+          "at": [
+            0.1,
+            0.42
+          ],
+          "facing": 165
+        },
+        {
+          "hanmi": "uke1",
+          "front": "Right"
+        },
+        {
+          "step": "tori.Right",
+          "by": [
+            0.05,
+            0.22
+          ],
+          "weight": 0.7
+        },
+        {
+          "lean": "uke1",
+          "forward": -22
+        },
+        {
+          "bend": "uke1.Chest",
+          "forward": -10
+        },
+        {
+          "bend": "uke1.Neck",
+          "forward": -15
+        },
+        {
+          "hand": "tori.Right",
+          "to": "uke1.Head",
+          "offset": [
+            0.0,
+            -0.04,
+            0.16
+          ]
+        },
+        {
+          "arm_down": "tori.Left"
+        }
+      ]
+    },
+    {
+      "name": "Ukemi",
+      "transition": 0.45,
+      "hold": 0.0,
+      "allow_short": true,
+      "do": [
+        {
+          "release": "tori"
+        },
+        {
+          "move": "uke1",
+          "by": [
+            0.0,
+            -0.5
+          ]
+        },
+        {
+          "ukemi": "uke1",
+          "kind": "backward",
+          "t": 0.4
+        },
+        {
+          "hand": "tori.Right",
+          "at": [
+            0.15,
+            -0.2,
+            0.5
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Zanshin",
+      "transition": 0.6,
+      "hold": 1.0,
+      "allow_short": true,
+      "do": [
+        {
+          "move": "uke1",
+          "by": [
+            0.0,
+            -0.7
+          ]
+        },
+        {
+          "ukemi": "uke1",
+          "kind": "backward",
+          "t": 0.75
+        },
+        {
+          "hand": "tori.Right",
+          "at": [
+            0.1,
+            -0.35,
+            0.4
+          ]
+        },
+        {
+          "arm_down": "tori.Left"
+        }
+      ]
+    }
+  ]
+}
