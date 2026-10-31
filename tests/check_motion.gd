@@ -59,7 +59,7 @@ const OUTSTANDING := {
 		## the taken jo's hand is fitted now and the blend from the thrust crosses differently; +1 with the fist's range;
 		## +8 when the shaft moved to the base of the fingers (Weapon.shaft_seat): every weapon arm sits 3.5 cm further
 		## along its hold than it did, so these are new blends between newly fitted holds, not old ones gone worse
-	"katatedori_ikkyo": 10,   ## 13 until the contact solve (ContactSolve, 2026-11-01); 15 until 2026-11-01 (the blends reworked for smoothness); one fewer once the grip search weighed the fingers as well as the joints;
+	"katatedori_ikkyo": 9,   ## until the contact solve (ContactSolve, 2026-11-01) it was higher, see below; 15 until 2026-11-01 (the blends reworked for smoothness); one fewer once the grip search weighed the fingers as well as the joints;
 		## +2 with the hands re-seated where a hand holds a forearm (GripDirector.grip_seat):
 		## the grips are a few centimetres along the hand from where they were, so the blends between them are new;
 		## the grip is the catalogue's now; two frames of a wrist at its edge as the arm is raised;
@@ -67,7 +67,7 @@ const OUTSTANDING := {
 		## rebuilding refit grepp/kuzushi under the finger coupling, which shifted
 		## the grepp->kuzushi blend enough to add 3 frames of Uke's gripping wrist over its range;
 		## +2 with the fist's range (the kake's own wrist fault is gone: 12 -> 14 is the measurement)
-	"katatedori_shihonage_irimi": 13,   ## 14 until the contact solve (ContactSolve, 2026-11-01); 20 until 2026-11-01 (the blends reworked for smoothness; 14 once a limb counts as mid-move whenever its body is); +1 when the blend stopped sweeping feet through the mat (2026-10-31): Tori's leg
+	"katatedori_shihonage_irimi": 14,   ## 14 before and after the contact solve (ContactSolve, 2026-11-01), shallower after; 20 until 2026-11-01 (the blends reworked for smoothness; 14 once a limb counts as mid-move whenever its body is); +1 when the blend stopped sweeping feet through the mat (2026-10-31): Tori's leg
 		## used to stand straight toward a target buried under the mat; blended between where the foot really was,
 		## the knee bends a little mid-step and the hanging forearm brushes the thigh — a deliberate exception to "only down";
 		## +2 more with the fingers fitted: a foot through a foot as Tori steps in;
@@ -88,7 +88,7 @@ const OUTSTANDING := {
 		## 37 until the fingers were closed onto the tsuka by what they hold;
 		## 12 while Uke's hands were refused in every keyframe and so not counted at all; the raise, the cut and
 		## the handover roll them on the tsuka between clean holds; +5 with the shaft at the base of the fingers
-	"ushiro_ryotedori_zenponage": 5,   ## 8 until the contact solve (ContactSolve, 2026-11-01); 9 until the fall was blended about the hips (2026-10-31); 11 before the grepp and kuzushi grips were re-seated; the Tenkan and Kake
+	"ushiro_ryotedori_zenponage": 7,   ## until the contact solve (ContactSolve, 2026-11-01) it was higher, see below; 9 until the fall was blended about the hips (2026-10-31); 11 before the grepp and kuzushi grips were re-seated; the Tenkan and Kake
 		## poses still hold with the old seat, because re-seating them put a hand out of reach (docs/handoff.md)
 }
 

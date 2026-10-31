@@ -23,7 +23,9 @@ extends RefCounted
 
 const ITERATIONS := 20
 ## How much overlap is left alone, metres: a little under what the checks allow.
-const ALLOW_PARTNER := 0.02
+const ALLOW_PARTNER := 0.005
+## Width of the soft zone either side of each limit, metres.
+const SOFT := 0.01
 const ALLOW_OWN_TRUNK := 0.05
 const ALLOW_OWN := 0.02
 ## Stiffness of the pull back toward the blend, per iteration (0..1).
@@ -42,6 +44,8 @@ const W_FOOT_DOWN := 0.02
 const FOOT_DOWN := 0.2
 ## Less than this moved by the solve, metres, and a limb is left as the blend set it.
 const MOVED := 0.015
+## How far a correction goes toward this frame's answer from the last frame's (see _eased).
+const EASE := 0.6
 ## How far out past the solved elbow or knee its pole is put, metres.
 const POLE_OUT := 0.3
 ## Radii of the limb segments (Anatomy.RADII).
@@ -101,8 +105,7 @@ static func _figure(rig: CharacterRig, director: GripDirector) -> Dictionary:
 		var grip: Grip = director.grip_on_limb(rig.character_id, key) if director else null
 		var gripping := grip != null
 		if gripping:
-			# Where the grip has the hand (the gripped bone as last solved), as weighted this frame.
-			end = grip.free.interpolate_with(director.resolved_hand_transform(grip), clampf(grip.weight, 0.0, 1.0)).origin
+			# Put on its grip below (_grip_links), from this frame's figures.
 			mid = _ik_middle(root, end, limb.pole.global_position, l1, l2)
 		limbs[key] = {"limb": limb, "root_local": root - hips, "l1": l1, "l2": l2, "arm": limb.is_arm,
 			"mid": {"p": mid, "w": W_JOINT}, "end": {"p": end, "w": W_FOOT_DOWN if down else W_END},
@@ -191,10 +194,19 @@ static func _grip_links(figures: Array, director: GripDirector) -> Array:
 		var seg := _segment_points(tf, g.target.bone_name)
 		if seg.is_empty():
 			continue
+		# Where on the held bone the hand sits, from the grip itself (its offset from the bone),
+		# measured in the bone's own frame and put on the bone as the solve has it now: from the
+		# hand as last solved it would feed the last frame's push back into this one.
+		var rig: CharacterRig = tf["rig"]
+		var bone_xf := rig.fk_bone_transform(g.target.bone_name)
+		var palm: Vector3 = (bone_xf * g.offset).origin
 		var a: Vector3 = seg[0]["p"]; var b: Vector3 = seg[1]["p"]
-		var p: Vector3 = hand["end"]["p"]
-		var t := clampf((p - a).dot(b - a) / maxf((b - a).length_squared(), 1e-9), 0.0, 1.0)
-		var off := p - a.lerp(b, t)
+		var fa := bone_xf.origin
+		var fb := fa + bone_xf.basis.y.normalized() * (b - a).length()
+		var t := clampf((palm - fa).dot(fb - fa) / maxf((fb - fa).length_squared(), 1e-9), 0.0, 1.0)
+		var off := palm - fa.lerp(fb, t)
+		hand["end"]["p"] = a.lerp(b, t) + off
+		hand["end0"] = hand["end"]["p"]
 		out.append({"hand": hand["end"], "seg": seg, "t": t, "off": off})
 	return out
 
@@ -275,8 +287,11 @@ static func _push_apart(c1: Array, c2: Array, allow: float) -> void:
 	var diff: Vector3 = pts[0] - pts[1]
 	var dist := diff.length()
 	var depth: float = float(c1[2]) + float(c2[2]) - dist - allow
-	if depth <= 0.0:
+	if depth <= -SOFT:
 		return
+	# Soft contact: the push grows from nothing over SOFT before the limit, so it comes on as
+	# smoothly as two bodies meet rather than switching on at a depth.
+	depth = (depth + SOFT) * (depth + SOFT) / (4.0 * SOFT) if depth < SOFT else depth
 	var n := diff / dist if dist > 1e-6 else Vector3.UP
 	var s1 := _along(a1, b1, pts[0])
 	var s2 := _along(a2, b2, pts[1])
@@ -340,17 +355,35 @@ static func _held(f1: Dictionary, bone: String, f2: Dictionary, other: String) -
 
 # --- the answer, back to the IK ---------------------------------------------------------------
 
+## The last frame's corrections per figure: {rig id: {"frame", "hips", limb key: [mid, end]}}.
+static var _last := {}
+
+
+## Eases a correction toward this frame's answer when the last frame was the one before (a film,
+## a check stepping through): contacts that switch on and off settle the solve differently
+## from one frame to the next, and taken raw the bodies shake. A scrubbed frame is solved fresh.
+static func _eased(rig: CharacterRig, key: String, raw: Vector3) -> Vector3:
+	var mine: Dictionary = _last.get(rig.get_instance_id(), {})
+	var frame := Engine.get_process_frames()
+	if not mine.is_empty() and frame - int(mine["frame"]) <= 4 and mine.has(key):
+		raw = (mine[key] as Vector3).lerp(raw, EASE)
+	mine[key] = raw
+	return raw
+
+
 static func _write(f: Dictionary, k: float) -> void:
 	var rig: CharacterRig = f["rig"]
-	var moved: Vector3 = (f["hips"]["p"] as Vector3) - (f["hips0"] as Vector3)
+	if not _last.has(rig.get_instance_id()):
+		_last[rig.get_instance_id()] = {"frame": -100}
+	var moved: Vector3 = _eased(rig, "hips", ((f["hips"]["p"] as Vector3) - (f["hips0"] as Vector3)) * k) / maxf(k, 1e-6)
 	rig.position += moved * k
 	for key: String in f["limbs"]:
 		var lb: Dictionary = f["limbs"][key]
 		var limb: Limb = lb["limb"]
 		if not lb["ik"]:
 			continue
-		var mid: Vector3 = (lb["mid0"] as Vector3).lerp(lb["mid"]["p"], k)
-		var end: Vector3 = (lb["end0"] as Vector3).lerp(lb["end"]["p"], k)
+		var mid: Vector3 = (lb["mid0"] as Vector3) + _eased(rig, key + "/mid", ((lb["mid"]["p"] as Vector3) - (lb["mid0"] as Vector3)) * k)
+		var end: Vector3 = (lb["end0"] as Vector3) + _eased(rig, key + "/end", ((lb["end"]["p"] as Vector3) - (lb["end0"] as Vector3)) * k)
 		# A limb contact did not move is left as the blend set it: re-aiming an elbow nothing
 		# pushed only hands the wrist a different problem.
 		var pushed: float = maxf((mid - (lb["mid0"] as Vector3) - moved * k).length(), (end - (lb["end0"] as Vector3)).length())
@@ -363,3 +396,4 @@ static func _write(f: Dictionary, k: float) -> void:
 		var off := mid - (root + line.normalized() * (mid - root).dot(line.normalized())) if line.length() > 1e-5 else Vector3.ZERO
 		if off.length() > 0.005:
 			limb.pole.global_position = mid + off.normalized() * POLE_OUT
+	_last[rig.get_instance_id()]["frame"] = Engine.get_process_frames()
