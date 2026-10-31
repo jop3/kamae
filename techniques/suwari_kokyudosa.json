@@ -1,0 +1,207 @@
+{
+  "name": "Suwari Kokyudosa",
+  "description": "Both kneel in seiza facing each other, knees a fist or two apart. Uke takes both of Tori's wrists. Tori extends both arms forward and up from the centre, lifting Uke's balance up and back so he rises off his heels; Tori comes up onto the toes (kiza), turns the hips a little and extends over toward Uke's left-back; Uke goes down onto his back. Tori follows on his knees and settles beside him, hands lightly on Uke's arms.",
+  "source": "written from the description above",
+  "camera": "Side",
+  "view": {
+    "yaw": 30,
+    "height": 1.5,
+    "zoom": 1.1
+  },
+  "phases": [
+    {
+      "name": "Grepp",
+      "hold": 0.5,
+      "do": [
+        {
+          "place": "tori",
+          "at": [
+            0.0,
+            0.0
+          ],
+          "yaw": 0
+        },
+        {
+          "place": "uke1",
+          "of": "tori",
+          "at": [
+            0.0,
+            0.9
+          ],
+          "facing": 180
+        },
+        {
+          "kneel": "tori",
+          "kind": "seiza"
+        },
+        {
+          "kneel": "uke1",
+          "kind": "seiza"
+        },
+        {
+          "hand": "tori.Right",
+          "at": [
+            0.06,
+            -0.28,
+            0.42
+          ]
+        },
+        {
+          "hand": "tori.Left",
+          "at": [
+            -0.06,
+            -0.28,
+            0.42
+          ]
+        },
+        {
+          "grab": "uke1.Left",
+          "target": "tori.RightLowerArm",
+          "along": 0.85
+        },
+        {
+          "grab": "uke1.Right",
+          "target": "tori.LeftLowerArm",
+          "along": 0.85
+        },
+        {
+          "refit": "uke1"
+        }
+      ]
+    },
+    {
+      "name": "Kuzushi",
+      "transition": 0.7,
+      "hold": 0.2,
+      "do": [
+        {
+          "hand": "tori.Right",
+          "at": [
+            0.08,
+            -0.02,
+            0.45
+          ]
+        },
+        {
+          "hand": "tori.Left",
+          "at": [
+            -0.08,
+            -0.02,
+            0.45
+          ]
+        },
+        {
+          "kneel": "uke1",
+          "kind": "kiza"
+        },
+        {
+          "lean": "uke1",
+          "forward": -10
+        },
+        {
+          "refit": "uke1"
+        }
+      ]
+    },
+    {
+      "name": "Kake",
+      "transition": 0.6,
+      "hold": 0.1,
+      "allow_short": true,
+      "do": [
+        {
+          "kneel": "tori",
+          "kind": "kiza"
+        },
+        {
+          "move": "tori",
+          "by": [
+            0.0,
+            0.12
+          ],
+          "turn": -20
+        },
+        {
+          "lean": "uke1",
+          "forward": -22,
+          "side": -10
+        },
+        {
+          "hand": "tori.Right",
+          "at": [
+            -0.05,
+            0.0,
+            0.5
+          ]
+        },
+        {
+          "hand": "tori.Left",
+          "at": [
+            -0.2,
+            -0.1,
+            0.4
+          ]
+        },
+        {
+          "refit": "uke1"
+        }
+      ]
+    },
+    {
+      "name": "Osae",
+      "transition": 0.7,
+      "hold": 1.0,
+      "allow_short": true,
+      "do": [
+        {
+          "release": "uke1"
+        },
+        {
+          "move": "uke1",
+          "by": [
+            -0.15,
+            -0.35
+          ]
+        },
+        {
+          "ukemi": "uke1",
+          "kind": "backward",
+          "t": 0.25
+        },
+        {
+          "move": "tori",
+          "by": [
+            0.0,
+            0.15
+          ]
+        },
+        {
+          "hand": "tori.Right",
+          "to": "uke1.LeftUpperArm",
+          "along": 0.6,
+          "offset": [
+            0.0,
+            0.06,
+            0.0
+          ],
+          "curl": 0.3
+        },
+        {
+          "hand": "tori.Left",
+          "to": "uke1.LeftLowerArm",
+          "along": 0.8,
+          "offset": [
+            0.0,
+            0.06,
+            0.0
+          ],
+          "curl": 0.3
+        },
+        {
+          "look": "tori",
+          "at": "uke1.Head"
+        }
+      ]
+    }
+  ]
+}

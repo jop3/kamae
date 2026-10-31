@@ -160,6 +160,7 @@ func do_move(m: Dictionary) -> void:
 		await st.settle(3)
 	elif m.has("kneel"):
 		var r := _rig(m["kneel"])
+		await _stand_legs(r)
 		Stance.kneel(ctrl, r, Stance.Kneel.KIZA if m.get("kind", "seiza") == "kiza" else Stance.Kneel.SEIZA)
 		await st.settle(4)
 		Ukemi.ground(r)
@@ -548,7 +549,7 @@ func _step_in_to_grips() -> void:
 			# Walking in to a grip stops where the bodies would meet: a hand that cannot reach a
 			# neck from outside is a move written a little wrong, and walking through the
 			# partner to get there (which this used to do) hides that rather than showing it.
-			if _closest_trunk(r, r.position + step) < MIN_TRUNK_GAP:
+			if _closest_trunk(r, r.position + step) < _trunk_gap(r):
 				_stopped.append(r)
 				blocked += 1
 				continue
@@ -565,6 +566,16 @@ func _step_in_to_grips() -> void:
 ## How close two standing trunks may come, hip to hip on the mat.
 const MIN_TRUNK_GAP := 0.30
 var _stopped: Array = []
+
+
+## How close `r`'s hips may come to anyone else's: further when someone is kneeling, whose
+## thighs reach forward from the hips (two people in seiza touch knees with the hips 0.85 m apart).
+func _trunk_gap(r: CharacterRig) -> float:
+	var kneeling := 0
+	for c: CharacterRig in scene.characters:
+		if c.visible and c.position.y < -0.2 and absf(c.rotation.x) < 0.5:
+			kneeling += 1
+	return [MIN_TRUNK_GAP, 0.55, 0.85][mini(kneeling, 2)]
 
 
 ## The horizontal distance from `r`'s hips, were its root at `at`, to the nearest other figure's.
@@ -723,6 +734,25 @@ func _where(m: Dictionary) -> void:
 		var root: Vector3 = b * (r.global_position - o)
 		print("    %s root [%.2f, %.2f, %.2f] facing %.0f°: %s" % [r.character_id, -root.x, root.y, root.z,
 			rad_to_deg(wrapf(_heading(r) - _heading(ref), -PI, PI)), ", ".join(parts)])
+
+
+## Puts the legs back to standing under the hips where the figure is: Stance.kneel squares each
+## foot from the way it stands, so kneeling again from seiza into kiza (or kneeling after a fall)
+## read feet that were already folded under, and turned them inside out.
+func _stand_legs(r: CharacterRig) -> void:
+	var sk := r.skeleton
+	for side in ["Right", "Left"]:
+		var limb: Limb = r.limbs[side + "Leg"]
+		limb.set_orient_to_target(false)
+		r.set_limb_mode(side + "Leg", Limb.Mode.FK)
+		for bone in [side + "UpperLeg", side + "LowerLeg", side + "Foot", side + "Toes"]:
+			var i := sk.find_bone(bone)
+			sk.set_bone_pose_rotation(i, sk.get_bone_rest(i).basis.get_rotation_quaternion())
+	ctrl.set_root(r, Vector3(r.position.x, 0.0, r.position.z), _heading(r))
+	await st.settle(2)
+	for side in ["Right", "Left"]:
+		(r.limbs[side + "Leg"] as Limb).reset_target_to_pose()
+	await st.settle(1)
 
 
 ## Points each planted leg's knee out over its own toes. A leg's pole is otherwise set from the
