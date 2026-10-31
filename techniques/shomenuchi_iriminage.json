@@ -1,6 +1,6 @@
 {
   "name": "Shomenuchi Iriminage",
-  "description": "Uke cuts shomenuchi with the right hand from right hanmi. Tori enters off the line past Uke's right side, ending beside and a little behind Uke, facing the way Uke faces, the left hand on the back of Uke's neck and the right hand-blade on the striking arm. Tori turns to the right (tenkan), leading Uke round and down until Uke is bent forward at Tori's right shoulder. Tori raises the right arm up in front of Uke's face and cuts forward and down past it, stepping in with the right foot; Uke goes over backward into ushiro ukemi.",
+  "description": "Uke cuts shomenuchi with the right hand from right hanmi. Tori enters off the line past Uke's right side, ending beside and a little behind Uke, facing the way Uke faces, the left hand on the back of Uke's neck and the right hand-blade on the striking arm. Tori turns to the right (tenkan), leading Uke round and down until Uke is bent forward at Tori's right shoulder. As Uke comes up and round to face Tori, Tori raises the right arm up across Uke's face and cuts forward and down past it, stepping in with the right foot; Uke goes over backward, away from Tori, into ushiro ukemi.",
   "source": "written from the description above",
   "camera": "Side",
   "phases": [
@@ -49,8 +49,8 @@
         },
         {
           "grab": "tori.Left",
-          "target": "uke1.Neck",
-          "along": 0.3
+          "target": "uke1.UpperChest",
+          "along": 0.9
         }
       ]
     },
@@ -68,10 +68,10 @@
           "place": "uke1",
           "of": "tori",
           "at": [
-            0.26,
-            0.24
+            0.2,
+            0.3
           ],
-          "facing": -30
+          "facing": -40
         },
         {
           "hanmi": "uke1",
@@ -89,11 +89,14 @@
           "arm_down": "uke1.Right"
         },
         {
+          "refit": "tori.Left"
+        },
+        {
           "hand": "tori.Right",
           "at": [
-            0.15,
-            -0.25,
-            0.3
+            0.3,
+            -0.35,
+            0.12
           ]
         }
       ]
@@ -111,37 +114,49 @@
           "straighten": "uke1"
         },
         {
+          "place": "uke1",
+          "of": "tori",
+          "at": [
+            0.1,
+            0.42
+          ],
+          "facing": 165
+        },
+        {
+          "hanmi": "uke1",
+          "front": "Right"
+        },
+        {
           "step": "tori.Right",
           "by": [
-            0.12,
-            0.3
+            0.05,
+            0.22
           ],
           "weight": 0.7
         },
         {
           "lean": "uke1",
-          "forward": -25
+          "forward": -22
         },
         {
           "bend": "uke1.Chest",
           "forward": -10
         },
         {
+          "bend": "uke1.Neck",
+          "forward": -15
+        },
+        {
           "hand": "tori.Right",
           "to": "uke1.Head",
           "offset": [
             0.0,
-            0.0,
-            0.22
+            -0.04,
+            0.16
           ]
         },
         {
-          "hand": "tori.Left",
-          "at": [
-            -0.15,
-            -0.35,
-            0.25
-          ]
+          "arm_down": "tori.Left"
         }
       ]
     },
@@ -155,14 +170,10 @@
           "release": "tori"
         },
         {
-          "lean": "uke1",
-          "forward": 0
-        },
-        {
           "move": "uke1",
           "by": [
             0.0,
-            -0.65
+            -0.5
           ]
         },
         {
@@ -190,7 +201,7 @@
           "move": "uke1",
           "by": [
             0.0,
-            -0.6
+            -0.7
           ]
         },
         {
@@ -211,5 +222,6 @@
         }
       ]
     }
-  ]
+  ],
+  "known": "Kake: Uke's rear (left) ankle reads 47 degrees turned out against a 20 degree range while he is tipped back over Tori's arm with the foot planted; the picture is right and the flag is left standing."
 }

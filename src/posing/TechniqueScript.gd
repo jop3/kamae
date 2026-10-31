@@ -41,7 +41,7 @@ const LOOK_SHARE := {"Neck": 0.6, "Head": 1.0}
 ## The most each bone is turned by a look, inside its range with some to spare; and how far off
 ## the body's own facing a partner may be and still be looked at — someone standing beside you
 ## is watched out of the corner of the eye, not by craning round.
-const LOOK_MAX := {"Neck": 50.0, "Head": 22.0}
+const LOOK_MAX := {"Neck": 40.0, "Head": 22.0}
 const LOOK_FIELD := 100.0
 var _look_used := {}
 const DEFAULT_CHARACTERS := [
@@ -173,6 +173,8 @@ func do_move(m: Dictionary) -> void:
 		var r := _rig(m["lean"])
 		ctrl.set_root(r, r.position, r.rotation.y, deg_to_rad(m.get("forward", 0.0)), deg_to_rad(-m.get("side", 0.0)), Stance.BOTH_LEGS)
 		await st.settle(2)
+		_knees_over_toes(r)
+		await st.settle(2)
 	elif m.has("bend"):
 		_bend(m)
 		await st.settle(2)
@@ -216,9 +218,23 @@ func do_move(m: Dictionary) -> void:
 		await st.settle(2)
 	elif m.has("ukemi"):
 		var r := _rig(m["ukemi"])
+		# Ukemi.shape writes the pitch into the Euler angles and keeps whatever yaw and roll they
+		# hold; read back after a fall past 90°, those are the heading turned 180° and a roll of
+		# 180°, and the next phase of the same fall would tumble the body the wrong way round.
+		# Upright on the true heading first, so each phase of a fall is shaped from the same frame.
+		r.rotation = Vector3(0.0, _heading(r), 0.0)
 		var kinds := {"forward": Ukemi.Kind.FORWARD, "backward": Ukemi.Kind.BACKWARD, "prone": Ukemi.Kind.PRONE}
+		var hips_before: Vector3 = r.bone_world_transform("Hips").origin
 		Ukemi.shape(r, kinds.get(m.get("kind", "forward"), Ukemi.Kind.FORWARD), m.get("t", 0.5))
 		await st.settle(4)
+		# The fall turns the body about its root, which is at the feet: three quarters through a
+		# backward roll the body lies a body's length *ahead* of where it stood. A script says
+		# where Uke goes (a "move" before the fall), so the hips stay over the same spot of the mat
+		# through the shape and the travel is only what the script asked for.
+		var drift: Vector3 = r.bone_world_transform("Hips").origin - hips_before
+		drift.y = 0.0
+		r.position -= drift
+		await st.settle(2)
 		Ukemi.ground(r)
 		await st.settle(2)
 	elif m.has("ground"):
@@ -645,6 +661,23 @@ func _local2(a: Array) -> Vector3:
 ## [right, up, forward] -> engine local.
 func _local3(a: Array) -> Vector3:
 	return Vector3(-float(a[0]), float(a[1]), float(a[2]))
+
+
+## Points each planted leg's knee out over its own toes. A leg's pole is otherwise set from the
+## body's frame, so once the body tips (a lean) or a foot is turned out (the rear foot of hanmi),
+## the knee aims somewhere the foot does not, and the ankle twists to make up the difference.
+func _knees_over_toes(r: CharacterRig) -> void:
+	for side in ["Right", "Left"]:
+		var limb: Limb = r.limbs[side + "Leg"]
+		if limb.mode != Limb.Mode.IK:
+			continue
+		var toes: Vector3 = r.bone_world_transform(side + "Toes").origin - r.bone_world_transform(side + "Foot").origin
+		toes.y = 0.0
+		if toes.length() < 1e-4:
+			continue
+		var hip: Vector3 = r.bone_world_transform(side + "UpperLeg").origin
+		var mid: Vector3 = (hip + limb.target.global_position) * 0.5
+		limb.pole.global_position = mid + toes.normalized() * 0.6
 
 
 func _ensure_legs(id: String) -> void:

@@ -129,7 +129,7 @@ middleage_asian_male young_african_male young_caucasian_female middleage_asian_f
 
 | Move | Does |
 |---|---|
-| `{"ukemi": "uke1", "kind": "forward", "t": 0.4}` | Shapes a fall at `t` (0 upright … 1 back up) and rests the body on the mat. `kind`: `forward` (mae ukemi, a roll), `backward` (ushiro ukemi), `prone` (laid face down for a pin). Release grips first. Use several phases with increasing `t` and a `move` between them for the travel. |
+| `{"ukemi": "uke1", "kind": "forward", "t": 0.4}` | Shapes a fall at `t` (0 upright … 1 back up) and rests the body on the mat. `kind`: `forward` (mae ukemi, a roll), `backward` (ushiro ukemi), `prone` (laid face down for a pin). Release grips first. The hips stay over the same spot of the mat through the shape, so the fall goes only where a `move` sends it: use several phases with increasing `t` and a `move` of about 0.3–0.5 m before each. |
 | `{"ground": "uke1"}` | Rests whatever is lowest on the mat. |
 
 ### Weapons
