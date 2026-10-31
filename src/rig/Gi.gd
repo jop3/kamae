@@ -150,7 +150,9 @@ static func _cloth_material(kind: String, tint: Color) -> StandardMaterial3D:
 	m.albedo_texture = tex[0]
 	m.normal_enabled = true
 	m.normal_texture = tex[1]
-	m.normal_scale = 2.0
+	# Half the depth the first gi had: at full strength every rice grain of the sashiko
+	# caught the light and a close-up read as bubble wrap rather than cloth.
+	m.normal_scale = 0.8 if kind == "sashiko" else 1.2
 	m.roughness = 1.0
 	if kind != "stitched":   # the lapel ribbon carries its own UVs, u along the band
 		m.uv1_triplanar = true

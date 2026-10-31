@@ -1,0 +1,206 @@
+{
+  "name": "Shomenuchi Ikkyo",
+  "description": "Omote. Uke cuts shomenuchi with the right hand from right hanmi. Tori steps in to meet it, the right hand-blade on Uke's wrist and the left hand under Uke's elbow, and raises the arm. Tori steps forward and cuts the arm down in an arc in front of Uke, taking his balance forward and down; Uke steps back and is brought to the mat face down. Tori kneels at his side, Uke's arm out at a little more than a right angle to the body, Tori's right hand on the wrist and left on the arm just above the elbow, pressing it to the mat.",
+  "source": "written from the description above",
+  "camera": "Side",
+  "phases": [
+    {
+      "name": "Uchi",
+      "hold": 0.4,
+      "do": [
+        {
+          "attack": "shomenuchi"
+        }
+      ]
+    },
+    {
+      "name": "Uke",
+      "transition": 0.5,
+      "hold": 0.1,
+      "do": [
+        {
+          "step": "tori.Right",
+          "by": [
+            0.0,
+            0.18
+          ],
+          "weight": 0.7
+        },
+        {
+          "hand": "uke1.Right",
+          "at": [
+            0.0,
+            0.32,
+            0.3
+          ]
+        },
+        {
+          "hand": "tori.Right",
+          "to": "uke1.RightLowerArm",
+          "along": 0.8,
+          "offset": [
+            0.0,
+            -0.05,
+            -0.03
+          ]
+        },
+        {
+          "hand": "tori.Left",
+          "to": "uke1.RightUpperArm",
+          "along": 0.95,
+          "offset": [
+            0.0,
+            -0.06,
+            0.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Kuzushi",
+      "transition": 0.6,
+      "hold": 0.1,
+      "do": [
+        {
+          "place": "tori",
+          "of": "uke1",
+          "at": [
+            0.48,
+            0.66
+          ],
+          "facing": 200
+        },
+        {
+          "hanmi": "tori",
+          "front": "Right"
+        },
+        {
+          "move": "uke1",
+          "by": [
+            0.0,
+            -0.15
+          ]
+        },
+        {
+          "bend": "uke1.Spine",
+          "forward": 25
+        },
+        {
+          "bend": "uke1.Chest",
+          "forward": 15
+        },
+        {
+          "hand": "uke1.Right",
+          "at": [
+            0.22,
+            -0.35,
+            0.4
+          ]
+        },
+        {
+          "grab": "tori.Right",
+          "target": "uke1.RightLowerArm",
+          "along": 0.85
+        },
+        {
+          "grab": "tori.Left",
+          "target": "uke1.RightUpperArm",
+          "along": 0.9
+        }
+      ]
+    },
+    {
+      "name": "Osae",
+      "transition": 0.8,
+      "hold": 1.2,
+      "do": [
+        {
+          "release": "tori"
+        },
+        {
+          "straighten": "uke1"
+        },
+        {
+          "move": "uke1",
+          "by": [
+            0.0,
+            -0.3
+          ]
+        },
+        {
+          "ukemi": "uke1",
+          "kind": "prone",
+          "t": 0.5
+        },
+        {
+          "hand": "uke1.Right",
+          "at": [
+            0.7,
+            -0.1,
+            0.12
+          ]
+        },
+        {
+          "hand": "uke1.Left",
+          "at": [
+            -0.1,
+            -0.15,
+            0.3
+          ]
+        },
+        {
+          "place": "tori",
+          "of": "uke1.RightShoulder",
+          "at": [
+            0.52,
+            -0.85
+          ],
+          "facing": -30
+        },
+        {
+          "kneel": "tori",
+          "kind": "kiza"
+        },
+        {
+          "bend": "tori.Spine",
+          "forward": 15
+        },
+        {
+          "bend": "tori.Chest",
+          "forward": 10
+        },
+        {
+          "hand": "tori.Right",
+          "to": "uke1.RightLowerArm",
+          "along": 0.85,
+          "offset": [
+            0.0,
+            0.06,
+            0.0
+          ],
+          "curl": 0.5
+        },
+        {
+          "hand": "tori.Left",
+          "to": "uke1.RightUpperArm",
+          "along": 0.85,
+          "offset": [
+            0.0,
+            0.07,
+            0.0
+          ],
+          "curl": 0.3
+        },
+        {
+          "look": "tori",
+          "at": "uke1.RightUpperArm"
+        }
+      ]
+    }
+  ],
+  "view": {
+    "yaw": 30,
+    "height": 2.3,
+    "zoom": 1.1
+  }
+}

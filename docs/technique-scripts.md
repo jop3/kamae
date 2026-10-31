@@ -93,7 +93,7 @@ middleage_asian_male young_african_male young_caucasian_female middleage_asian_f
 
 | Move | Does |
 |---|---|
-| `{"place": "tori", "of": "uke1", "at": [right, forward], "facing": 180}` | Puts a figure relative to another (`"of": "attack"` = where the attack left Uke). `facing` is degrees from that figure's facing: 0 the same way, 180 face to face. Optional `height`, `pitch` (lean forward), `roll`. Without `of`: `"at": [x, z]` in the world and `"yaw"`. |
+| `{"place": "tori", "of": "uke1", "at": [right, forward], "facing": 180}` | Puts a figure relative to another (`"of": "attack"` = where the attack left Uke; `"of": "uke1.RightShoulder"` = beside that part of him, still in his frame — what to use once he is on the mat, since a figure's root is at its feet). `facing` is degrees from that figure's facing: 0 the same way, 180 face to face. Optional `height`, `pitch` (lean forward), `roll`. Without `of`: `"at": [x, z]` in the world and `"yaw"`. |
 | `{"move": "tori", "by": [right, forward], "turn": 0}` | Moves the whole figure, feet and all, in its own frame (a slide, being led). |
 | `{"step": "tori.Right", "by": [right, forward]}` | One foot steps; the hips follow to between the feet (`weight` 0…1, default 0.5, how far onto the stepping foot). `turn` turns the stepping foot, `body_turn` the body. **Irimi.** |
 | `{"step": "tori.Right", "to": "uke1.LeftFoot", "offset": [right, forward]}` | Steps to a place on someone else, offset in *their* frame — "beside Uke's front foot". |
@@ -117,6 +117,7 @@ middleage_asian_male young_african_male young_caucasian_female middleage_asian_f
 | Move | Does |
 |---|---|
 | `{"hand": "tori.Right", "at": [right, up, forward]}` | Puts a hand at an offset from its own shoulder. Arm hanging ≈ `[0.05, -0.5, 0.08]` (mirrored for left: `[-0.05…]`), extended at chest height ≈ `[0, 0, 0.55]`, overhead ≈ `[0.1, 0.45, 0.2]`. |
+| `{"hand": "uke1.Left", "at": [...], "point": [0, 1, -0.3], "palm": [0, 0, -1]}` | Also turns the hand: `point` is where the fingers point, `palm` which way the palm faces, both `[right, up, forward]` in the figure's frame (either may be left out). A hand someone grips turns with its grip following: kotegaeshi turns Uke's hand palm-toward-himself, fingers up. |
 | `{"hand": "tori.Left", "to": "uke1.Head", "offset": [0, 0, 0.12]}` | Puts a hand at a place on someone (atemi to the face, a hand on a shoulder, an elbow), offset in *their* frame; `along` moves along the bone. `curl` closes the fingers. |
 | `{"elbow": "tori.Right", "toward": [right, up, forward]}` | Steers the elbow (the IK pole), from the shoulder. |
 | `{"arm_down": "uke1.Left"}` | The arm hangs at the side. |
@@ -157,6 +158,10 @@ them. The look is not carried into the next phase's moves.
 
 A character can carry `"look"` in `characters` too, for the whole technique.
 
+`{"where": "uke1"}` prints where everyone's main parts are, in metres `[right, up, forward]`
+from Uke's root in Uke's frame, and which way each faces relative to him (`"of"` picks another
+reference). It changes nothing.
+
 `{"settle": 4}` waits frames, if something needs to solve before the next move reads it.
 
 ## Writing one well
@@ -171,6 +176,12 @@ A character can carry `"look"` in `characters` too, for the whole technique.
    final pose.
 4. **Look, then fix.** Read `contact_sheet.png` and the problems printed per phase; change one
    number and rebuild (a build is about 40 s with `--no-video`).
-5. A technique is never anatomically perfect on the first try. A wrist or shoulder a few degrees
+5. **Pins rest the hands, they do not grab.** A grip whose hand is short pulls the held limb
+   toward it — under the pinning knee, in the first ikkyo osae. Use `hand` with `to` (and a
+   little `offset` up off the bone) for a hand pressing an arm to the mat.
+6. **When a picture is unclear, look from somewhere else and ask where things are.** A `view`
+   from above, or `{"where": "uke1"}` (prints every figure's main parts in Uke's frame), settles
+   what the default cameras hide; take the `where` out when done.
+7. A technique is never anatomically perfect on the first try. A wrist or shoulder a few degrees
    past range is drawn at its range (`JointLimits`), so the picture is still possible; a body
    *through* another body is worth fixing.

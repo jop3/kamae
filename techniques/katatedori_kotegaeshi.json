@@ -1,0 +1,241 @@
+{
+  "name": "Katatedori Kotegaeshi",
+  "description": "Gyaku hanmi katatedori: Uke's left hand on Tori's right wrist. Tori enters beside Uke's front foot and turns tenkan, leading Uke round; Tori's left hand takes the back of Uke's gripping hand, thumb on the back between the knuckles, and Uke lets go. Tori turns back toward Uke, leading the hand in a circle at hip height, then covers it with the right hand and turns it outward — Uke's palm toward Uke, fingers up — stepping back with the left foot. Uke's wrist leads him over backward into ushiro ukemi.",
+  "source": "written from the description above",
+  "camera": "Side",
+  "phases": [
+    {
+      "name": "Grepp",
+      "hold": 0.4,
+      "do": [
+        {
+          "attack": "katatedori"
+        }
+      ]
+    },
+    {
+      "name": "Tenkan",
+      "transition": 0.7,
+      "hold": 0.1,
+      "do": [
+        {
+          "step": "tori.Right",
+          "to": "uke1.LeftFoot",
+          "offset": [
+            -0.24,
+            0.05
+          ],
+          "turn": -30,
+          "weight": 0.75
+        },
+        {
+          "pivot": "tori",
+          "foot": "Right",
+          "deg": 180
+        },
+        {
+          "hand": "tori.Right",
+          "at": [
+            0.05,
+            -0.3,
+            0.38
+          ]
+        },
+        {
+          "refit": "uke1.Left"
+        },
+        {
+          "bend": "uke1.Spine",
+          "forward": 12
+        }
+      ]
+    },
+    {
+      "name": "Kote",
+      "transition": 0.5,
+      "hold": 0.1,
+      "do": [
+        {
+          "grab": "tori.Left",
+          "target": "uke1.LeftHand",
+          "along": 0.5
+        },
+        {
+          "release": "uke1"
+        },
+        {
+          "hand": "tori.Right",
+          "at": [
+            0.1,
+            -0.4,
+            0.15
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Kuzushi",
+      "transition": 0.6,
+      "hold": 0.1,
+      "do": [
+        {
+          "pivot": "tori",
+          "foot": "Right",
+          "deg": -120
+        },
+        {
+          "place": "uke1",
+          "of": "tori",
+          "at": [
+            -0.1,
+            0.62
+          ],
+          "facing": 160
+        },
+        {
+          "hanmi": "uke1",
+          "front": "Left"
+        },
+        {
+          "bend": "uke1.Spine",
+          "forward": 10
+        },
+        {
+          "hand": "uke1.Left",
+          "to": "tori.Hips",
+          "offset": [
+            0.1,
+            0.05,
+            0.35
+          ]
+        },
+        {
+          "refit": "tori.Left"
+        }
+      ]
+    },
+    {
+      "name": "Kake",
+      "transition": 0.5,
+      "hold": 0.1,
+      "do": [
+        {
+          "step": "tori.Left",
+          "by": [
+            -0.1,
+            -0.2
+          ],
+          "weight": 0.6
+        },
+        {
+          "lean": "uke1",
+          "forward": -18
+        },
+        {
+          "bend": "uke1.Chest",
+          "forward": -10
+        },
+        {
+          "hand": "uke1.Left",
+          "at": [
+            -0.12,
+            -0.15,
+            0.42
+          ],
+          "point": [
+            0.0,
+            1.0,
+            -0.3
+          ],
+          "palm": [
+            0.0,
+            0.0,
+            -1.0
+          ]
+        },
+        {
+          "refit": "tori.Left"
+        },
+        {
+          "grab": "tori.Right",
+          "target": "uke1.LeftHand",
+          "along": 0.8
+        }
+      ]
+    },
+    {
+      "name": "Ukemi",
+      "transition": 0.45,
+      "hold": 0.0,
+      "allow_short": true,
+      "do": [
+        {
+          "release": "tori"
+        },
+        {
+          "move": "uke1",
+          "by": [
+            0.0,
+            -0.35
+          ]
+        },
+        {
+          "ukemi": "uke1",
+          "kind": "backward",
+          "t": 0.35
+        },
+        {
+          "hand": "tori.Right",
+          "at": [
+            0.1,
+            -0.3,
+            0.4
+          ]
+        },
+        {
+          "hand": "tori.Left",
+          "at": [
+            -0.1,
+            -0.3,
+            0.4
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Zanshin",
+      "transition": 0.6,
+      "hold": 1.0,
+      "allow_short": true,
+      "do": [
+        {
+          "move": "uke1",
+          "by": [
+            0.0,
+            -0.6
+          ]
+        },
+        {
+          "ukemi": "uke1",
+          "kind": "backward",
+          "t": 0.75
+        },
+        {
+          "hanmi": "tori",
+          "front": "Right"
+        },
+        {
+          "arm_down": "tori.Left"
+        },
+        {
+          "hand": "tori.Right",
+          "at": [
+            0.1,
+            -0.25,
+            0.42
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -30,7 +30,7 @@ var report := {"phases": [], "errors": []}
 ## Every move do_move knows, by its verb (the key that names it).
 const VERBS := ["attack", "from_pose", "place", "move", "pivot", "turn_foot", "step", "hanmi", "drop_hips",
 	"kneel", "stand", "lean", "bend", "straighten", "hand", "elbow", "arm_down", "grab", "refit", "release",
-	"fingers", "ukemi", "ground", "weapon", "look", "settle"]
+	"fingers", "ukemi", "ground", "weapon", "look", "where", "settle"]
 const DEFAULT_SKEWS := [0.0, 30.0, -30.0, 45.0, -45.0]
 ## Who looks where, by figure id: "uke1.Head" (a bone of anyone), "none", or [right, up, forward]
 ## (a direction in the figure's own frame). Unset, a figure looks at its partner's face.
@@ -244,6 +244,8 @@ func do_move(m: Dictionary) -> void:
 		await _weapon(m)
 	elif m.has("look"):
 		looks[m["look"]] = m.get("at", "none")
+	elif m.has("where"):
+		_where(m)
 	elif m.has("settle"):
 		await st.settle(int(m["settle"]))
 	else:
@@ -261,7 +263,14 @@ func _place(m: Dictionary) -> void:
 	var pos: Vector3
 	var yaw: float
 	if m.has("of"):
-		var ref: Transform3D = attack_origin if m["of"] == "attack" else _rig(m["of"]).global_transform
+		var ref: Transform3D = attack_origin
+		if m["of"] != "attack":
+			var q := _part(m["of"])
+			ref = _rig(q[0]).global_transform
+			if q[1] != "":
+				# Beside a part of someone — a shoulder, the hips — rather than their root, which is
+				# at the feet and for anyone lying down is nowhere near the body.
+				ref.origin = _rig(q[0]).bone_world_transform(q[1]).origin
 		var ref_yaw := atan2(-ref.basis.x.z, ref.basis.x.x)
 		var b := Basis(Vector3.UP, ref_yaw)
 		pos = Vector3(ref.origin.x, 0.0, ref.origin.z) + b * _local2(at)
@@ -353,8 +362,13 @@ func _hand(m: Dictionary) -> void:
 	else:
 		var shoulder: Vector3 = r.bone_world_transform(p[1] + "UpperArm").origin
 		goal = shoulder + _flat_basis(r) * _local3(m.get("at", [0.0, -0.5, 0.1]))
-	r.limbs[p[1] + "Arm"].target.global_position = goal
-	r.limbs[p[1] + "Arm"].reset_pole()
+	var limb: Limb = r.limbs[p[1] + "Arm"]
+	if m.has("palm") or m.has("point"):
+		limb.target.global_transform = Transform3D(_hand_basis(r, p[1], m), goal)
+		limb.set_orient_to_target(true)
+	else:
+		limb.target.global_position = goal
+	limb.reset_pole()
 	if m.has("curl"):
 		st.fingers(p[0], p[1], m["curl"])
 	await st.settle(3)
@@ -387,6 +401,36 @@ func _refit(m: Dictionary) -> void:
 		await st.settle(1)
 		await st.grab(p[0], hand_side, target_id, bone, Vector3.ZERO, along, m.get("curl", 0.6),
 			m.get("skews", [0.0, 30.0, -30.0, 45.0, -45.0, 60.0, -60.0, 90.0, -90.0]))
+
+
+## The hand's world orientation for "point" (where the fingers point) and "palm" (which way the
+## palm faces), each [right, up, forward] in the figure's frame; either may be left out, and the
+## other is then kept as near as it can be to where it is now. Worked out from the rest pose,
+## where the fingers run from the wrist to the middle knuckle and the palm faces the body.
+func _hand_basis(r: CharacterRig, side: String, m: Dictionary) -> Basis:
+	var sk := r.skeleton
+	var g := sk.global_transform
+	var rest := func(bone: String) -> Transform3D: return g * sk.get_bone_global_rest(sk.find_bone(bone))
+	var hand_rest: Transform3D = rest.call(side + "Hand")
+	var f0: Vector3 = (rest.call(side + "MiddleProximal").origin - hand_rest.origin).normalized()
+	var across: Vector3 = rest.call(side + "IndexProximal").origin - rest.call(side + "LittleProximal").origin
+	var p0: Vector3 = f0.cross(across).normalized()
+	# At rest the palm faces the body: toward the figure's left for the right hand.
+	var medial: Vector3 = r.global_transform.basis.x * (1.0 if side == "Right" else -1.0)
+	if p0.dot(medial) < 0.0:
+		p0 = -p0
+	var now: Basis = r.bone_world_transform(side + "Hand").basis.orthonormalized()
+	var rot_now: Basis = now * hand_rest.basis.orthonormalized().inverse()
+	var b := _flat_basis(r)
+	var f: Vector3 = (b * _local3(m["point"])).normalized() if m.has("point") else (rot_now * f0).normalized()
+	var pl: Vector3 = (b * _local3(m["palm"])).normalized() if m.has("palm") else (rot_now * p0).normalized()
+	if not m.has("point"):
+		# Keep the fingers as near as they are, square to the palm asked for.
+		f = (f - pl * f.dot(pl)).normalized()
+	pl = (pl - f * pl.dot(f)).normalized()
+	var want := Basis(f, pl, f.cross(pl))
+	var had := Basis(f0, p0, f0.cross(p0))
+	return (want * had.inverse() * hand_rest.basis.orthonormalized()).orthonormalized()
 
 
 ## "weapon": a bokken, jo or tanto. "hold": "uke1.Right" puts it in one hand; "kamae": "uke1"
@@ -661,6 +705,24 @@ func _local2(a: Array) -> Vector3:
 ## [right, up, forward] -> engine local.
 func _local3(a: Array) -> Vector3:
 	return Vector3(-float(a[0]), float(a[1]), float(a[2]))
+
+
+## "where": prints where everyone's main parts are, as [right, up, forward] metres from the root
+## of the figure named (its "of", default the figure itself) in that figure's frame, and each
+## figure's heading relative to it. For writing a script: what is beside whom, which way is up.
+func _where(m: Dictionary) -> void:
+	var ref := _rig(m.get("of", m["where"]))
+	var b := _flat_basis(ref).inverse()
+	var o := ref.global_position
+	print("  where (from %s, [right, up, forward]):" % ref.character_id)
+	for r: CharacterRig in scene.characters:
+		var parts := PackedStringArray()
+		for bone in ["Hips", "Head", "RightShoulder", "RightHand", "LeftHand", "RightFoot", "LeftFoot"]:
+			var v: Vector3 = b * (r.bone_world_transform(bone).origin - o)
+			parts.append("%s [%.2f, %.2f, %.2f]" % [bone, -v.x, v.y, v.z])
+		var root: Vector3 = b * (r.global_position - o)
+		print("    %s root [%.2f, %.2f, %.2f] facing %.0f°: %s" % [r.character_id, -root.x, root.y, root.z,
+			rad_to_deg(wrapf(_heading(r) - _heading(ref), -PI, PI)), ", ".join(parts)])
 
 
 ## Points each planted leg's knee out over its own toes. A leg's pole is otherwise set from the

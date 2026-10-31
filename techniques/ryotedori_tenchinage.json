@@ -1,0 +1,163 @@
+{
+  "name": "Ryotedori Tenchinage",
+  "description": "Uke takes both of Tori's wrists. Tori raises the right hand up past Uke's left shoulder (ten, heaven) and drops the left hand low and out past Uke's right hip (chi, earth), splitting Uke's balance; Uke rises onto the toes. Tori steps the right foot deep in beside Uke's left foot and extends the upper hand forward and down past Uke's neck; Uke falls backward into ushiro ukemi.",
+  "source": "written from the description above",
+  "camera": "Side",
+  "view": {
+    "yaw": 160,
+    "height": 1.8,
+    "zoom": 1.0
+  },
+  "phases": [
+    {
+      "name": "Grepp",
+      "hold": 0.4,
+      "do": [
+        {
+          "attack": "ryotedori"
+        }
+      ]
+    },
+    {
+      "name": "Tenchi",
+      "transition": 0.6,
+      "hold": 0.1,
+      "do": [
+        {
+          "hand": "tori.Right",
+          "at": [
+            0.05,
+            0.38,
+            0.32
+          ]
+        },
+        {
+          "hand": "tori.Left",
+          "at": [
+            -0.3,
+            -0.48,
+            0.16
+          ]
+        },
+        {
+          "refit": "uke1"
+        },
+        {
+          "lean": "uke1",
+          "forward": -6
+        }
+      ]
+    },
+    {
+      "name": "Irimi",
+      "transition": 0.5,
+      "hold": 0.1,
+      "allow_short": true,
+      "do": [
+        {
+          "step": "tori.Right",
+          "to": "uke1.LeftFoot",
+          "offset": [
+            -0.22,
+            -0.02
+          ],
+          "weight": 0.75
+        },
+        {
+          "lean": "uke1",
+          "forward": -18
+        },
+        {
+          "bend": "uke1.Chest",
+          "forward": -10
+        },
+        {
+          "hand": "tori.Right",
+          "to": "uke1.Head",
+          "offset": [
+            -0.05,
+            0.05,
+            -0.18
+          ]
+        },
+        {
+          "hand": "tori.Left",
+          "at": [
+            -0.32,
+            -0.5,
+            0.05
+          ]
+        },
+        {
+          "refit": "uke1"
+        }
+      ]
+    },
+    {
+      "name": "Ukemi",
+      "transition": 0.45,
+      "hold": 0.0,
+      "allow_short": true,
+      "do": [
+        {
+          "release": "uke1"
+        },
+        {
+          "move": "uke1",
+          "by": [
+            0.25,
+            -0.35
+          ]
+        },
+        {
+          "ukemi": "uke1",
+          "kind": "backward",
+          "t": 0.35
+        },
+        {
+          "hand": "tori.Right",
+          "at": [
+            0.05,
+            -0.2,
+            0.5
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Zanshin",
+      "transition": 0.6,
+      "hold": 1.0,
+      "allow_short": true,
+      "do": [
+        {
+          "move": "uke1",
+          "by": [
+            0.15,
+            -0.5
+          ]
+        },
+        {
+          "ukemi": "uke1",
+          "kind": "backward",
+          "t": 0.75
+        },
+        {
+          "hanmi": "tori",
+          "front": "Right"
+        },
+        {
+          "hand": "tori.Right",
+          "at": [
+            0.05,
+            -0.3,
+            0.42
+          ]
+        },
+        {
+          "arm_down": "tori.Left"
+        }
+      ]
+    }
+  ]
+}
