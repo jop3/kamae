@@ -74,7 +74,7 @@ const OUTSTANDING := {
 		## +3 with the hands re-seated (grip_seat), as above: a forearm through a thigh
 		## for three frames of the blend into the kake;
 		## re-authored after the shoulder girdle: 26 before it, 51 with it, 18 then; 16 once its grepp (shared with katatedori_ikkyo) was refit; 14 with the arm's turn scoring the fist
-	"kumijo": 4,   ## all four from the fit keeping the fingers out of the staff: an elbow a few degrees over as the
+	"kumijo": 0,   ## 4 until 2026-11-01 (the arms of a figure holding a weapon move on its trunk's clock); all four from the fit keeping the fingers out of the staff: an elbow a few degrees over as the
 		## thrust goes out;
 		## 2 until the fingers were closed onto the staff by what they hold;
 		## both from the shaft moving to the base of the fingers: a wrist 4° over as the staff is thrust
@@ -84,7 +84,7 @@ const OUTSTANDING := {
 	"ryotemochi": 4,   ## 6 until 2026-11-01 (the blends reworked for smoothness); +1 with the two grips re-seated in place (tools/refit_grips.gd): Uke 1 and Uke 2's arms cross
 		## for one frame between grepp and kuzushi;
 		## the grip is the catalogue's wrap now (0 before); the blend swings the wrist past ulnar deviation for frames the keyframes themselves do not; +1 with the fist's range
-	"tachi_dori": 29,   ## 30 until 2026-11-01 (the blends reworked for smoothness); three fewer once the fingers were weighed in the fit;
+	"tachi_dori": 19,   ## 30 until 2026-11-01 (the blends reworked for smoothness; 19 with the limbs held in their solved shape while a pose breathes); three fewer once the fingers were weighed in the fit;
 		## 37 until the fingers were closed onto the tsuka by what they hold;
 		## 12 while Uke's hands were refused in every keyframe and so not counted at all; the raise, the cut and
 		## the handover roll them on the tsuka between clean holds; +5 with the shaft at the base of the fingers

@@ -135,10 +135,13 @@ static func ease_through(t: float, rest_at_start: bool, rest_at_end: bool) -> fl
 ## minimum-jerk profile people move on (10t³ − 15t⁴ + 6t⁵: no step in acceleration at either
 ## end, where the cubic above starts with one); through a waypoint it passes at its even speed.
 ## The quintic Hermite with zero acceleration at both ends and the end speeds 0 (rest) or 1.
-static func ease_motion(t: float, rest_at_start: bool, rest_at_end: bool) -> float:
+## `settle` is the speed (as a share of the even speed) a movement still has as it reaches a pose
+## it rests on, carried on past the pose and back by the player (SequencePlayer settle): hips that
+## stop dead read as a machine.
+static func ease_motion(t: float, rest_at_start: bool, rest_at_end: bool, settle := 0.0) -> float:
 	t = clampf(t, 0.0, 1.0)
 	var v0 := 0.0 if rest_at_start else 1.0
-	var v1 := 0.0 if rest_at_end else 1.0
+	var v1 := settle if rest_at_end else 1.0
 	var t3 := t * t * t
 	var t4 := t3 * t
 	var t5 := t4 * t
