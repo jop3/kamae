@@ -1515,12 +1515,19 @@ turns away from the shoulder the body goes over (`Ukemi.LEAD_*`, `HEAD_AWAY`). I
 are bent flat on the mat (`Stance.toes_flat`): straight, they carried on the line of the foot
 2–3 cm into it.
 
-**Where it leaves things.** The committed library: no frame under the mat but one (Uke's
+**Where it leaves things** (the measurements when the scripts were rebuilt). The committed library: no frame under the mat but one (Uke's
 stepping foot in shihonage irimi, turned past what the ankle gives; `OUTSTANDING` in
 `check_floor.gd`). Motion: zenponage 11 → 10 frames; shihonage irimi 14 → 15, deliberately — with
 the foot targets in reach, Tori's knee bends a little mid-step and his hanging forearm brushes the
 thigh 3.6 cm deep for one frame (the limit is 3.5), recorded in `OUTSTANDING` with the reason.
-The scripts: being rebuilt with all of this; each build's `floor.txt` has its frames.
+Rebuilt with all of it, frames under the mat (before this session → now): chudan tsuki
+iriminage 128 → 6, chudan tsuki kotegaeshi 125 → 1, kaitennage 90 → 34 (all of them toes
+pressed 2–3 cm into the mat in the final kiza; the roll that went 1.48 m under is clean),
+katatedori kotegaeshi 151 → 2; the five ukemi films 0–9 (kiza toes again). The other ten
+techniques were not re-rendered this session (the user asked for the new films first): their
+films in the gallery are the previous session's, and `tools/build_all.sh` brings them up to date.
+The kiza toes are the one floor fault left in the falls: `Stance.toes_flat` bends them only as
+far as the toe joint gives (60°), and a toe pad still reaches 2–3 cm into the mat.
 
 ### The hand-and-grip branch, merged (same session, on request)
 

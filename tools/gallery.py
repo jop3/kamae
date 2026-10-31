@@ -15,6 +15,7 @@ import re
 import shutil
 import subprocess
 import sys
+import unicodedata
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TECH = os.path.join(ROOT, "techniques")
@@ -24,6 +25,9 @@ ATTACKS = json.load(open(os.path.join(ROOT, "data", "attacks.json")))["attacks"]
 
 
 def slug(text):
+    # As PoseFile.slugify: accents come off the letter rather than taking it with them
+    # ("Över" is "over", "Sätt" is "satt").
+    text = unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode()
     return re.sub(r"[^a-z0-9]+", "_", text.lower()).strip("_")
 
 
