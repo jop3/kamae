@@ -7,9 +7,11 @@ PNG). The cloth's normal maps, and the weave on cloth without UVs, are dropped: 
 form for, so on the mesh's own UVs they would only streak.
 
     python3 tools/slim_glb.py in.glb out.glb
+    python3 tools/slim_glb.py --gltf in.glb out.gltf.json <image prefix>   (see to_gltf)
 """
 import io
 import json
+import os
 import struct
 import sys
 
@@ -101,5 +103,44 @@ def main(src, dst):
         f.write(struct.pack("<II", len(out), 0x004E4942) + bytes(out))
 
 
+def to_gltf(glb, out_json, image_prefix):
+    """The same figure as glTF JSON for a host that serves no binary model files: the geometry as
+    a base64 data URI, each texture beside it as <image_prefix><n>.jpg/.png (referenced by name)."""
+    import base64
+    data = open(glb, "rb").read()
+    jlen = struct.unpack("<I", data[12:16])[0]
+    gltf = json.loads(data[20:20 + jlen])
+    bstart = 20 + jlen
+    blen = struct.unpack("<I", data[bstart:bstart + 4])[0]
+    binary = data[bstart + 8:bstart + 8 + blen]
+    views = gltf["bufferViews"]
+    image_views = set()
+    folder = os.path.dirname(out_json)
+    for i, img in enumerate(gltf.get("images", [])):
+        v = views[img["bufferView"]]
+        raw = binary[v.get("byteOffset", 0):v.get("byteOffset", 0) + v["byteLength"]]
+        name = f"{image_prefix}{i}." + ("jpg" if img.get("mimeType") == "image/jpeg" else "png")
+        open(os.path.join(folder, name), "wb").write(raw)
+        image_views.add(img.pop("bufferView"))
+        img.pop("mimeType", None)
+        img["uri"] = name
+    # Geometry only in the buffer now; image views become empty.
+    out = bytearray()
+    for i, v in enumerate(views):
+        chunk = b"" if i in image_views else binary[v.get("byteOffset", 0):v.get("byteOffset", 0) + v["byteLength"]]
+        while len(out) % 4:
+            out.append(0)
+        v["byteOffset"] = len(out)
+        v["byteLength"] = len(chunk)
+        out += chunk
+    gltf["buffers"] = [{"byteLength": len(out),
+                        "uri": "data:application/octet-stream;base64," + base64.b64encode(bytes(out)).decode()}]
+    with open(out_json, "w") as f:
+        json.dump(gltf, f, separators=(",", ":"))
+
+
 if __name__ == "__main__":
-    main(sys.argv[1], sys.argv[2])
+    if len(sys.argv) > 3 and sys.argv[1] == "--gltf":
+        to_gltf(sys.argv[2], sys.argv[3], sys.argv[4])
+    else:
+        main(sys.argv[1], sys.argv[2])

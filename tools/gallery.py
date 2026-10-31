@@ -129,12 +129,17 @@ def build_viewer_media(it, media):
         subprocess.run([sys.executable, os.path.join(ROOT, "tools", "slim_glb.py"), glb, slim], check=True)
         digest = hashlib.md5(open(slim, "rb").read()).hexdigest()
         if digest not in FIGURES:
-            name = cid + ".glb" if (cid + ".glb") not in FIGURES.values() else f"{cid}_{digest[:8]}.glb"
-            FIGURES[digest] = name
-            shutil.copyfile(slim, os.path.join(media, name))
+            base = cid if cid not in [n.split(".")[0] for n in FIGURES.values()] else f"{cid}_{digest[:8]}"
+            FIGURES[digest] = base + ".gltf.json"
+            # glTF as JSON with its textures beside it: the published page serves no binary models.
+            subprocess.run([sys.executable, os.path.join(ROOT, "tools", "slim_glb.py"), "--gltf", slim,
+                            os.path.join(media, base + ".gltf.json"), base + "_tex"], check=True)
         figures[cid] = FIGURES[digest]
-    shutil.copyfile(os.path.join(v, s + ".motion.bin"), os.path.join(media, s + ".motion.bin"))
-    shutil.copyfile(meta_path, os.path.join(media, s + ".motion.json"))
+    # The motion goes in the JSON too, base64, for the same reason.
+    import base64
+    meta["data"] = base64.b64encode(open(os.path.join(v, s + ".motion.bin"), "rb").read()).decode()
+    with open(os.path.join(media, s + ".motion.json"), "w") as f:
+        json.dump(meta, f, separators=(",", ":"))
     it["figures"] = figures
 
 

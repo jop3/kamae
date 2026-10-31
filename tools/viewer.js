@@ -1,7 +1,7 @@
 // The 3D view of a technique in the gallery (tools/gallery.py inlines this file).
 //
 // The figures are glTF models at rest (tools/export_viewer.gd, tools/slim_glb.py) and the motion
-// is every frame the film shows, read after Kamae's solve: per figure its skeleton's transform and
+// is every frame the film shows (base64 in <slug>.motion.json), read after Kamae's solve: per figure its skeleton's transform and
 // every bone's rotation in its parent. Nothing is solved here; between two frames the bones are
 // slerped, so a technique can be played as slowly as anyone likes and still move smoothly.
 import * as THREE from 'three';
@@ -138,11 +138,9 @@ async function open(media) {
   ui.loading.style.display = '';
   for (const child of [...ui.scene.children]) if (child.userData.figure) ui.scene.remove(child);
   const figuresByChar = JSON.parse(media.dataset.figures);
-  const [meta, buf] = await Promise.all([
-    fetch(`media/${slug}.motion.json`).then(r => r.json()),
-    fetch(`media/${slug}.motion.bin`).then(r => r.arrayBuffer()),
-  ]);
-  const data = new Float32Array(buf);
+  const meta = await fetch(`media/${slug}.motion.json`).then(r => r.json());
+  const bytes = Uint8Array.from(atob(meta.data), c => c.charCodeAt(0));
+  const data = new Float32Array(bytes.buffer);
   const nb = meta.bones.length, nm = meta.moving.length;
   const perChar = 7 + 4 * nb + 3 * nm;
   const figures = [];
