@@ -179,9 +179,13 @@ reference). It changes nothing.
 5. **Pins rest the hands, they do not grab.** A grip whose hand is short pulls the held limb
    toward it — under the pinning knee, in the first ikkyo osae. Use `hand` with `to` (and a
    little `offset` up off the bone) for a hand pressing an arm to the mat.
-6. **When a picture is unclear, look from somewhere else and ask where things are.** A `view`
+6. **A backward fall goes the way Uke's back faces.** For an iriminage or shihonage kake Uke has
+   to be turned to face Tori first (`place` him `"of": "tori"` with `"facing": 180`), or his
+   "backward" points through Tori. `ukemi` keeps the hips where they are; the `move` before it
+   is the whole of the travel.
+7. **When a picture is unclear, look from somewhere else and ask where things are.** A `view`
    from above, or `{"where": "uke1"}` (prints every figure's main parts in Uke's frame), settles
    what the default cameras hide; take the `where` out when done.
-7. A technique is never anatomically perfect on the first try. A wrist or shoulder a few degrees
+8. A technique is never anatomically perfect on the first try. A wrist or shoulder a few degrees
    past range is drawn at its range (`JointLimits`), so the picture is still possible; a body
    *through* another body is worth fixing.
