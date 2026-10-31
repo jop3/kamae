@@ -26,6 +26,41 @@ const REFINE_STEPS := 4
 const TURN_COST_PER_DEG := 0.05
 
 
+## The turn, in degrees, at the local minimum of `cost` nearest to no turn at all: downhill
+## from 0 in steps of `step`, then refined by halving. The global search above picks whichever of
+## several near-equal minima is lowest, and between two keyframes of a sequence which one that
+## is can change from one frame to the next — the elbow then jumps round the arm and back. Mid-
+## blend the pole is put where the blended pose has the elbow (PoseBlend), so "no turn" is where
+## the elbow was going anyway, and the minimum nearest to it moves as smoothly as the pose does.
+## At either keyframe it is the minimum the global search found there, so a pose is reached as
+## saved.
+static func descend(cost: Callable, step := 7.5) -> float:
+	var best := 0.0
+	var best_cost: float = cost.call(0.0)
+	if best_cost <= 1e-6:
+		return 0.0
+	var dir := 0.0
+	for d in [-1.0, 1.0]:
+		var c: float = cost.call(d * step)
+		if c < best_cost - 1e-9 and (dir == 0.0 or c < cost.call(dir * step)):
+			dir = d
+	if dir != 0.0:
+		while absf(best + dir * step) <= 180.0:
+			var c: float = cost.call(best + dir * step)
+			if c >= best_cost - 1e-9:
+				break
+			best += dir * step
+			best_cost = c
+	var h := step * 0.5
+	for _i in REFINE_STEPS + 1:
+		for cand in [best - h, best + h]:
+			var c: float = cost.call(cand)
+			if c < best_cost:
+				best = cand; best_cost = c
+		h *= 0.5
+	return best
+
+
 ## The turn, in degrees, with the lowest `cost` (a Callable taking degrees and returning a
 ## float). 0 wins outright when it costs nothing, which is every frame of a plausible pose.
 static func search(cost: Callable) -> float:

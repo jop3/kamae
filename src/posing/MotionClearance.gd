@@ -38,20 +38,33 @@ const ROUNDS := 3
 const FULL_IK_AT := 0.03
 ## How far past the cleared elbow the pole is placed, as a multiple of the push it needed.
 const POLE_LEVER := 2.0
+## The largest correction a limb is given, metres (see _limbs_clear).
+const MAX_PUSH := 0.08
+## A foot whose target is below this, metres, is standing on the mat and is not moved.
+const FOOT_DOWN := 0.2
 ## Bodies are moved apart for these bones only.
 const TRUNK := ["Hips", "Spine", "Chest", "UpperChest", "Neck", "Head",
 	"RightShoulder", "LeftShoulder"]
 
 
 ## Corrects the blend the scene is currently showing. Call it after PoseBlend.apply.
-static func resolve(scene: PosingScene, director: GripDirector) -> void:
-	_bodies_apart(scene, director)
-	_limbs_clear(scene, director)
+##
+## `strength` scales the corrections, 0..1, per part: {"root": bodies, "arms": arms, "legs": legs}
+## (PoseBlend.clearance_strength). It fades them in after a keyframe and out before the next, so
+## a correction cannot appear or vanish between one frame and the next at a keyframe — where it
+## is never applied, and where a pose whose limbs touch by a little more than the checks allow
+## would otherwise snap back from wherever the last in-between pushed them.
+static func resolve(scene: PosingScene, director: GripDirector, strength: Dictionary = {}) -> void:
+	if OS.get_environment("KAMAE_NO_CLEARANCE") == "1": return
+	_bodies_apart(scene, director, float(strength.get("root", 1.0)))
+	_limbs_clear(scene, director, strength)
 
 
 ## Pushes two trunks that overlap apart along the horizontal, half the distance each, by moving
 ## their roots. Zero when the trunks are clear, so it does nothing on a keyframe.
-static func _bodies_apart(scene: PosingScene, director: GripDirector) -> void:
+static func _bodies_apart(scene: PosingScene, director: GripDirector, strength := 1.0) -> void:
+	if strength <= 0.0:
+		return
 	for i in scene.characters.size():
 		for j in range(i + 1, scene.characters.size()):
 			var a: CharacterRig = scene.characters[i]
@@ -74,7 +87,7 @@ static func _bodies_apart(scene: PosingScene, director: GripDirector) -> void:
 			if away.length() < 1e-4:
 				away = Vector3.RIGHT   # exactly on top of each other: pick a side
 			away = away.normalized()
-			var push: float = (worst["depth"] - Anatomy.PENETRATION + MARGIN) * 0.5
+			var push: float = (worst["depth"] - Anatomy.PENETRATION + MARGIN) * 0.5 * strength
 			a.position += away * push
 			b.position -= away * push
 
@@ -82,7 +95,7 @@ static func _bodies_apart(scene: PosingScene, director: GripDirector) -> void:
 ## Moves a limb the blend put inside a body out to the skin, and hands it to IK for as long as
 ## it needs the help. A limb is cleared as a pair of capsules, not as two points: an arm can
 ## cross a chest with its elbow and its hand both outside the body.
-static func _limbs_clear(scene: PosingScene, director: GripDirector) -> void:
+static func _limbs_clear(scene: PosingScene, director: GripDirector, strength: Dictionary = {}) -> void:
 	for rig in scene.characters:
 		if not rig.visible:
 			continue
@@ -91,6 +104,9 @@ static func _limbs_clear(scene: PosingScene, director: GripDirector) -> void:
 			var limb: Limb = rig.limbs[key]
 			if director and director.grip_on_limb(rig.character_id, key) != null:
 				continue   # the grip owns this hand
+			if not limb.is_arm and limb.mode == Limb.Mode.IK and limb.target.global_position.y < FOOT_DOWN \
+					and OS.get_environment("KAMAE_PUSH_FEET") != "1":
+				continue   # a foot on the mat stays where it stands: pushed, it skates
 			var walls: Array = obstacles + _own_obstacles(rig, limb)
 			var ik := limb.mode == Limb.Mode.IK
 			# Where the limb is about to be. An IK limb is at its target, which PoseBlend has
@@ -113,6 +129,14 @@ static func _limbs_clear(scene: PosingScene, director: GripDirector) -> void:
 				depth = after
 				moved_mid += push
 				moved_end += push
+			var k := float(strength.get("arms" if limb.is_arm else "legs", 1.0))
+			# No correction bigger than MAX_PUSH: a limb that far inside something is a pose to fix,
+			# and moving it that far for a frame or two is a jump on screen.
+			var biggest := maxf((moved_end - end).length(), (moved_mid - mid).length())
+			if biggest > MAX_PUSH:
+				k *= MAX_PUSH / biggest
+			moved_end = end + (moved_end - end) * k
+			moved_mid = mid + (moved_mid - mid) * k
 			var moved := moved_end - end
 			if moved.length() < 1e-4 and (moved_mid - mid).length() < 1e-4:
 				continue

@@ -52,14 +52,14 @@ func check(cond: bool, msg: String) -> void:
 ## furikaburi, so the hand must turn on the tsuka between them, and the turn needs an
 ## intermediate pose rather than a better fit (docs/handoff.md).
 const OUTSTANDING := {
-	"jo_dori": 11,   ## +1 with the fingers weighed in the weapon fit (the staff grazes a spine in one blend frame);
+	"jo_dori": 7,   ## 11 until 2026-11-01 (the blends reworked for smoothness); +1 with the fingers weighed in the weapon fit (the staff grazes a spine in one blend frame);
 		## 29 until the fingers were closed onto the staff by what they hold rather than by a preset
 		## (GripDirector.close_fingers_on_weapon): a hand that is not a full fist leaves its wrist more range, and
 		## two thirds of these frames were that wrist;
 		## the taken jo's hand is fitted now and the blend from the thrust crosses differently; +1 with the fist's range;
 		## +8 when the shaft moved to the base of the fingers (Weapon.shaft_seat): every weapon arm sits 3.5 cm further
 		## along its hold than it did, so these are new blends between newly fitted holds, not old ones gone worse
-	"katatedori_ikkyo": 15,   ## one fewer once the grip search weighed the fingers as well as the joints;
+	"katatedori_ikkyo": 13,   ## 15 until 2026-11-01 (the blends reworked for smoothness); one fewer once the grip search weighed the fingers as well as the joints;
 		## +2 with the hands re-seated where a hand holds a forearm (GripDirector.grip_seat):
 		## the grips are a few centimetres along the hand from where they were, so the blends between them are new;
 		## the grip is the catalogue's now; two frames of a wrist at its edge as the arm is raised;
@@ -67,7 +67,7 @@ const OUTSTANDING := {
 		## rebuilding refit grepp/kuzushi under the finger coupling, which shifted
 		## the grepp->kuzushi blend enough to add 3 frames of Uke's gripping wrist over its range;
 		## +2 with the fist's range (the kake's own wrist fault is gone: 12 -> 14 is the measurement)
-	"katatedori_shihonage_irimi": 20,   ## +1 when the blend stopped sweeping feet through the mat (2026-10-31): Tori's leg
+	"katatedori_shihonage_irimi": 18,   ## 20 until 2026-11-01 (the blends reworked for smoothness); +1 when the blend stopped sweeping feet through the mat (2026-10-31): Tori's leg
 		## used to stand straight toward a target buried under the mat; blended between where the foot really was,
 		## the knee bends a little mid-step and the hanging forearm brushes the thigh — a deliberate exception to "only down";
 		## +2 more with the fingers fitted: a foot through a foot as Tori steps in;
@@ -81,10 +81,10 @@ const OUTSTANDING := {
 	"kumitachi": 0,   ## 1 while the rear hands were refused in both keyframes and so not counted; 13 while the
 		## awase->uchi blend rolled both hands right round the tsuka, and none once the cut's fit kept the
 		## holds the awase had (15° of roll and 20° of skew apart, where the default-hold fit was 60° of skew)
-	"ryotemochi": 6,   ## +1 with the two grips re-seated in place (tools/refit_grips.gd): Uke 1 and Uke 2's arms cross
+	"ryotemochi": 4,   ## 6 until 2026-11-01 (the blends reworked for smoothness); +1 with the two grips re-seated in place (tools/refit_grips.gd): Uke 1 and Uke 2's arms cross
 		## for one frame between grepp and kuzushi;
 		## the grip is the catalogue's wrap now (0 before); the blend swings the wrist past ulnar deviation for frames the keyframes themselves do not; +1 with the fist's range
-	"tachi_dori": 30,   ## three fewer once the fingers were weighed in the fit;
+	"tachi_dori": 29,   ## 30 until 2026-11-01 (the blends reworked for smoothness); three fewer once the fingers were weighed in the fit;
 		## 37 until the fingers were closed onto the tsuka by what they hold;
 		## 12 while Uke's hands were refused in every keyframe and so not counted at all; the raise, the cut and
 		## the handover roll them on the tsuka between clean holds; +5 with the shaft at the base of the fingers
@@ -143,6 +143,7 @@ func _initialize() -> void:
 		var known: Dictionary = await _keyframe_refusals(seq)
 		PoseFile.apply(player.poses[seq.steps[0]["pose"]], scene, director, ctrl)
 		await settle(4)
+		await player.prepare()   # as the video does: the blends steer each limb between its solves
 		var bad := []                  # ["t=1.60 <problem>; <problem>", ...]
 		for i in int(round(seq.duration() * FPS)) + 1:
 			var t := float(i) / FPS

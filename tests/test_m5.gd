@@ -98,16 +98,26 @@ func _initialize() -> void:
 	# --- mid-transition with a grip in both poses: re-solved live -------------
 	player.seek(0.8)
 	await settle(3)
+	# Each part of a body is on its own clock (SequencePlayer.timing): the root, which leads, is
+	# further on than the blend as a whole, on the straight way between two poses it rests on.
 	var mid_pos: Vector3 = tori.position
-	var expect_pos: Vector3 = PoseFile.array_to_vec(grepp["characters"][0]["root"]["pos"]).lerp(PoseFile.array_to_vec(kuzushi["characters"][0]["root"]["pos"]), s1["u"])
-	check(mid_pos.distance_to(expect_pos) < 1e-4, "Tori's root lerps between the poses (%.4f off)" % mid_pos.distance_to(expect_pos))
+	var root_a := PoseFile.array_to_vec(grepp["characters"][0]["root"]["pos"])
+	var root_b := PoseFile.array_to_vec(kuzushi["characters"][0]["root"]["pos"])
+	var tm := SequencePlayer.timing(seq, 0.8)
+	var along := (mid_pos - root_a).dot(root_b - root_a) / maxf((root_b - root_a).length_squared(), 1e-9)
+	var off_line := (mid_pos - root_a - (root_b - root_a) * along).length()
+	check(off_line < 1e-3 and along > 0.0 and along < 1.0 and tm["channels"]["root"] >= tm["channels"]["arms"],
+		"Tori's root is on its way between the poses, ahead of the arms (%.2f along, %.4f off the line; root %.2f, arms %.2f)"
+		% [along, off_line, tm["channels"]["root"], tm["channels"]["arms"]])
 	check(director.grips.size() == 1 and director.worst_error() < 0.002 and uke.limbs["LeftArm"].reach_shortfall() < 0.001,
 		"a grip active in both poses stays exact halfway (error %.4f, shortfall %.4f)" % [director.worst_error(), uke.limbs["LeftArm"].reach_shortfall()])
 	check(is_equal_approx(uke.limbs["LeftArm"].ik.influence, 1.0), "its IK influence stays at 1")
+	player.seek(1.0)
+	await settle(3)
 	var raised: Vector3 = tori.bone_world_transform("RightHand").origin
 	player.seek(0.1); await settle(2)
 	var low: Vector3 = tori.bone_world_transform("RightHand").origin
-	check(raised.y > low.y + 0.05, "Tori's hand is on its way up halfway (%.3f -> %.3f)" % [low.y, raised.y])
+	check(raised.y > low.y + 0.05, "Tori's hand is on its way up near the end of the move (%.3f -> %.3f)" % [low.y, raised.y])
 
 	# --- mid-transition into Kake: the grip ramps out ---------------------------
 	player.seek(1.4 + 0.3)
@@ -115,7 +125,14 @@ func _initialize() -> void:
 	var st := seq.state_at(1.7)
 	check(st["from"] == 1 and st["to"] == 2, "1.7 s is in Kuzushi -> Kake")
 	check(director.grips.size() == 1, "the disappearing grip is still listed during the ramp")
-	check(absf(uke.limbs["LeftArm"].ik.influence - (1.0 - st["u"])) < 1e-3, "its IK influence ramps 1 -> 0 (%.2f at u %.2f)" % [uke.limbs["LeftArm"].ik.influence, st["u"]])
+	# A grip let go hands the hand over by weight (Grip.weight, PoseBlend.grip_weight) while the arm
+	# stays in IK: ramping the IK influence instead switched the arm between its solve and its
+	# saved rotations, which are a few centimetres apart.
+	var u_arms: float = SequencePlayer.timing(seq, 1.7)["channels"]["arms"]
+	var held: Grip = director.grips[0] if director.grips.size() > 0 else null
+	check(held != null and absf(held.weight - (1.0 - u_arms)) < 1e-3 and is_equal_approx(uke.limbs["LeftArm"].ik.influence, 1.0),
+		"its weight ramps 1 -> 0 with the arm still in IK (%.2f at u %.2f, influence %.2f)"
+		% [held.weight if held else -1.0, u_arms, uke.limbs["LeftArm"].ik.influence])
 	player.seek(seq.duration())
 	await settle(3)
 	check(director.grips.size() == 0, "at the end the grip is gone")

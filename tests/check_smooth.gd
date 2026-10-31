@@ -98,6 +98,8 @@ func _initialize() -> void:
 			% [slug, key_err["pos"], key_err["where"], key_err["root"]])
 		PoseFile.apply(player.poses[seq.steps[0]["pose"]], scene, director, ctrl)
 		await settle(4)
+		if OS.get_environment("SMOOTH_UNPREPARED") != "1":
+			await player.prepare()
 		var tracks: Dictionary = await _record(seq)
 		var s := score(tracks, seq)
 		print("SMOOTH %s: jerk %.0f m/s³, rot %.0f rad/s³, jolts %d of %d frames, still %.0f%%, spread %.3f s, lead %+.3f s, arc %.3f"

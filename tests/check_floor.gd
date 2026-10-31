@@ -64,6 +64,7 @@ func _initialize() -> void:
 			continue
 		PoseFile.apply(player.poses[seq.steps[0]["pose"]], scene, director, ctrl)
 		await settle(4)
+		await player.prepare()   # as the video does: the blends steer each limb between its solves
 		var bad := []
 		var worst := 0.0
 		var n := int(round(seq.duration() * FPS)) + 1

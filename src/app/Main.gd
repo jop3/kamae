@@ -193,6 +193,8 @@ func _render_sequence(args: PackedStringArray) -> void:
 	await get_tree().process_frame
 	await get_tree().process_frame
 	_apply_sequence_camera(seq)
+	# Where every limb really is on each pose, so the blends can steer elbows and knees between them.
+	await player.prepare()
 	player.seek(0.0)
 	await get_tree().process_frame
 	var phases := _phase_names(seq)

@@ -54,8 +54,12 @@ func state_at(time: float) -> Dictionary:
 	for i in steps.size():
 		if i > 0:
 			var trans := float(steps[i].get("transition", 0.0))
-			if t < trans:
+			# A step's own time (step_start, a sum of the same floats) is on the pose, not a
+			# rounding error short of it in the transition.
+			if t < trans - 1e-6:
 				var raw := t / trans if trans > 0.0 else 1.0
+				if t < 1e-6:
+					raw = 0.0   # on the pose before, to the same rounding
 				# Ease away from a pose only when the technique actually rests on it. A step held
 				# for no time is a waypoint being passed through, and easing to a stop at every
 				# one of them is what makes a sequence move in lurches.
@@ -125,3 +129,19 @@ static func ease_through(t: float, rest_at_start: bool, rest_at_end: bool) -> fl
 	var t2 := t * t
 	var t3 := t2 * t
 	return (t3 - 2.0 * t2 + t) * m0 + (-2.0 * t3 + 3.0 * t2) + (t3 - t2) * m1
+
+
+## The course a movement takes over its time `t` (0..1): from rest it starts and stops on the
+## minimum-jerk profile people move on (10t³ − 15t⁴ + 6t⁵: no step in acceleration at either
+## end, where the cubic above starts with one); through a waypoint it passes at its even speed.
+## The quintic Hermite with zero acceleration at both ends and the end speeds 0 (rest) or 1.
+static func ease_motion(t: float, rest_at_start: bool, rest_at_end: bool) -> float:
+	t = clampf(t, 0.0, 1.0)
+	var v0 := 0.0 if rest_at_start else 1.0
+	var v1 := 0.0 if rest_at_end else 1.0
+	var t3 := t * t * t
+	var t4 := t3 * t
+	var t5 := t4 * t
+	return (10.0 * t3 - 15.0 * t4 + 6.0 * t5) + v0 * (t - 6.0 * t3 + 8.0 * t4 - 3.0 * t5) \
+		+ v1 * (-4.0 * t3 + 7.0 * t4 - 3.0 * t5)
+

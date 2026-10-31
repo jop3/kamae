@@ -123,6 +123,23 @@ func set_influence(x: float) -> void:
 		hand_orient.influence = v
 
 
+## Between two poses of a sequence the limb's remaining freedom (the turn about its root-to-end
+## line) is spent locally, so the elbow or knee moves on from where it was instead of jumping to
+## another equally good place (LimbTurn.descend). Off on a keyframe and while editing.
+func set_blending(on: bool) -> void:
+	if OS.get_environment("KAMAE_GLOBAL_TURN") == "1": on = false
+	twist.local_search = on
+	hand_orient.local_search = on
+
+
+## Sequence playback: the hand takes the target's orientation this much (0..1), so a hand that is
+## taking or letting go of a grip turns to it gradually rather than in one frame.
+func set_orient_weight(w: float) -> void:
+	set_orient_to_target(w > 0.0)
+	if hand_orient.enabled and not is_equal_approx(hand_orient.influence, clampf(w, 0.0, 1.0)):
+		hand_orient.influence = clampf(w, 0.0, 1.0)
+
+
 func set_orient_to_target(enabled: bool) -> void:
 	orient_to_target = enabled
 	hand_orient.enabled = enabled and mode == Mode.IK

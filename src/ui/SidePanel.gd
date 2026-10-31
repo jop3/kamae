@@ -1157,6 +1157,8 @@ func _on_play_pressed() -> void:
 	# Reload only when the player does not already hold this sequence, so Pause then Play resumes.
 	if player.sequence != _sequence or player.poses.is_empty():
 		_reload_player()
+	if player.solved.is_empty():
+		await player.prepare()   # where each limb really is on every pose, for the blends between
 	if player.time >= player.duration():
 		player.time = 0.0
 	player.play()

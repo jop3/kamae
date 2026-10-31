@@ -660,7 +660,10 @@ func _apply(grip: Grip) -> void:
 	var limb: Limb = gripper.limbs.get(grip.limb_key())
 	if limb == null:
 		return
-	limb.target.global_transform = resolved_hand_transform(grip)
+	var want := resolved_hand_transform(grip)
+	if grip.weight < 1.0:
+		want = grip.free.interpolate_with(want, clampf(grip.weight, 0.0, 1.0))
+	limb.target.global_transform = want
 
 
 ## Where the hand goes this frame: the grip's own transform, then pushed out of the gripped
