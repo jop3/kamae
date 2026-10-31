@@ -153,8 +153,10 @@ func _build(sk: Skeleton3D, fingers: FingerCurl) -> void:
 			[-35.0, 65.0], [-15.0, 20.0], _mirror([-15.0, 35.0], mirror),
 			{"flex": ["dorsiflexion", "plantarflexion"], "abd": ["toes in", "toes out"],
 				"twist": _mirror_names(["eversion", "inversion"], mirror)})
+		# Extension to 85°: kneeling on the toes (kiza) bends them back about that far at the ball
+		# of the foot; at 60° the toe pads of a kiza foot went 2–3 cm into the mat.
 		_add(sk, side + "Toes", "hinge", "toes (MTP)", _dir(sk, side + "Toes"), -Y, out,
-			[-60.0, 40.0], [-5.0, 5.0], [-5.0, 5.0],
+			[-85.0, 40.0], [-5.0, 5.0], [-5.0, 5.0],
 			{"flex": ["extension (lifted)", "flexion (curled)"], "abd": ["adduction", "abduction"],
 				"twist": ["rolled", "rolled"]})
 	# Parents first: the skeleton's own order is not guaranteed to be, and a clamped parent
