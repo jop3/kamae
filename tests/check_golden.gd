@@ -32,6 +32,8 @@ func _stills() -> Array:
 			out.append(["m7_katatedori_ikkyo_%s_%s" % [phase, view], tests_out.path_join("m7/katatedori_ikkyo_%s_%s.png" % [phase, view])])
 	for view in ["front", "side", "belt", "sleeve", "shoulder", "collar", "collar_back"]:
 		out.append(["gi_" + view, tests_out.path_join("demo/gi_%s.png" % view)])
+	for view in ["front", "side", "back", "hanmi_front", "hanmi_side", "seiza_front", "seiza_side", "roll_side"]:
+		out.append(["hakama_" + view, tests_out.path_join("demo/hakama_%s.png" % view)])
 	for phase in ["grepp", "kuzushi", "kake"]:
 		out.append(["import_katatedori_tenkan_" + phase, tests_out.path_join("import/katatedori_tenkan_%s.png" % phase)])
 	var exports := ProjectSettings.globalize_path("res://exports")

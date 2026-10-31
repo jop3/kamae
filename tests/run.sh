@@ -22,6 +22,8 @@ timeout "$TIMEOUT" $RUN --resolution 1600x900 -- --screenshot-transparent "$PWD/
 echo "== gi demo (both figures dressed, checked against tests/golden)"
 mkdir -p tests/out/demo
 timeout "$TIMEOUT" $RUN --resolution 1600x900 -- --demo-gi "$PWD/tests/out/demo/gi.png" 2>&1 | grep -E "SCRIPT ERROR" || true
+echo "== hakama demo (Tori in gi and hakama standing, in hanmi, in seiza and rolling, checked against tests/golden)"
+timeout "$TIMEOUT" $RUN --resolution 1600x900 -- --demo-hakama "$PWD/tests/out/demo/hakama.png" 2>&1 | grep -E "SCRIPT ERROR" || true
 echo "== video draft import (imports/katatedori_tenkan.json -> tests/out/import, checked against tests/golden)"
 rm -rf tests/out/import && mkdir -p tests/out/import/poses tests/out/import/sequences
 timeout "$TIMEOUT" $RUN --resolution 1600x900 -- --import-draft "$PWD/imports/katatedori_tenkan.json" --poses-dir "$PWD/tests/out/import/poses" --sequences-dir "$PWD/tests/out/import/sequences" --stills-dir "$PWD/tests/out/import" 2>&1 | grep -E "SCRIPT ERROR" || true

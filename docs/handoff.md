@@ -12,7 +12,8 @@ where the work stands, how to run it, and what the next session should pick up.
 | `claude/handoff-continuation-8iw00t` | M3W weapons, M4 save/load, camera presets, CI workflow (see "Follow-up session" below) | PR #4 merged |
 | `claude/project-continuation-46gatk` | CI fix (absolute paths in tests), undo for close-the-gap, roll for the second hand | merged |
 | … | one branch per session since; each session's section below names what it did | merged |
-| `claude/continuing-work-g2k02k` | the fist rule in every search, every weapon hold clear (2026-09-16 below) | this branch |
+| `claude/continuing-work-g2k02k` | the fist rule in every search, every weapon hold clear (2026-09-16 below) | merged |
+| `worktree-agent-ab5c3c7593e4dc6aa` | the black hakama (2026-10-31 below) | this branch |
 
 Milestones done: **M0** project and character, **M1** click-to-select FK posing with a gizmo and PNG
 export, **M2** IK arms and legs with finger curls, **M3** grip attachments. Next up is **M3W**
@@ -100,7 +101,7 @@ settled; what remains is building it.
 CC0 character committed to the repo rather than Mixamo; Linux primary; MP4 via ffmpeg with an AVI
 fallback; JSON rather than `.tres`; flat background by default with transparent available; humanoid
 bone names; Compatibility renderer; 1–5 characters with per-character skin colour; no hakama, with the
-white gi deferred to M9; grip targets abstracted over bones and weapons from M3.
+white gi deferred to M9 (a hakama was added on request on 2026-10-31, off by default); grip targets abstracted over bones and weapons from M3.
 
 ## Still open with the instructor
 
@@ -1061,3 +1062,55 @@ rolled holds is not.
 3. Ushiro ryotedori zenponage from the catalogue, if a way is found that keeps the Tenkan pose.
 4. Katatedori shihonage's kake and kuzushi, and where Uke's forearm goes as the grip turns it.
 Bokken and jo attacks are still not in the catalogue.
+
+## Session 2026-10-31: the hakama
+
+Asked for: a black hakama for Tori, toggled per character apart from the gi, saved with the pose,
+pleated, from the waist to the ankle bone, and holding up through a step, bent knees, seiza and a
+roll. It lives in `Gi.gd` (the "hakama" section) and is built the first time it is asked for.
+
+- **Shape.** Not cut from the body like the gi: cloth this wide has nothing to do with the skin
+  under it. Each leg is its own tube, a "D" in section — a flat inner wall on the midline and a
+  superellipse round the outside — half the waist at the top (just over the belt in front, higher
+  at the back) and flaring to the hem at the ankle bone (`HAKAMA_WAIST`, `HAKAMA_HEM`). The body,
+  the jacket, the lapel and the trousers are only *measured* (`_hakama_room`): per height and
+  angle the section grows until it clears them by 1.2 cm, spread and hung like the jacket's skirt
+  so it does not trace a lapel's edge. The two legs read as one skirt while standing and part
+  as a divided skirt when the legs do.
+- **Details that make it read as a hakama.** Knife pleats as geometry, a ramp in the radius
+  ending in a step at the same angle (five in front, three on the character's right and two on
+  the left; one each side of the centre back), darkened deep in each fold by vertex colour
+  (black cloth hides geometry). The character's right panel reaches 4.5 cm past the midline,
+  lifted over the left one (`HAKAMA_OVERLAP`), front and back: without it a step opened a slit up
+  the middle to the belt. Side openings (hiwaki, `SLIT_*`), the gi showing through them. A himo
+  band over the top edge with a lid in to the waist, a koshi-ita leaning on the small of the back,
+  and the belt's knot (in the belt's colour, so still the identification cue) in front of the
+  himo; the rest of the belt is hidden under it. The gi trousers stay on under it.
+- **Motion.** Skinned with the body's binds, each tube to its own leg: hips, then thigh, then
+  shin (`HAKAMA_WEIGHTS_*`), with the handover heights depending on the side of the tube. The
+  front goes to the thigh early, or a knee raised in seiza or a roll comes through it; the back
+  stays with the hips longer, or the seat comes through when the thighs swing forward; the knee's
+  handover spans 20 cm, or a bent knee stretched the front 4.5× in hanmi.
+- **API and files.** `CharacterRig.set_hakama_visible(bool)` / `hakama_visible` (the rig only
+  builds the Gi node when needed; the hakama is measured over the gi, so the gi is built hidden
+  if only the hakama is asked for). `"hakama": true|false` next to `"gi"` in each character of
+  a pose file, optional on load (old files load with none). A **hakama** checkbox next to **gi**.
+- **Tests.** `tests/test_gi.gd` `_hakama`: toggles (alone and over the gi, what hides), save and
+  load including a file without the flag, skinned to each leg, hem at the ankle bone above the
+  toes, top over the belt, knees 11 cm inside; and in standing rest, a deep hanmi (front knee
+  51°), seiza and mid-roll: no skin or trouser vertex of the legs and seat shows (a physics ray
+  out along its normal must hit cloth; the mat side is skipped: 0, 4 of 2175 at the side slits,
+  6 of 1868), nothing stretched more than 2.4× in hanmi, and no cloth further from the body than
+  standing plus 6–10 cm (a torn-off corner would be). `--demo-hakama <path>` renders standing
+  (front, side, back), hanmi and seiza (front, side) and an early roll (side); all eight are in
+  `tests/run.sh` and the goldens (`hakama_*`). Look at `tests/out/demo/hakama_*.png`.
+
+**Known limits.** No cloth simulation: linear skinning only. In seiza the shin half of each tube
+folds under the thigh half, and the back panel goes down through the mat (hidden by the mat, so it
+would show in a transparent export seen from below the floor only); the front over the knees is a
+stretched sheet, which is roughly what cloth over a knee does. In a roll the hakama follows the
+legs instead of falling with gravity. A very deep stance, the rear thigh far behind, would bring the
+back of the thigh out through the back panel, which stays with the hips down to 0.82–0.56 m; the
+tested hanmi is 40 cm deep. The waist is sized over the gi, so without the gi it stands a little off
+the bare waist. The A-pose rest arms are outside it; hands posed into the hakama are not checked.
+

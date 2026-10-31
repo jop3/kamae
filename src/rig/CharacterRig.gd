@@ -18,6 +18,8 @@ var arm_bridge: ArmBridge
 ## The white gi (spec §7.1), built on first use and toggled per character; saved with the pose.
 var gi: Gi
 var gi_visible := false
+## The black hakama (the Gi node builds it), worn with or without the gi; saved with the pose.
+var hakama_visible := false
 ## The anatomy of this body's joints (Joints), built once from the rest pose, and the modifier
 ## that holds every solved pose inside it (JointLimits), last in the stack.
 var joints: Joints
@@ -185,13 +187,28 @@ func set_skin_color(color: Color) -> void:
 ## Dresses or undresses the character. The gi is built the first time it is asked for.
 func set_gi_visible(on: bool) -> void:
 	gi_visible = on
-	if on and gi == null:
+	if on:
+		_build_gi()
+	if gi:
+		gi.set_visible(on)
+
+
+## The black hakama, over the gi or on its own; toggled and saved apart from the gi.
+func set_hakama_visible(on: bool) -> void:
+	hakama_visible = on
+	if on:
+		_build_gi()   # the hakama is measured over the gi, so the gi is built (hidden) too
+	if gi:
+		gi.set_hakama_visible(on)
+
+
+func _build_gi() -> void:
+	if gi == null:
 		gi = Gi.new()
 		gi.name = "Gi"
 		add_child(gi)
 		gi.build(self)
-	if gi:
-		gi.set_visible(on)
+		gi.set_visible(gi_visible)
 
 
 func get_skin_color() -> Color:
