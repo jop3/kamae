@@ -41,10 +41,22 @@ const TUCK_OUT := 0.75
 ## Where the arms go while rolling, as an offset from the shoulder in the body's own frame.
 const ARM_ROLLING := Vector3(-0.10, -0.22, 0.24)
 const ARM_REACHING := Vector3(-0.06, -0.34, 0.34)
+## A forward roll in aikido is not a somersault over the head: it goes over one shoulder, from
+## the leading hand along the arm, the shoulder, diagonally across the back to the other hip.
+## The leading arm reaches down and in, in a curve, and stays round as the body goes over it;
+## the other arm comes in to the body; the head turns away from the leading shoulder so it is
+## not what the body rolls on. Offsets as above, for a right lead (mirrored for the left).
+const LEAD_REACHING := Vector3(0.08, -0.40, 0.40)
+const LEAD_ROLLING := Vector3(0.06, -0.26, 0.30)
+const TRAIL_ROLLING := Vector3(-0.14, -0.30, 0.10)
+## How far the head is turned away from the shoulder the body rolls over, degrees, at full tuck.
+const HEAD_AWAY := 35.0
 
 
 ## Poses `rig` at `t` (0..1) through a fall. Call `ground()` after the skeleton has solved.
-static func shape(rig: CharacterRig, kind: int, t: float) -> void:
+## `lead` is the side the fall goes over ("Right": the right arm leads a forward roll, and the
+## body goes over the right shoulder either way).
+static func shape(rig: CharacterRig, kind: int, t: float, lead := "Right") -> void:
 	t = clampf(t, 0.0, 1.0)
 	var tuck := tuck_amount(kind, t)
 	var side: Vector3 = rig.global_transform.basis.x
@@ -68,11 +80,20 @@ static func shape(rig: CharacterRig, kind: int, t: float) -> void:
 		rig.fingers.set_hand_curl(arm, 0.2)   # and the fist opens to meet the mat
 		rig.set_limb_mode(arm + "Arm", Limb.Mode.IK)
 		var reach: Vector3 = ARM_REACHING.lerp(ARM_ROLLING, tuck)
+		if kind == Kind.FORWARD:
+			reach = LEAD_REACHING.lerp(LEAD_ROLLING, tuck) if arm == lead \
+				else ARM_REACHING.lerp(TRAIL_ROLLING, tuck)
 		if arm == "Left":
 			reach.x = -reach.x
 		limb.set_influence(1.0)
 		limb.target.global_position = rig.bone_world_transform(arm + "UpperArm").origin \
 			+ rig.global_transform.basis * reach
+	var head := rig.skeleton.find_bone("Head")
+	rig.skeleton.set_bone_pose_rotation(head, rig.skeleton.get_bone_rest(head).basis.get_rotation_quaternion())
+	if kind != Kind.PRONE:   # the neck (already bent into the tuck) takes some of the turn
+		var away := HEAD_AWAY * tuck * (1.0 if lead == "Right" else -1.0)
+		turn_bone(rig, "Neck", rig.global_transform.basis.y, away * 0.45)
+		turn_bone(rig, "Head", rig.global_transform.basis.y, away * 0.55)
 	rig.rotation.x = deg_to_rad(pitch_deg(kind, t))
 
 
