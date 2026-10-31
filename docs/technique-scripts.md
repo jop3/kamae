@@ -103,7 +103,7 @@ middleage_asian_male young_african_male young_caucasian_female middleage_asian_f
 | `{"turn_foot": "tori.Left", "deg": 30}` | Turns one foot out (+) or in on the spot. |
 | `{"hanmi": "tori", "front": "Left", "depth": 0.32, "width": 0.16, "drop": 0.06}` | A hanmi stance on the spot, knees bent by dropping the hips. |
 | `{"drop_hips": "tori", "m": 0.08}` | Lowers the hips with the feet left on the mat (bends the knees). |
-| `{"kneel": "tori", "kind": "seiza"}` | Kneels: `seiza` (on the insteps) or `kiza` (on the toes). Suwari waza; getting up from ukemi. |
+| `{"kneel": "tori", "kind": "seiza"}` | Kneels: `seiza` (on the insteps) or `kiza` (on the toes, bent flat on the mat). Suwari waza; getting up from ukemi. |
 | `{"stand": "tori"}` | Back to standing at rest, upright, limbs at rest. |
 | `{"lean": "uke1", "forward": 20, "side": 0}` | Tips the whole body about the feet (kuzushi: up on the toes, back on the heels). Negative leans back. |
 
@@ -132,7 +132,7 @@ middleage_asian_male young_african_male young_caucasian_female middleage_asian_f
 
 | Move | Does |
 |---|---|
-| `{"ukemi": "uke1", "kind": "forward", "t": 0.4}` | Shapes a fall at `t` (0 upright … 1 back up) and rests the body on the mat (a hand the fall puts through the mat is lifted onto it). `kind`: `forward` (mae ukemi, a roll), `backward` (ushiro ukemi), `prone` (laid face down for a pin). Release grips first. The hips stay over the same spot of the mat through the shape, so the fall goes only where a `move` sends it: use several phases with increasing `t` and a `move` of about 0.3–0.5 m before each. The pose remembers the fall, and the video between two of its phases (and from the phase before it, and into the one after) follows the fall's own course: going backward the body squats and sits before it rolls, going forward it bends low before it turns over, it turns about its middle, rests on the mat every frame, and getting up finishes the roll rather than unrolling it. Usual keyframes: `0.35` (on the shoulder or the back, legs over), `0.7`–`0.75` (coming over), then `stand`/`kneel` in the next phase. |
+| `{"ukemi": "uke1", "kind": "forward", "t": 0.4}` | Shapes a fall at `t` (0 upright … 1 back up) and rests the body on the mat (a hand the fall puts through the mat is lifted onto it). `kind`: `forward` (mae ukemi, a roll), `backward` (ushiro ukemi), `prone` (laid face down for a pin). `lead`: `Right` (default) or `Left`, the shoulder the roll goes over — the leading arm reaches down in a curve for a forward roll, the other comes in, and the head turns away from that shoulder. Release grips first. The hips stay over the same spot of the mat through the shape, so the fall goes only where a `move` sends it: use several phases with increasing `t` and a `move` of about 0.3–0.5 m before each. The pose remembers the fall, and the video between two of its phases (and from the phase before it, and into the one after) follows the fall's own course: going backward the body squats and sits before it rolls, going forward it bends low before it turns over, it turns about its middle, rests on the mat every frame, and getting up finishes the roll rather than unrolling it. Usual keyframes: `0.35` (on the shoulder or the back, legs over), `0.7`–`0.75` (coming over), then `stand`/`kneel` in the next phase. |
 | `{"ground": "uke1"}` | Rests whatever is lowest on the mat. |
 
 ### Weapons

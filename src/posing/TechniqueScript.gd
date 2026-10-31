@@ -233,8 +233,9 @@ func do_move(m: Dictionary) -> void:
 		var kinds := {"forward": Ukemi.Kind.FORWARD, "backward": Ukemi.Kind.BACKWARD, "prone": Ukemi.Kind.PRONE}
 		var hips_before: Vector3 = r.bone_world_transform("Hips").origin
 		var kind_name: String = m.get("kind", "forward") if kinds.has(m.get("kind", "forward")) else "forward"
-		Ukemi.shape(r, kinds[kind_name], m.get("t", 0.5))
-		r.fall = {"kind": kind_name, "t": float(m.get("t", 0.5))}
+		var lead: String = "Left" if m.get("lead", "Right") == "Left" else "Right"
+		Ukemi.shape(r, kinds[kind_name], m.get("t", 0.5), lead)
+		r.fall = {"kind": kind_name, "t": float(m.get("t", 0.5)), "lead": lead}
 		await st.settle(4)
 		# The fall turns the body about its root, which is at the feet: three quarters through a
 		# backward roll the body lies a body's length *ahead* of where it stood. A script says

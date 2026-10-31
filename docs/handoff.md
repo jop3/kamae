@@ -1278,7 +1278,10 @@ Five causes, each fixed where it starts:
    staging now lowers the hips just enough for the leg to reach (`_within_reach_of_floor`; a
    wide irimi step becomes the deep step it is) and saves a target where the foot is; the blend
    pulls any old target in to the leg's reach (`PoseBlend.within_reach`) and keeps a foot's sole
-   off the mat while it turns (a pivot turns about the ball, the target is at the ankle).
+   off the mat while it turns (a pivot turns about the ball, the target is at the ankle). A first
+   version lowered the hips until the leg reached the *old* target (which was off to the side
+   as well as under the mat) and put Tori into a 12 cm crouch; the target goes where the foot
+   is first, and the hips come down at most 4 cm (`MAX_HIP_DROP`), by what the foot hovered.
 5. **The hakama hem** follows the shin (no cloth simulation), so a back leg in a deep stance,
    kneeling or getting up put the back of the hem through the mat. It is drawn with a shader now
    (`Gi.resting_on_mat`, StandardMaterial3D's triplanar cloth rewritten as a ShaderMaterial)
@@ -1300,3 +1303,17 @@ the stand or kneel after it) follows the fall's own course (`Ukemi.fall_span`, `
 exact). `tests/test_ukemi.gd` blends standing → 0.35 → 0.7 → standing for both rolls the way a
 technique does and checks every frame is on the mat (not under, not floating) and the poses are
 reached exactly.
+
+The roll also goes **over one shoulder** now, as in every clip, rather than over the head like a
+gymnast's: for a forward roll the leading arm (`lead`, default right) reaches down and in in a
+curve and stays round, the other arm comes in to the body, and in both rolls the head (and neck)
+turns away from the shoulder the body goes over (`Ukemi.LEAD_*`, `HEAD_AWAY`). In kiza the toes
+are bent flat on the mat (`Stance.toes_flat`): straight, they carried on the line of the foot
+2–3 cm into it.
+
+**Where it leaves things.** The committed library: no frame under the mat but one (Uke's
+stepping foot in shihonage irimi, turned past what the ankle gives; `OUTSTANDING` in
+`check_floor.gd`). Motion: zenponage 11 → 10 frames; shihonage irimi 14 → 15, deliberately — with
+the foot targets in reach, Tori's knee bends a little mid-step and his hanging forearm brushes the
+thigh 3.6 cm deep for one frame (the limit is 3.5), recorded in `OUTSTANDING` with the reason.
+The scripts: being rebuilt with all of this; each build's `floor.txt` has its frames.
