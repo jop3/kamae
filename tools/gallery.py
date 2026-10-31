@@ -20,7 +20,8 @@ import unicodedata
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TECH = os.path.join(ROOT, "techniques")
 BUILD = os.path.join(TECH, "build")
-OUT = os.path.join(BUILD, "gallery")
+OUT = os.environ.get("GALLERY_OUT") or os.path.join(BUILD, "gallery")
+ONLY = [x for x in os.environ.get("GALLERY_ONLY", "").split(",") if x]   # slugs, for a trial page
 ATTACKS = json.load(open(os.path.join(ROOT, "data", "attacks.json")))["attacks"]
 
 
@@ -62,6 +63,8 @@ def collect():
             continue
         script = json.load(open(os.path.join(TECH, name)))
         s = slug(script.get("name", name[:-5]))
+        if ONLY and s not in ONLY:
+            continue
         build = os.path.join(BUILD, s)
         video = os.path.join(build, s + ".mp4")
         seq_path = os.path.join(build, "sequences", s + ".json")
@@ -84,6 +87,7 @@ def collect():
             "compare": os.path.join(build, "compare_with_video.png"),
             "attack": (script["label"], "") if script.get("label") else attack_of(script),
             "ukemi": name.startswith("ukemi_"),
+            "viewer": os.path.join(build, "viewer"),
         })
     # The falls first (Uke on his own, every kind the techniques use), then the techniques.
     return [it for it in items if it["ukemi"]] + [it for it in items if not it["ukemi"]]
@@ -100,6 +104,38 @@ def build_media(items):
         it["has_compare"] = os.path.exists(it["compare"])
         if it["has_compare"]:
             ffmpeg("-i", it["compare"], "-vf", "scale=900:-2", "-q:v", "5", os.path.join(media, s + "_compare.jpg"))
+        build_viewer_media(it, media)
+
+
+FIGURES = {}   # md5 of a slimmed figure -> its file name under media/
+
+
+def build_viewer_media(it, media):
+    """The 3D viewer's files (tools/export_viewer.gd): the motion, and the figures, one file for
+    every figure that looks the same in every technique (Tori in hakama, Uke in gi)."""
+    import hashlib
+    s, v = it["slug"], it["viewer"]
+    meta_path = os.path.join(v, s + ".motion.json")
+    it["figures"] = None
+    if not os.path.exists(meta_path):
+        return
+    meta = json.load(open(meta_path))
+    figures = {}
+    for cid in meta["characters"]:
+        glb = os.path.join(v, cid + ".glb")
+        if not os.path.exists(glb):
+            return
+        slim = os.path.join(v, cid + ".slim.glb")
+        subprocess.run([sys.executable, os.path.join(ROOT, "tools", "slim_glb.py"), glb, slim], check=True)
+        digest = hashlib.md5(open(slim, "rb").read()).hexdigest()
+        if digest not in FIGURES:
+            name = cid + ".glb" if (cid + ".glb") not in FIGURES.values() else f"{cid}_{digest[:8]}.glb"
+            FIGURES[digest] = name
+            shutil.copyfile(slim, os.path.join(media, name))
+        figures[cid] = FIGURES[digest]
+    shutil.copyfile(os.path.join(v, s + ".motion.bin"), os.path.join(media, s + ".motion.bin"))
+    shutil.copyfile(meta_path, os.path.join(media, s + ".motion.json"))
+    it["figures"] = figures
 
 
 def page(items):
@@ -125,8 +161,9 @@ def page(items):
                          f'{"Ukemi — falling and rolling" if it["ukemi"] else "Techniques"}</h2>')
         cards.append(f'''
 <article class="tech" id="{s}">
-  <div class="media">
+  <div class="media" data-slug="{s}"{(" data-figures='" + e(json.dumps(it["figures"])) + "'") if it.get("figures") else ""}>
     <video id="v-{s}" src="media/{s}.mp4" poster="media/{s}_poster.jpg" controls muted playsinline preload="metadata"></video>
+    {'<div class="modes" role="group" aria-label="How to watch"><button type="button" class="mode on" data-mode="film">Film</button><button type="button" class="mode" data-mode="3d">3D — turn, zoom, slow</button></div>' if it.get("figures") else ""}
   </div>
   <div class="text">
     <p class="attack">{e(attack)}{(" · " + e(english)) if english else ""}</p>
@@ -145,10 +182,13 @@ def page(items):
     index = "".join(f'<li><a href="#{it["slug"]}">{e(it["script"]["name"])}</a></li>' for it in items)
     falls = sum(1 for it in items if it["ukemi"])
     count = f"{len(items) - falls} techniques" + (f" · {falls} ukemi" if falls else "")
-    return TEMPLATE.replace("{{COUNT}}", count).replace("{{INDEX}}", index).replace("{{CARDS}}", "".join(cards))
+    viewer = open(os.path.join(ROOT, "tools", "viewer.js")).read()
+    return (TEMPLATE.replace("{{COUNT}}", count).replace("{{INDEX}}", index).replace("{{CARDS}}", "".join(cards))
+            .replace("{{VIEWER_JS}}", viewer))
 
 
-TEMPLATE = r'''<title>Kamae Technique Library</title>
+TEMPLATE = r'''<meta charset="utf-8">
+<title>Kamae Technique Library</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;700&family=Zen+Kaku+Gothic+New:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
@@ -209,6 +249,23 @@ details summary:focus-visible { outline: 2px solid var(--accent); outline-offset
 .sheet { margin: 12px 0 0; }
 .sheet img { width: 100%; border-radius: 3px; border: 1px solid var(--rule); }
 .sheet figcaption { font-size: 12px; color: var(--muted); margin-top: 4px; }
+.modes { display: flex; gap: 6px; margin-top: 8px; }
+.mode { padding: 5px 12px; border: 1px solid var(--rule); border-radius: 999px; background: var(--paper);
+  color: var(--ink); font: 500 13px/1.2 var(--body); cursor: pointer; }
+.mode.on { border-color: var(--accent); color: var(--accent); }
+.mode:focus-visible, .vbar button:focus-visible, .vbar select:focus-visible, .vbar input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.stage { position: relative; width: 100%; aspect-ratio: 16 / 9; background: #d9dbd6; border-radius: 4px; overflow: hidden; touch-action: none; }
+.stage canvas { display: block; width: 100%; height: 100%; outline: none; }
+.stage .note { position: absolute; right: 8px; bottom: 8px; font: 400 11px/1.3 var(--mono); color: #4a5160;
+  background: rgba(255,255,255,.75); padding: 3px 6px; border-radius: 3px; pointer-events: none; }
+.stage .loading { position: absolute; inset: 0; display: grid; place-items: center; font: 500 14px/1.4 var(--body); color: #3a4150; }
+.vbar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; margin-top: 8px; font: 400 12px/1 var(--mono); }
+.vbar button, .vbar select { padding: 5px 9px; border: 1px solid var(--rule); border-radius: 6px; background: var(--paper);
+  color: var(--ink); font: 500 12px/1.1 var(--body); cursor: pointer; min-width: 34px; }
+.vbar button.on { border-color: var(--accent); color: var(--accent); }
+.vbar input[type=range] { flex: 1 1 160px; min-width: 120px; accent-color: var(--accent); }
+.vbar .time { color: var(--muted); font-variant-numeric: tabular-nums; min-width: 9ch; }
+.vbar .group { display: inline-flex; gap: 4px; flex-wrap: wrap; }
 footer { padding-top: 24px; font-size: 13px; color: var(--muted); max-width: 70ch; }
 @media (max-width: 760px) { .tech { grid-template-columns: minmax(0, 1fr); gap: 16px; } }
 @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
@@ -217,7 +274,7 @@ footer { padding-top: 24px; font-size: 13px; color: var(--muted); max-width: 70c
   <header>
     <p class="kicker">Kamae · {{COUNT}}</p>
     <h1>Technique library</h1>
-    <p>Each technique is a short script of moves, built into poses and filmed by the Kamae posing engine. Tori wears the hakama, Uke the gi with the coloured belt. The falls come first: every kind of ukemi the techniques use, Uke on his own. Click a phase to jump the video to it.</p>
+    <p>Each technique is a short script of moves, built into poses and filmed by the Kamae posing engine. Tori wears the hakama, Uke the gi with the coloured belt. The falls come first: every kind of ukemi the techniques use, Uke on his own. Click a phase to jump the video to it. Switch a technique to 3D to walk round it: drag to turn the view, scroll or pinch to zoom, right-drag or two fingers to move it, and play it as slowly as you like or a frame at a time, forward and back.</p>
     <nav aria-label="Techniques"><ul>{{INDEX}}</ul></nav>
   </header>
   {{CARDS}}
@@ -228,6 +285,10 @@ for (const list of document.querySelectorAll('.phases')) {
   const video = document.getElementById(list.dataset.video);
   const buttons = [...list.querySelectorAll('.phase')];
   for (const b of buttons) b.addEventListener('click', () => {
+    if (video.closest('.media').dataset.mode === '3d' && window.kamaeViewer) {
+      window.kamaeViewer.seek(parseFloat(b.dataset.t));
+      return;
+    }
     video.currentTime = parseFloat(b.dataset.t);
     video.pause();
   });
@@ -237,6 +298,13 @@ for (const list of document.querySelectorAll('.phases')) {
     buttons.forEach((b, i) => b.classList.toggle('on', i === current));
   });
 }
+</script>
+<script type="importmap">
+{"imports": {"three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+             "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}
+</script>
+<script type="module">
+{{VIEWER_JS}}
 </script>
 '''
 
