@@ -22,6 +22,8 @@ Everything lands in `techniques/build/<slug>/` (not committed):
 | `contact_sheet.png` | every phase, Front beside Side, in order — the one image to look at |
 | `<slug>.mp4` | the video, 30 fps |
 | `compare_with_video.png` | with `REF_VIDEO`: each phase's frame from the source video beside the render |
+| `motion.txt` | frames of the video where a body is implausible (a joint past range, a limb through a body) |
+| `floor.txt` | frames of the video where anything of a body is under the mat, and how deep (`tests/check_floor.gd`; the hakama is drawn resting on the mat and not counted) |
 
 The build prints, after each phase, what the anatomy checks found. Read it: a wrist "past" its
 range or a limb "through" a body is usually a move placed a little wrong, not a limit of the tool.
@@ -130,7 +132,7 @@ middleage_asian_male young_african_male young_caucasian_female middleage_asian_f
 
 | Move | Does |
 |---|---|
-| `{"ukemi": "uke1", "kind": "forward", "t": 0.4}` | Shapes a fall at `t` (0 upright … 1 back up) and rests the body on the mat. `kind`: `forward` (mae ukemi, a roll), `backward` (ushiro ukemi), `prone` (laid face down for a pin). Release grips first. The hips stay over the same spot of the mat through the shape, so the fall goes only where a `move` sends it: use several phases with increasing `t` and a `move` of about 0.3–0.5 m before each. |
+| `{"ukemi": "uke1", "kind": "forward", "t": 0.4}` | Shapes a fall at `t` (0 upright … 1 back up) and rests the body on the mat (a hand the fall puts through the mat is lifted onto it). `kind`: `forward` (mae ukemi, a roll), `backward` (ushiro ukemi), `prone` (laid face down for a pin). Release grips first. The hips stay over the same spot of the mat through the shape, so the fall goes only where a `move` sends it: use several phases with increasing `t` and a `move` of about 0.3–0.5 m before each. The pose remembers the fall, and the video between two of its phases (and from the phase before it, and into the one after) follows the fall's own course: going backward the body squats and sits before it rolls, going forward it bends low before it turns over, it turns about its middle, rests on the mat every frame, and getting up finishes the roll rather than unrolling it. Usual keyframes: `0.35` (on the shoulder or the back, legs over), `0.7`–`0.75` (coming over), then `stand`/`kneel` in the next phase. |
 | `{"ground": "uke1"}` | Rests whatever is lowest on the mat. |
 
 ### Weapons

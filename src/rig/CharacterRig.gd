@@ -47,6 +47,15 @@ var _solved_poses: Array[Transform3D] = []
 var limbs: Dictionary = {}
 ## False while rendering for export: IK handles stay hidden whatever the limb modes do.
 var show_handles := true
+## Set by PoseBlend for a figure blended into or out of a fall, between the two poses only: once
+## the pose has solved, the figure is rested on the mat (Ukemi.keep_on_mat) — lifted out of it or
+## lowered onto it. The blend grounds a fall from the pose alone, before the IK runs; this catches
+## what only the solve shows: a hand put down by IK, a fingertip, the legs an IK stance lets go of.
+var keep_on_mat := false
+## The fall this figure is in, as Ukemi shaped it: {"kind": "forward"|"backward"|"prone",
+## "t": 0..1}, empty when it is not falling. Saved with the pose; a blend between two poses
+## of one fall follows the fall's own course between them (PoseBlend, Ukemi.blend_fall).
+var fall := {}
 
 ## The four IK-able chains, in the order their nodes are added to the skeleton.
 const LIMB_CHAINS := [
@@ -346,6 +355,8 @@ func bone_names() -> PackedStringArray:
 func _cache_solved_poses() -> void:
 	for i in skeleton.get_bone_count():
 		_solved_poses[i] = skeleton.get_bone_global_pose(i)
+	if keep_on_mat:
+		Ukemi.keep_on_mat(self)
 
 
 ## Where a bone actually is on screen, in world space, as of the last completed pose evaluation.
