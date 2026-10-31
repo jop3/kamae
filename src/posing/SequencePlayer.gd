@@ -68,10 +68,18 @@ func prepare() -> void:
 				continue
 			var inv := rig.global_transform.affine_inverse()
 			var limbs := {}
+			var sk := rig.skeleton
 			for key in rig.limbs:
 				var limb: Limb = rig.limbs[key]
+				# The limb's joint rotations as solved, each in its parent.
+				var rot := {}
+				for bone in [limb.root_bone, limb.middle_bone, limb.end_bone]:
+					var bi := sk.find_bone(bone)
+					var g: Transform3D = rig._solved_poses[bi]
+					var pg: Transform3D = rig._solved_poses[sk.get_bone_parent(bi)]
+					rot[bone] = (pg.basis.orthonormalized().inverse() * g.basis.orthonormalized()).get_rotation_quaternion()
 				limbs[key] = {"mid": inv * rig.bone_world_transform(limb.middle_bone).origin,
-					"end": inv * rig.bone_world_transform(limb.end_bone).origin}
+					"end": inv * rig.bone_world_transform(limb.end_bone).origin, "rot": rot}
 			per[rig.character_id] = limbs
 		found.append(per)
 	solved = found

@@ -44,6 +44,9 @@ const MAX_PUSH := 0.08
 ## standing on the mat and is not moved.
 const FOOT_DOWN := 0.2
 ## Bodies are moved apart for these bones only.
+## Arm segments a trunk is pushed away from as from a trunk: an arm held at both ends cannot
+## move out of a body that turns into it (Uke's arm on Tori's wrist as Tori turns in tenkan).
+const HELD_ARM := ["RightUpperArm", "LeftUpperArm", "RightLowerArm", "LeftLowerArm"]
 const TRUNK := ["Hips", "Spine", "Chest", "UpperChest", "Neck", "Head",
 	"RightShoulder", "LeftShoulder"]
 
@@ -73,7 +76,10 @@ static func _bodies_apart(scene: PosingScene, director: GripDirector, strength :
 				continue
 			var worst := {}
 			for o in Anatomy.body_overlaps(a, b, director, true):
-				if not (o["a"] in TRUNK and o["b"] in TRUNK):
+				# A trunk against the other's trunk, or against an arm that cannot get out of the way
+				# (a straight arm held at both ends: its hand on a grip, its shoulder on its body).
+				if not ((o["a"] in TRUNK or o["a"] in HELD_ARM) and (o["b"] in TRUNK or o["b"] in HELD_ARM)) \
+						or (o["a"] in HELD_ARM and o["b"] in HELD_ARM):
 					continue
 				if worst.is_empty() or o["depth"] > worst["depth"]:
 					worst = o

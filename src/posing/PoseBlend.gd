@@ -46,7 +46,7 @@ static func apply(scene: PosingScene, director: GripDirector, a: Dictionary, b: 
 	if not holders.is_empty():
 		ctx = ctx.duplicate()
 		ctx["holders"] = holders
-	for id in _union(chars_a.keys(), chars_b.keys()):
+	for id in _gripped_first(_union(chars_a.keys(), chars_b.keys()), grips_a, grips_b):
 		var rig: CharacterRig = scene.get_character(id)
 		if rig == null:
 			continue
@@ -77,6 +77,7 @@ static func apply(scene: PosingScene, director: GripDirector, a: Dictionary, b: 
 		director.refresh_hand_driven()
 	# Strictly between two poses only: on a keyframe (u == 0) the saved pose is shown untouched.
 	if moving(u, ctx):
+		ContactSolve.solve(scene, director, clearance_strength(u, ctx))
 		MotionClearance.resolve(scene, director, clearance_strength(u, ctx))
 
 
@@ -120,6 +121,37 @@ static func ensure_entities(scene: PosingScene, poses: Array) -> void:
 			if scene.get_weapon(wd["id"]) == null:
 				var w := scene.add_weapon(wd["id"], wd.get("type", "bokken"))
 				w.apply_dict(wd)
+
+
+## The figures in an order where whoever is gripped is blended before whoever grips them, so a
+## gripping hand can be put where the hand it holds really is this frame (ContactSolve).
+static func _gripped_first(ids: Array, grips_a: Dictionary, grips_b: Dictionary) -> Array:
+	var after := {}   # gripper -> ids it must come after
+	for gs in [grips_a, grips_b]:
+		for key: String in gs:
+			var g: Dictionary = gs[key]
+			var owner: String = g.get("target", {}).get("character", "")
+			if owner != "" and owner != g.get("gripper"):
+				if not after.has(g["gripper"]):
+					after[g["gripper"]] = []
+				after[g["gripper"]].append(owner)
+	var out := []
+	var left: Array = ids.duplicate()
+	while not left.is_empty():
+		var picked = null
+		for id in left:
+			var ready := true
+			for dep in after.get(id, []):
+				if dep in left:
+					ready = false
+			if ready:
+				picked = id
+				break
+		if picked == null:
+			picked = left[0]   # a cycle: either order
+		out.append(picked)
+		left.erase(picked)
+	return out
 
 
 ## Who holds what: when this changes the director must re-derive its order and connections.
