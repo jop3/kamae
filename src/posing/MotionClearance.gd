@@ -40,7 +40,8 @@ const FULL_IK_AT := 0.03
 const POLE_LEVER := 2.0
 ## The largest correction a limb is given, metres (see _limbs_clear).
 const MAX_PUSH := 0.08
-## A foot whose target is below this, metres, is standing on the mat and is not moved.
+## A foot whose target is below this, metres, and that is not stepping (Limb.stepping), is
+## standing on the mat and is not moved.
 const FOOT_DOWN := 0.2
 ## Bodies are moved apart for these bones only.
 const TRUNK := ["Hips", "Spine", "Chest", "UpperChest", "Neck", "Head",
@@ -103,8 +104,8 @@ static func _limbs_clear(scene: PosingScene, director: GripDirector, strength: D
 			var limb: Limb = rig.limbs[key]
 			if director and director.grip_on_limb(rig.character_id, key) != null:
 				continue   # the grip owns this hand
-			if not limb.is_arm and limb.mode == Limb.Mode.IK and limb.target.global_position.y < FOOT_DOWN:
-				continue   # a foot on the mat stays where it stands: pushed, it skates
+			if not limb.is_arm and limb.mode == Limb.Mode.IK and limb.target.global_position.y < FOOT_DOWN and not limb.stepping:
+				continue   # a foot standing on the mat stays where it stands: pushed, it skates
 			var walls: Array = obstacles + _own_obstacles(rig, limb)
 			var ik := limb.mode == Limb.Mode.IK
 			# Where the limb is about to be. An IK limb is at its target, which PoseBlend has

@@ -268,6 +268,7 @@ static func _apply_character(rig: CharacterRig, ca: Dictionary, cb: Dictionary, 
 		body_moving = body_moving or (uc[c] > 0.0 and uc[c] < 1.0)
 	for key in rig.limbs:
 		var limb: Limb = rig.limbs[key]
+		limb.stepping = false
 		var ul: float = uc["arms"] if limb.is_arm else uc["legs"]
 		var blending := ul > 0.0 and ul < 1.0
 		# Mid-move as far as the limb's solve goes whenever any part of the body is: an arm still
@@ -338,6 +339,9 @@ static func _apply_character(rig: CharacterRig, ca: Dictionary, cb: Dictionary, 
 			# to the leg's reach, which the IK reaches exactly as it reached for the original).
 			var foot_a := within_reach(rig, limb, ta, bones_a, xa)
 			var foot_b := within_reach(rig, limb, tb, bones_b, xb)
+			# A foot that travels is a step MotionClearance may route round a partner's leg; one that
+			# stays where it stands is left there (pushed, it skates).
+			limb.stepping = Vector2(foot_b.origin.x - foot_a.origin.x, foot_b.origin.z - foot_a.origin.z).length() >= STEP_MIN
 			t = foot_a.interpolate_with(foot_b, ul) if falling else turn_with_body(foot_a, foot_b, yaw_turn(lean_a.y, lean_b.y), ul)
 			t.origin.y += step_lift(foot_a.origin, foot_b.origin, ul)
 			# A foot turning on the mat (a pivot, a tenkan) turns about its ball, not its ankle,

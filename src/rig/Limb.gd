@@ -29,6 +29,9 @@ var mode: int = Mode.FK
 ## the wrist far enough to shear the skinned mesh. Grips (M3) turn it on with a captured offset,
 ## which stays close to the natural orientation and therefore looks right.
 var orient_to_target := false
+## Sequence playback: this foot is stepping across the mat between two poses (PoseBlend), as
+## opposed to standing where it is. MotionClearance only moves a foot that steps.
+var stepping := false
 
 
 func _init(limb_key: String, root_b: String, middle_b: String, end_b: String, arm: bool) -> void:
