@@ -173,8 +173,10 @@ func do_move(m: Dictionary) -> void:
 		await st.settle(2)
 	elif m.has("stand"):
 		var r := _rig(m["stand"])
+		var aside := _fall_aside(r)
+		var heading := _heading(r)
 		await st.rest_limbs(m["stand"])
-		ctrl.set_root(r, Vector3(r.position.x, 0.0, r.position.z), r.rotation.y)
+		ctrl.set_root(r, Vector3(r.position.x, 0.0, r.position.z) + aside, heading)
 		await st.settle(2)
 	elif m.has("lean"):
 		var r := _rig(m["lean"])
@@ -229,9 +231,15 @@ func do_move(m: Dictionary) -> void:
 		# hold; read back after a fall past 90°, those are the heading turned 180° and a roll of
 		# 180°, and the next phase of the same fall would tumble the body the wrong way round.
 		# Upright on the true heading first, so each phase of a fall is shaped from the same frame.
-		r.rotation = Vector3(0.0, _heading(r), 0.0)
-		var kinds := {"forward": Ukemi.Kind.FORWARD, "backward": Ukemi.Kind.BACKWARD, "prone": Ukemi.Kind.PRONE}
+		# Where the hips are is read *before* the body is stood upright for the shape: read after,
+		# it was the spot over the previous phase's feet (the root), so each phase of a fall started
+		# from wherever the last one's feet had been flung — up to a body's length off along the
+		# roll, and, once a roll tilted toward its shoulder, off to the side as well.
 		var hips_before: Vector3 = r.bone_world_transform("Hips").origin
+		var heading := _heading(r)
+		r.rotation = Vector3(0.0, heading, 0.0)
+		r.set_meta("fall_heading", heading)
+		var kinds := {"forward": Ukemi.Kind.FORWARD, "backward": Ukemi.Kind.BACKWARD, "prone": Ukemi.Kind.PRONE}
 		var kind_name: String = m.get("kind", "forward") if kinds.has(m.get("kind", "forward")) else "forward"
 		var lead: String = "Left" if m.get("lead", "Right") == "Left" else "Right"
 		Ukemi.shape(r, kinds[kind_name], m.get("t", 0.5), lead)
@@ -718,7 +726,27 @@ func _flat_basis(r: CharacterRig) -> Basis:
 	return Basis(Vector3.UP, _heading(r))
 
 
+## How far a fallen figure's hips are from its root, along the mat. The root is at the feet, and
+## a body turned over in a fall has its feet a body's length from where the body is, and to the
+## side of it once the roll is tilted toward a shoulder; getting up there stood Uke up a metre
+## beside his own roll. A figure gets up where its hips are, so a fall travels exactly as far as
+## the script's moves say.
+func _fall_aside(r: CharacterRig) -> Vector3:
+	if not r.has_meta("fall_heading") or r.global_transform.basis.y.normalized().y >= 0.95:
+		return Vector3.ZERO
+	var off: Vector3 = r.bone_world_transform("Hips").origin - r.position
+	off.y = 0.0
+	return off
+
+
 func _heading(r: CharacterRig) -> float:
+	# A figure in a fall is tilted toward the shoulder it rolls over as well as turned over, so
+	# its sideways axis no longer says which way it is heading, and the Euler angles read back
+	# from a body turned past 90° are an equivalent but different triple. The fall keeps the
+	# heading it was shaped on (set in the "ukemi" move), and that is the answer while the body is
+	# off its feet.
+	if r.has_meta("fall_heading") and r.global_transform.basis.y.normalized().y < 0.95:
+		return float(r.get_meta("fall_heading"))
 	var x := r.global_transform.basis.x
 	return atan2(-x.z, x.x)
 
@@ -763,7 +791,8 @@ func _stand_legs(r: CharacterRig) -> void:
 		for bone in [side + "UpperLeg", side + "LowerLeg", side + "Foot", side + "Toes"]:
 			var i := sk.find_bone(bone)
 			sk.set_bone_pose_rotation(i, sk.get_bone_rest(i).basis.get_rotation_quaternion())
-	ctrl.set_root(r, Vector3(r.position.x, 0.0, r.position.z), _heading(r))
+	var aside := _fall_aside(r)
+	ctrl.set_root(r, Vector3(r.position.x, 0.0, r.position.z) + aside, _heading(r))
 	await st.settle(2)
 	for side in ["Right", "Left"]:
 		(r.limbs[side + "Leg"] as Limb).reset_target_to_pose()

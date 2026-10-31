@@ -1521,3 +1521,31 @@ stepping foot in shihonage irimi, turned past what the ankle gives; `OUTSTANDING
 the foot targets in reach, Tori's knee bends a little mid-step and his hanging forearm brushes the
 thigh 3.6 cm deep for one frame (the limit is 3.5), recorded in `OUTSTANDING` with the reason.
 The scripts: being rebuilt with all of this; each build's `floor.txt` has its frames.
+
+### The hand-and-grip branch, merged (same session, on request)
+
+`claude/handoff-check-wxx58t` (the two 2026-09-16 sections above: the fit keeps a hand's hold,
+the shaft across the base of the fingers, fingers closed onto what they hold, `--demo-grip`,
+`tests/check_grips.gd`, `tools/refit_grips.gd`) was never merged: the next session started from
+`main` and went on to the realistic figures. Asked whether it was worth keeping, it was — it is
+the answer to the instructor's "the grips look weird" — so it is merged into this branch.
+Conflicts were three files: `Staging.grab` keeps the branch's finger-aware search (curl easing,
+the wider skew list, fingers through the held bone) *and* main's preferred-hold cost for `refit`
+(only what the joints refuse decides whether the wider skews are tried); the motion records are
+the branch's re-measured with the falls on top; the handoff keeps both histories in order. Every
+test passes merged. The goldens changed where the grips did and were looked at and refreshed.
+The old branch can be deleted once this branch is merged to `main`.
+
+### Ukemi on its own (same session, on request)
+
+Five scripts with Uke alone, filmed and at the top of the gallery (`label` on a script names it
+there): `ukemi_mae_right`/`_left` (the forward roll over each shoulder, up into kiza and to the
+feet), `ukemi_ushiro_roll` (squat, sit, back, over the shoulder, kiza, up),
+`ukemi_ushiro_fall` (the back fall that rocks back up without going over) and `ukemi_prone` (laid
+face down for a pin). Writing them found two more things: the squat a backward fall starts with
+is tipped only 19°, under the 30° that marked a pose as a fall, so the blend into it was not
+treated as one and the feet went 16 cm into the mat (a fall is now also whatever the pose's fall
+record says); and "no fall" after a fall always meant "over the top", so rocking back up would
+have rolled the whole way round (from less than half a fall it now goes back the way it came).
+Not modelled: the high breakfall (tobi ukemi), where Uke is in the air — every fall here keeps a
+part of the body on the mat.

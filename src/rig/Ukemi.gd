@@ -95,6 +95,19 @@ static func shape(rig: CharacterRig, kind: int, t: float, lead := "Right") -> vo
 		turn_bone(rig, "Neck", rig.global_transform.basis.y, away * 0.45)
 		turn_bone(rig, "Head", rig.global_transform.basis.y, away * 0.55)
 	rig.rotation.x = deg_to_rad(pitch_deg(kind, t))
+	rig.rotation.z = deg_to_rad(tilt_deg(kind, t, lead))
+
+
+## How far the body is tipped toward the shoulder it rolls over, degrees (a roll about its own
+## forward axis, applied before the turn): most in the middle of the roll, none standing. This is
+## what puts the leading arm and shoulder on the mat instead of the head and the neck.
+const TILT := 30.0
+
+
+static func tilt_deg(kind: int, t: float, lead := "Right") -> float:
+	if kind == Kind.PRONE:
+		return 0.0
+	return TILT * sin(PI * clampf(t, 0.0, 1.0)) * (1.0 if lead == "Right" else -1.0)
 
 
 ## How far through its turn the body is, in degrees, at `t`. A roll is one whole turn about the
@@ -118,7 +131,7 @@ static func pitch_deg(kind: int, t: float) -> float:
 
 ## How far a roll has turned (degrees) through its start, as [t, degrees] points; from the last
 ## point on it is 360·t.
-const FORWARD_START := [[0.0, 0.0], [0.1, 14.0], [0.2, 45.0], [0.3, 108.0]]
+const FORWARD_START := [[0.0, 0.0], [0.1, 12.0], [0.2, 35.0], [0.3, 100.0]]
 const BACKWARD_START := [[0.0, 0.0], [0.1, 5.0], [0.2, 32.0], [0.3, 108.0]]
 
 
@@ -174,20 +187,31 @@ static func fall_span(fa: Dictionary, fb: Dictionary) -> Dictionary:
 	if not fa.is_empty() and not fb.is_empty():
 		if fa.get("kind") != fb.get("kind") or not kinds.has(fa.get("kind")):
 			return {}
-		return {"kind": kinds[fa["kind"]], "from": float(fa.get("t", 0.0)), "to": float(fb.get("t", 0.0))}
+		return {"kind": kinds[fa["kind"]], "from": float(fa.get("t", 0.0)), "to": float(fb.get("t", 0.0)),
+			"lead": fb.get("lead", "Right")}
 	if fb.is_empty():
 		if not kinds.has(fa.get("kind")):
 			return {}
 		var t := float(fa.get("t", 0.0))
-		return {"kind": kinds[fa["kind"]], "from": t, "to": 1.0 if t >= 0.5 else 0.0}
+		return {"kind": kinds[fa["kind"]], "from": t, "to": 1.0 if t >= 0.5 else 0.0, "lead": fa.get("lead", "Right")}
 	if not kinds.has(fb.get("kind")):
 		return {}
-	return {"kind": kinds[fb["kind"]], "from": 0.0, "to": float(fb.get("t", 0.0))}
+	return {"kind": kinds[fb["kind"]], "from": 0.0, "to": float(fb.get("t", 0.0)), "lead": fb.get("lead", "Right")}
 
 
 ## The root's pitch at `u` between two poses of one fall (`span`), whose saved pitches are
 ## `from_pitch` and `to_pitch` (radians, `to_pitch` counted on from `from_pitch`): the fall's own
 ## turn at the blended t, plus whatever the two poses add to it, blended. Exact at both poses.
+## The same for the tilt toward the leading shoulder (tilt_deg), from the saved rolls.
+static func blend_tilt(span: Dictionary, from_roll: float, to_roll: float, u: float) -> float:
+	var k: int = span["kind"]
+	var lead: String = span.get("lead", "Right")
+	var at := func(t: float) -> float: return deg_to_rad(tilt_deg(k, t, lead))
+	var ta: float = span["from"]
+	var tb: float = span["to"]
+	return at.call(lerpf(ta, tb, u)) + lerpf(from_roll - at.call(ta), to_roll - at.call(tb), u)
+
+
 static func blend_pitch(span: Dictionary, from_pitch: float, to_pitch: float, u: float) -> float:
 	var k: int = span["kind"]
 	var ta: float = span["from"]
@@ -252,8 +276,14 @@ static func ground(rig: CharacterRig, mat_y := MAT_Y) -> void:
 ## reach past them (not the fingertips: a hand is put on the mat by hands_on_mat).
 static func resting_lowest(rig: CharacterRig) -> float:
 	var lowest := INF
-	for seg: Array in Anatomy.segments(rig).values():
-		lowest = minf(lowest, minf(seg[0].y, seg[1].y) - seg[2])
+	var dressed := rig.gi_visible
+	var segs := Anatomy.segments(rig)
+	for bone: String in segs:
+		var seg: Array = segs[bone]
+		var cloth := 0.0
+		if dressed:   # what lies on the mat is the gi, which stands off the skin
+			cloth = GI_SLEEVE if bone.ends_with("Arm") else (GI_CLOTH if not bone.ends_with("Hand") and not bone.ends_with("Foot") else 0.0)
+		lowest = minf(lowest, minf(seg[0].y, seg[1].y) - seg[2] - cloth)
 	lowest = minf(lowest, _tips_lowest(rig, ["Right", "Left"], ["Toes"], TOE_REACH, TOE_RADIUS))
 	for side in ["Right", "Left"]:   # the heel and the ball, under the foot's capsule
 		lowest = minf(lowest, PoseBlend.sole_lowest(rig, side, rig.bone_world_transform(side + "Foot")))
@@ -297,6 +327,12 @@ const MAT_SLACK := 0.005
 ## The lowest point of the body as solved: what it rests on, and the fingertips.
 static func lowest_point(rig: CharacterRig) -> float:
 	return minf(resting_lowest(rig), _tips_lowest(rig, ["Right", "Left"], FINGERTIPS, FINGERTIP_REACH, FINGERTIP_RADIUS))
+
+
+## How far the gi stands off the body's capsules, metres: the jacket and trousers, and the
+## sleeves, which hang loose (a rolling arm put its sleeve 3.7 cm into the mat).
+const GI_CLOTH := 0.015
+const GI_SLEEVE := 0.035
 
 
 ## The skull and face, which reach past the head's capsule (the crown by 1.5 cm, the face by 4):

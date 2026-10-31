@@ -84,6 +84,7 @@ static func _apply_character(rig: CharacterRig, ca: Dictionary, cb: Dictionary, 
 		cb.get("fall", {}) if cb.get("fall") is Dictionary else {})
 	if not span.is_empty() and u > 0.0 and u < 1.0:
 		lean.x = Ukemi.blend_pitch(span, lean_a.x, lean_b.x, u)
+		lean.z = Ukemi.blend_tilt(span, lean_a.z, lean_b.z, u)
 	rig.rotation = lean
 	var sk := rig.skeleton
 	var bones_a: Dictionary = ca.get("bones", {})
