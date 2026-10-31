@@ -26,6 +26,14 @@ $GODOT --headless --import >/dev/null 2>&1      # once, before anything else
    library, copy its poses and sequence into `poses/` and `sequences/` — but then
    `tests/check_anatomy.gd` and `tests/check_motion.gd` judge it too.
 
+`tools/build_all.sh` rebuilds every script and `python3 tools/gallery.py` makes the browsable
+page of all of them (`techniques/build/gallery/`).
+
+Things learned the hard way, all in `docs/technique-scripts.md`: use `where` instead of guessing
+from a camera; give a script a `view` that shows the key moment; `refit` a grip after the held
+arm turns; pins rest the hands (`hand` … `to`), never `grab`; for a backward fall Uke faces the
+way he falls from.
+
 Conventions that are easy to get wrong: directions are `[right, up, forward]` in the figure's
 own frame; turns are positive toward the figure's **left** (counter-clockwise from above);
 `tori`/`uke1` are the default ids; Tori wears a hakama by default, Uke does not.

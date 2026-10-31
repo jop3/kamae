@@ -1180,3 +1180,47 @@ up phase by phase. `techniques/shomenuchi_iriminage.json` was written from a des
    tables and every staging distance were measured on this body.
 5. Video rendering is Movie Maker under software GL: a 5 s technique takes about 1.5 minutes,
    so iterate with `--no-video` and render the MP4 once the stills are right.
+
+## Night of 2026-10-31: more techniques, and what writing them taught the interpreter
+
+Asked to keep going on my own, I wrote the common 5th–4th kyu techniques as scripts and fixed
+in the interpreter whatever each one exposed. `techniques/` now holds katatedori tenkan,
+katatedori tenkan kokyunage (from the instructor's clip), katatedori kotegaeshi, katatedori
+shihonage, shomenuchi ikkyo (to the pin), shomenuchi iriminage, chudan tsuki kotegaeshi,
+chudan tsuki iriminage, yokomenuchi shihonage, ryotedori tenchinage, morotedori kokyunage,
+ushiro ryotedori kotegaeshi and suwari kokyudosa. `tools/build_all.sh` builds and films them all
+and `tools/gallery.py` makes `techniques/build/gallery/index.html`: every technique's video
+with phases that seek it, its contact sheet, and the video comparison where there is one.
+
+What the interpreter gained, each from a technique that needed it:
+- **Faces** turn to the partner before each pose is saved (neck and head inside their range,
+  not at someone beside you, not while falling), and the head is put back afterwards.
+- **`view`**: a script chooses its camera (yaw from Side, height, zoom); stills, video and the
+  comparison use it. Matching the clip's view is what made the remaining differences visible.
+- **`refit`**: re-takes a grip where the hand has got to, preferring the wrap it had, so a
+  gripping wrist shifts on a turning arm instead of bending through the turn.
+- **Hand orientation** (`point`, `palm`) for kotegaeshi and pins; **`place` beside a body
+  part** (a lying figure's root is at its feet); **`where`**, which prints everyone's parts in
+  one figure's frame — the ikkyo pin was solved by asking where things were.
+- **Falls go only where the script sends them** (the hips stay put through the fall shape) and
+  successive fall phases start from the true heading (the Euler yaw read back after a fall past
+  90° is flipped).
+- **Kneeling again** starts from standing legs; a gripper walking in keeps further off a
+  kneeling partner.
+- **The blends**: a stepping foot lifts on an arc instead of sliding (`PoseBlend.step_lift`,
+  zero on keyframes), and every build runs the frame-by-frame motion check and writes
+  `motion.txt`. Most flagged frames are a gripping wrist mid-blend or one body's path through
+  another's (Tori's stepping leg past Uke's shin, a turning chest past an arm); routing those
+  needs waypoint phases (sequences may now have 16 steps), which I tried once on the
+  kokyunage and backed out because the waypoint's own grip needed fitting too.
+- **Looks**: the gi's weave is half as deep (it read as bubble wrap close up), the trousers
+  under a hakama are shaded (lit, they read as a white hole in its side opening).
+
+**Lessons for writing scripts** are in `docs/technique-scripts.md` ("Writing one well"): place
+everything relative to Uke; pins rest the hands rather than grab; for a throw backward Uke
+must face the way he falls from; when a picture is unclear, change the view and ask `where`.
+
+**Next.**
+1. Waypoint phases that refit their grips, to route the blends round the partner.
+2. Nikyo, sankyo, kaitennage, ryokatadori and the weapon techniques as scripts.
+3. An instructor pass over the scripts: they are drafts from descriptions and one clip.
