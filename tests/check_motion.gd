@@ -67,7 +67,7 @@ const OUTSTANDING := {
 		## rebuilding refit grepp/kuzushi under the finger coupling, which shifted
 		## the grepp->kuzushi blend enough to add 3 frames of Uke's gripping wrist over its range;
 		## +2 with the fist's range (the kake's own wrist fault is gone: 12 -> 14 is the measurement)
-	"katatedori_shihonage_irimi": 18,   ## 20 until 2026-11-01 (the blends reworked for smoothness); +1 when the blend stopped sweeping feet through the mat (2026-10-31): Tori's leg
+	"katatedori_shihonage_irimi": 14,   ## 20 until 2026-11-01 (the blends reworked for smoothness; 14 once a limb counts as mid-move whenever its body is); +1 when the blend stopped sweeping feet through the mat (2026-10-31): Tori's leg
 		## used to stand straight toward a target buried under the mat; blended between where the foot really was,
 		## the knee bends a little mid-step and the hanging forearm brushes the thigh — a deliberate exception to "only down";
 		## +2 more with the fingers fitted: a foot through a foot as Tori steps in;

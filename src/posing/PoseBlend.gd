@@ -2,11 +2,12 @@ class_name PoseBlend
 extends RefCounted
 ## Puts the scene at a point between two saved poses (spec §5.6).
 ##
-## Rules, in the spec's words: root position lerps and yaw slerps; FK bones slerp; finger curls
-## lerp; weapon transforms lerp and slerp and a hold's t and roll lerp; a limb whose grip is
-## active in both poses stays in IK and is re-solved live from the moving grip; a grip present
-## in only one pose ramps its IK influence 0→1 (appearing) or 1→0 (disappearing) while the FK
-## rotations slerp underneath. Nothing here touches undo: a preview is not an edit.
+## Each saved pose is shown exactly at u = 0 and u = 1; between them a body moves the way a person
+## does rather than every joint sliding together: each part on its own clock (CHANNELS, from
+## SequencePlayer.timing), joints and root on curves through the poses either side, free hands
+## round the shoulder with the body, feet round a turn, elbows and knees steered between where the
+## two poses were solved, grips handed over by weight. Falls follow their own course (Ukemi).
+## Nothing here touches undo: a preview is not an edit.
 
 
 ## Applies the blend for `u` in 0..1 between pose dictionaries `a` and `b` (PoseFile format).
@@ -262,16 +263,22 @@ static func _apply_character(rig: CharacterRig, ca: Dictionary, cb: Dictionary, 
 	var ik_b: Dictionary = cb.get("ik", {})
 	var xa := Transform3D(Basis.from_euler(lean_a), p1)
 	var xb := Transform3D(Basis.from_euler(lean_b), p2)
+	var body_moving := false
+	for c in uc:
+		body_moving = body_moving or (uc[c] > 0.0 and uc[c] < 1.0)
 	for key in rig.limbs:
 		var limb: Limb = rig.limbs[key]
 		var ul: float = uc["arms"] if limb.is_arm else uc["legs"]
 		var blending := ul > 0.0 and ul < 1.0
-		# A fall's limbs are blended as they always were (its course is Ukemi's).
-		limb.set_blending(blending and not falling)
+		# Mid-move as far as the limb's solve goes whenever any part of the body is: an arm still
+		# on its pose while the hips lead off is carried, and searched afresh it can flip.
+		var steer := (blending or body_moving) and not falling
+		# A falling limb's pole is the fall's own (below), but its turn too is searched locally.
+		limb.set_blending(steer or (falling and (blending or body_moving)))
 		var grip_key := "%s/%s" % [rig.character_id, key.trim_suffix("Arm")]
 		var in_a := grips_a.has(grip_key)
 		var in_b := grips_b.has(grip_key)
-		if blending and not falling:
+		if steer:
 			var pole := body_pole(rig, ik_a.get(key, {}), ik_b.get(key, {}), xa, xb, ul, limb.pole.global_position)
 			limb.pole.global_position = steered_pole(rig, limb, solved_a.get(key, {}), solved_b.get(key, {}), ul, pole)
 		if in_a or in_b:
@@ -353,7 +360,7 @@ static func _apply_character(rig: CharacterRig, ca: Dictionary, cb: Dictionary, 
 			if not limb.is_arm and ik_in_a and ik_in_b:
 				t.origin.y += step_lift(ta.origin, tb.origin, ul)
 			limb.target.global_transform = t
-			if not blending or falling:
+			if not steer:
 				limb.pole.global_position = pa.lerp(pb, ul)
 		limb.set_orient_to_target(bool(ea.get("orient", eb.get("orient", false))))
 		limb.set_influence(1.0 if (ik_in_a and ik_in_b) else (1.0 - ul if ik_in_a else ul))

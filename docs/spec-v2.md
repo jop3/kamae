@@ -125,12 +125,33 @@ sequences/<slug>.json
 - Saving reads bone rotations inside `skeleton_updated` (post-IK) so the baked pose equals what is on screen.
 - Reload test: load → solve one frame → compare every bone to the file within 1e-4.
 
-### 5.6 Interpolation (new)
-Between step *i* and *i+1* over `transition` seconds with smoothstep easing:
-- root position lerp, root yaw slerp; FK bones slerp; finger curls lerp; camera lerp if per-pose.
-- Weapon transforms lerp and slerp; a weapon's grip position `t` and roll lerp, so hands slide along a jo smoothly. A weapon held in one pose and free in the next changes hands the same way a grip does: the hold's influence ramps across the transition.
-- A limb whose grip is active in **both** poses stays in IK and is re-solved live from the moving grip (no drift).
-- A grip present in only one of the two poses: IK `influence` ramps 0→1 (appearing) or 1→0 (disappearing) across the transition while the FK rotations slerp underneath.
+### 5.6 Interpolation (new; reworked 2026-11-01 for smooth, human motion — docs/handoff.md)
+Between step *i* and *i+1* over `transition` seconds. Every saved pose is shown exactly at its own
+time (`Sequence.step_start`); everything below happens between those instants.
+- **Timing.** Each part of the body has its own clock (`SequencePlayer.timing`, `CHANNEL_TIMING`):
+  the hips start first, up to 0.12 s into the hold before; spine and head go with them; the feet
+  step a little later and land before the body settles; the arms and fingers follow and arrive
+  last. Each eases on a minimum-jerk course (`Sequence.ease_motion`). Waypoints (hold 0) are passed
+  by every part together at speed. A figure with a weapon in hand moves its arms with its trunk.
+  Falls keep one clock and their own course (Ukemi) and the old easing.
+- **Curves.** Root position and yaw, and every FK bone (`spherical_cubic_interpolate_in_time`),
+  follow curves through the neighbouring steps where the movement passes through a waypoint, so
+  nothing stops or changes speed at one; a pose the technique rests on is approached and left
+  straight.
+- **Limbs.** Free hands travel with the body, round the shoulder (`PoseBlend.arm_with_body`);
+  a foot carried round a turn of 45° or more travels on the turn's circle (`turn_with_body`), a
+  step lifts on an arc (`step_lift`). Poles are carried with the body and steered from where each
+  keyframe's solve had the elbow or knee (`SequencePlayer.prepare`, `steered_pole`); the limb's
+  remaining turn is searched locally between poses (`LimbTurn.descend`), so nothing flips.
+- **Grips.** A grip in both poses stays exact. One taken or let go is handed over by weight
+  (`Grip.weight`: the IK target blends from the hand's own way to the grip, and the hand's
+  orientation with it); two figures taking and letting go of each other do it in turn.
+- **Holds.** The hips settle past a resting pose and back, the chest breathes, both nothing at
+  the pose's own time; figures joined by a grip settle together.
+- **Corrections.** MotionClearance keeps limbs out of bodies, faded in and out with each move,
+  never moving a foot that stands on the mat, at most 8 cm.
+- Weapon transforms lerp and slerp; a weapon's grip position `t` and roll lerp, so hands slide
+  along a jo smoothly. A weapon held in one pose and free in the next changes hands the same way.
 - Anything the instructor dislikes is fixed by inserting a pose, not by tuning curves.
 
 ### 5.7 Camera

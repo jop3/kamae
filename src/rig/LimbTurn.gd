@@ -34,6 +34,12 @@ const TURN_COST_PER_DEG := 0.05
 ## the elbow was going anyway, and the minimum nearest to it moves as smoothly as the pose does.
 ## At either keyframe it is the minimum the global search found there, so a pose is reached as
 ## saved.
+## It goes no further than DESCEND_LIMIT either way: past that it is not the same minimum any more,
+## and on an arm held nearly straight a turn of half a circle moves no joint, only flips the arm's
+## twist in one frame.
+const DESCEND_LIMIT := 45.0
+
+
 static func descend(cost: Callable, step := 7.5) -> float:
 	var best := 0.0
 	var best_cost: float = cost.call(0.0)
@@ -45,7 +51,7 @@ static func descend(cost: Callable, step := 7.5) -> float:
 		if c < best_cost - 1e-9 and (dir == 0.0 or c < cost.call(dir * step)):
 			dir = d
 	if dir != 0.0:
-		while absf(best + dir * step) <= 180.0:
+		while absf(best + dir * step) <= DESCEND_LIMIT:
 			var c: float = cost.call(best + dir * step)
 			if c >= best_cost - 1e-9:
 				break
@@ -54,6 +60,8 @@ static func descend(cost: Callable, step := 7.5) -> float:
 	var h := step * 0.5
 	for _i in REFINE_STEPS + 1:
 		for cand in [best - h, best + h]:
+			if absf(cand) > DESCEND_LIMIT:
+				continue
 			var c: float = cost.call(cand)
 			if c < best_cost:
 				best = cand; best_cost = c
