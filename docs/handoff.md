@@ -1224,3 +1224,14 @@ must face the way he falls from; when a picture is unclear, change the view and 
 1. Waypoint phases that refit their grips, to route the blends round the partner.
 2. Nikyo, sankyo, kaitennage, ryokatadori and the weapon techniques as scripts.
 3. An instructor pass over the scripts: they are drafts from descriptions and one clip.
+
+**State at the end of the night.** Every script builds, films and passes its pose checks bar the
+few findings each records under `known`; the gallery of all fourteen was published for the
+instructor. The frame-by-frame check of the blends is the measure for the next round: per
+technique, the frames not plausible were kaitennage 63/145, ushiro ryotedori kotegaeshi
+58/165, katatedori shihonage 55/150, yokomenuchi shihonage 54/165, morotedori kokyunage
+53/144, shomenuchi iriminage 36/138, tsuki iriminage 35/135, kokyunage 30/148, tenchinage
+27/114, tsuki kotegaeshi 26/129, katatedori tenkan 25/94, shomenuchi ikkyo 22/112, suwari
+kokyudosa 21/115, katatedori kotegaeshi 20/156 (`motion.txt` in each build lists them). They
+are almost all gripping wrists mid-transition and limbs brushing the partner during a turn;
+waypoint phases that refit their grips are the way to bring them down.
