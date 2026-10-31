@@ -363,7 +363,7 @@ static func timing(seq: Sequence, time: float) -> Dictionary:
 	var channels := {}
 	var any := raw > 0.0
 	for c in CHANNEL_TIMING:
-		var p: Array = CHANNEL_TIMING[c] if OS.get_environment("KAMAE_SYNC") != "1" else [0.0, 0.0, 0.0]
+		var p: Array = CHANNEL_TIMING[c]
 		var s0 := leave
 		var s1: float = start[k]
 		if rest_a:

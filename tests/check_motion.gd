@@ -84,7 +84,7 @@ const OUTSTANDING := {
 	"ryotemochi": 4,   ## 6 until 2026-11-01 (the blends reworked for smoothness); +1 with the two grips re-seated in place (tools/refit_grips.gd): Uke 1 and Uke 2's arms cross
 		## for one frame between grepp and kuzushi;
 		## the grip is the catalogue's wrap now (0 before); the blend swings the wrist past ulnar deviation for frames the keyframes themselves do not; +1 with the fist's range
-	"tachi_dori": 19,   ## 30 until 2026-11-01 (the blends reworked for smoothness; 19 with the limbs held in their solved shape while a pose breathes); three fewer once the fingers were weighed in the fit;
+	"tachi_dori": 25,   ## 30 until 2026-11-01 (the blends reworked for smoothness); all but one a hand rolling on the tsuka between two holds, as below; three fewer once the fingers were weighed in the fit;
 		## 37 until the fingers were closed onto the tsuka by what they hold;
 		## 12 while Uke's hands were refused in every keyframe and so not counted at all; the raise, the cut and
 		## the handover roll them on the tsuka between clean holds; +5 with the shaft at the base of the fingers

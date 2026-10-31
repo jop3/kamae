@@ -127,7 +127,6 @@ func set_influence(x: float) -> void:
 ## line) is spent locally, so the elbow or knee moves on from where it was instead of jumping to
 ## another equally good place (LimbTurn.descend). Off on a keyframe and while editing.
 func set_blending(on: bool) -> void:
-	if OS.get_environment("KAMAE_GLOBAL_TURN") == "1": on = false
 	twist.local_search = on
 	hand_orient.local_search = on
 

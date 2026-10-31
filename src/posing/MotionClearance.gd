@@ -55,7 +55,6 @@ const TRUNK := ["Hips", "Spine", "Chest", "UpperChest", "Neck", "Head",
 ## is never applied, and where a pose whose limbs touch by a little more than the checks allow
 ## would otherwise snap back from wherever the last in-between pushed them.
 static func resolve(scene: PosingScene, director: GripDirector, strength: Dictionary = {}) -> void:
-	if OS.get_environment("KAMAE_NO_CLEARANCE") == "1": return
 	_bodies_apart(scene, director, float(strength.get("root", 1.0)))
 	_limbs_clear(scene, director, strength)
 
@@ -104,8 +103,7 @@ static func _limbs_clear(scene: PosingScene, director: GripDirector, strength: D
 			var limb: Limb = rig.limbs[key]
 			if director and director.grip_on_limb(rig.character_id, key) != null:
 				continue   # the grip owns this hand
-			if not limb.is_arm and limb.mode == Limb.Mode.IK and limb.target.global_position.y < FOOT_DOWN \
-					and OS.get_environment("KAMAE_PUSH_FEET") != "1":
+			if not limb.is_arm and limb.mode == Limb.Mode.IK and limb.target.global_position.y < FOOT_DOWN:
 				continue   # a foot on the mat stays where it stands: pushed, it skates
 			var walls: Array = obstacles + _own_obstacles(rig, limb)
 			var ik := limb.mode == Limb.Mode.IK
