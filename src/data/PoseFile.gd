@@ -136,6 +136,7 @@ static func _assemble(scene: PosingScene, director: GripDirector, camera, name: 
 			"skin_color": "#" + rig.get_skin_color().to_html(false),
 			"visible": rig.visible,
 			"gi": rig.gi_visible,
+			"appearance": rig.appearance.duplicate(),
 			"root": {"pos": vec_to_array(rig.position), "yaw": rig.rotation.y,
 				"pitch": rig.rotation.x, "roll": rig.rotation.z},
 			"bones": bones,
@@ -194,6 +195,9 @@ static func apply(data: Dictionary, scene: PosingScene, director: GripDirector, 
 			rig.set_skin_color(Color.html(c["skin_color"]))
 		rig.visible = c.get("visible", true)
 		rig.set_gi_visible(c.get("gi", false))
+		# A file written before the realistic figures keeps the look the scene gave this figure.
+		if c.get("appearance") is Dictionary:
+			rig.set_appearance(c["appearance"])
 		var root: Dictionary = c.get("root", {})
 		rig.position = array_to_vec(root.get("pos", [0, 0, 0]))
 		# pitch and roll arrived after the first poses were written; a file without them is upright.

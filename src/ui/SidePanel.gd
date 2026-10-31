@@ -1238,6 +1238,7 @@ func _on_add_character_pressed() -> void:
 		if c.role == role:
 			count += 1
 	var rig := scene.add_character(id, "%s %d" % [role, count + 1] if count > 0 else role, role)
+	rig.set_gi_visible(true)
 	rig.position = Vector3(0.6 * (scene.characters.size() - 2), 0, 0.5)
 	rig.rotation.y = PI
 	controller.select(rig, "")

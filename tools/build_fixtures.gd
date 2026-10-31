@@ -67,7 +67,7 @@ func reset(ids: Array = [["tori", "Tori", "Tori"], ["uke1", "Uke", "Uke"]]) -> v
 		scene.remove_character(c.character_id)
 	await settle()
 	for entry in ids:
-		scene.add_character(entry[0], entry[1], entry[2])
+		scene.add_character(entry[0], entry[1], entry[2]).set_gi_visible(true)
 	await settle()
 
 

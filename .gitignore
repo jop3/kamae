@@ -7,3 +7,5 @@ tests/out/*.json
 tests/out/**
 !tests/out/.gdignore
 build/
+.claude/worktrees/
+techniques/build/

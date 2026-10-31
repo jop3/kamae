@@ -5,7 +5,10 @@ extends Node3D
 ## the Skeleton3D, the body mesh and a per-instance skin material.
 
 const MANNEQUIN_PATH := "res://assets/characters/mannequin.glb"
+## Skin, iris, brow, lash and hair images for the realistic look (MakeHuman CC0, see LICENSE.md).
+const TEXTURES := "res://assets/characters/textures/"
 static var _cached_scene: PackedScene
+static var _textures := {}
 
 var character_id: String = ""
 var display_name: String = ""
@@ -13,6 +16,15 @@ var role: String = "Other"  # Tori | Uke | Other
 var skeleton: Skeleton3D
 var body: MeshInstance3D
 var skin_material: StandardMaterial3D
+## The figure's identification colour: the skin itself in the mannequin look, the belt and the
+## panel's swatch in the realistic one (spec §5.1's colour cue, kept once the skin is real).
+var id_color := Color(0.8, 0.8, 0.8)
+## How the figure looks (see set_appearance): "look" realistic | mannequin, "skin", "hair", "eyes".
+var appearance := {}
+## Eyes, brows and lashes, shown in the realistic look only.
+var face_parts: Array[MeshInstance3D] = []
+## Hair style name -> its mesh; at most one is shown.
+var hair_meshes := {}
 var fingers: FingerCurl
 var arm_bridge: ArmBridge
 ## The white gi (spec §7.1), built on first use and toggled per character; saved with the pose.
@@ -86,11 +98,18 @@ func setup() -> void:
 	var mannequin := load_mannequin_scene().instantiate()
 	add_child(mannequin)
 	skeleton = mannequin.find_children("*", "Skeleton3D", true, false)[0]
-	body = mannequin.find_children("*", "MeshInstance3D", true, false)[0]
+	for mi in mannequin.find_children("*", "MeshInstance3D", true, false):
+		if mi.name == "Body":
+			body = mi
+		elif String(mi.name).begins_with("Hair_"):
+			hair_meshes[String(mi.name).trim_prefix("Hair_")] = mi
+		else:
+			face_parts.append(mi)
 	skin_material = StandardMaterial3D.new()
 	skin_material.roughness = 0.9
 	body.material_override = skin_material
 	set_skin_color(Color(0.8, 0.8, 0.8))
+	set_appearance(Palette.appearance_for_index(0))
 	_solved_poses.resize(skeleton.get_bone_count())
 	_cache_solved_poses()          # seed with the rest pose so limbs can be built against it
 	skeleton.skeleton_updated.connect(_cache_solved_poses)
@@ -177,9 +196,111 @@ func limb_for_bone(bone_name: String) -> String:
 
 
 func set_skin_color(color: Color) -> void:
-	skin_material.albedo_color = color
+	id_color = color
+	if appearance.get("look", "mannequin") == "mannequin":
+		skin_material.albedo_color = color
 	if gi:
 		gi.set_belt_color(color)   # the belt follows the character colour (spec §7.1)
+
+
+## Sets how the figure looks. Keys, each optional (missing ones keep their current value):
+##   look  "realistic" (textured skin, eyes, brows, hair) or "mannequin" (one flat colour)
+##   skin  a texture under textures/ without its prefix: "middleage_caucasian_male", …
+##   hair  a style exported in the GLB ("short02", "short04", "short01", "ponytail01", "bob02") or "none"
+##   hair_color  an optional tint multiplied into the hair texture, "#rrggbb"
+##   eyes  "brown", "blue", "grey", "green"
+func set_appearance(a: Dictionary) -> void:
+	for k in a:
+		appearance[k] = a[k]
+	var real: bool = appearance.get("look", "realistic") == "realistic"
+	if real:
+		skin_material.albedo_color = Color.WHITE
+		skin_material.albedo_texture = _texture("skin_%s.jpg" % appearance.get("skin", "middleage_caucasian_male"))
+		skin_material.roughness = 0.62
+		skin_material.metallic_specular = 0.35
+		# A soft rim stands in for the light that scatters through skin, which the
+		# Compatibility renderer does not model; without it the skin reads as painted plaster.
+		skin_material.rim_enabled = true
+		skin_material.rim = 0.25
+		skin_material.rim_tint = 0.6
+	else:
+		skin_material.albedo_texture = null
+		skin_material.albedo_color = id_color
+		skin_material.roughness = 0.9
+		skin_material.metallic_specular = 0.5
+		skin_material.rim_enabled = false
+	for mi in face_parts:
+		mi.visible = real
+		if mi.material_override == null:
+			mi.material_override = _part_material(String(mi.name))
+	var eyes := _find_part("Eyes")
+	if eyes:
+		eyes.material_override.albedo_texture = _texture("eye_%s.png" % appearance.get("eyes", "brown"))
+	var style: String = appearance.get("hair", "none")
+	for h in hair_meshes:
+		var mi: MeshInstance3D = hair_meshes[h]
+		mi.visible = real and h == style
+		if mi.visible:
+			if mi.material_override == null:
+				mi.material_override = _cutout_material("hair_%s.png" % h)
+			mi.material_override.albedo_color = Color.html(appearance.get("hair_color", "#ffffff"))
+
+
+func _find_part(part: String) -> MeshInstance3D:
+	for mi in face_parts:
+		if mi.name == part:
+			return mi
+	return null
+
+
+func _part_material(part: String) -> StandardMaterial3D:
+	match part:
+		"Eyes":
+			# The eye mesh has the eyeball and, in front of it, a cornea whose part of the image
+			# is fully transparent: cut out, it shows the iris; drawn opaque, the eyes are black.
+			var m := StandardMaterial3D.new()
+			m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
+			m.alpha_scissor_threshold = 0.5
+			m.roughness = 0.2
+			m.metallic_specular = 0.7
+			return m
+		"Eyebrows":
+			return _cutout_material("eyebrow001.png")
+		"Eyelashes":
+			return _cutout_material("eyelashes01.png")
+	return StandardMaterial3D.new()
+
+
+## Hair, brows and lashes are cards with an alpha image. Alpha scissor with antialiasing (alpha to
+## coverage under the project's MSAA) keeps them sorted correctly against each other and the gi,
+## which blended transparency does not.
+func _cutout_material(file: String) -> StandardMaterial3D:
+	var m := StandardMaterial3D.new()
+	m.albedo_texture = _texture(file)
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
+	m.alpha_scissor_threshold = 0.4
+	m.alpha_antialiasing_mode = BaseMaterial3D.ALPHA_ANTIALIASING_ALPHA_TO_COVERAGE
+	m.cull_mode = BaseMaterial3D.CULL_DISABLED
+	m.roughness = 0.75
+	m.metallic_specular = 0.3
+	return m
+
+
+## Images are loaded from the file at runtime, like the GLB, with mipmaps: a 2K skin seen at a
+## few hundred pixels shimmers in a video without them, and the importer's defaults do not make them.
+static func _texture(file: String) -> Texture2D:
+	if _textures.has(file):
+		return _textures[file]
+	# Read as bytes rather than with Image.load_from_file, which warns about every file the
+	# editor has also imported; export_presets.cfg ships the files themselves for an export.
+	var bytes := FileAccess.get_file_as_bytes(TEXTURES + file)
+	var img := Image.new()
+	var err := img.load_jpg_from_buffer(bytes) if file.ends_with(".jpg") else img.load_png_from_buffer(bytes)
+	assert(err == OK and not img.is_empty(), "Could not load texture %s" % file)
+	img.generate_mipmaps()
+	var tex := ImageTexture.create_from_image(img)
+	_textures[file] = tex
+	return tex
 
 
 ## Dresses or undresses the character. The gi is built the first time it is asked for.
@@ -195,7 +316,7 @@ func set_gi_visible(on: bool) -> void:
 
 
 func get_skin_color() -> Color:
-	return skin_material.albedo_color
+	return id_color
 
 
 func bone_names() -> PackedStringArray:

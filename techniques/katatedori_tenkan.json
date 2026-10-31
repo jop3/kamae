@@ -1,0 +1,65 @@
+{
+  "name": "Katatedori Tenkan",
+  "description": "Gyaku hanmi katatedori: Uke's left hand takes Tori's right wrist. Tori steps in to Uke's left side with the right foot (irimi), then turns 180 degrees on that foot (tenkan) so both face the same way, the held hand extended in front at hip height, leading Uke forward.",
+  "camera": "Side",
+  "phases": [
+    {
+      "name": "Grepp",
+      "hold": 0.6,
+      "do": [
+        {
+          "attack": "katatedori"
+        }
+      ]
+    },
+    {
+      "name": "Irimi",
+      "transition": 0.6,
+      "hold": 0.1,
+      "do": [
+        {
+          "step": "tori.Right",
+          "to": "uke1.LeftFoot",
+          "offset": [
+            -0.18,
+            0.05
+          ],
+          "turn": -30,
+          "weight": 0.75
+        }
+      ]
+    },
+    {
+      "name": "Tenkan",
+      "transition": 0.8,
+      "hold": 1.0,
+      "do": [
+        {
+          "pivot": "tori",
+          "foot": "Right",
+          "deg": 180
+        },
+        {
+          "hand": "tori.Right",
+          "at": [
+            0.05,
+            -0.3,
+            0.38
+          ]
+        },
+        {
+          "hand": "tori.Left",
+          "at": [
+            -0.05,
+            -0.45,
+            0.15
+          ]
+        },
+        {
+          "bend": "uke1.Spine",
+          "forward": 12
+        }
+      ]
+    }
+  ]
+}

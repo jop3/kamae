@@ -1,0 +1,241 @@
+{
+  "name": "Katatedori Tenkan Kokyunage",
+  "description": "Tsuzuki waza 1 (Michael Winter): gyaku hanmi katatedori, Uke's left hand on Tori's right wrist. Tori enters beside Uke's front foot and turns tenkan so both face the same way, raises the held hand up past the face, which lifts Uke's balance up and back, then turns in toward Uke and cuts down behind him; Uke falls backward (ushiro ukemi) and rolls up onto one knee.",
+  "source": "Aikido Tsuzuki Waza, Michael Winter und Schueler (uploaded clip, not in the repository); 'ref' is each phase's time in that clip, teacher's repetition",
+  "camera": "Side",
+  "characters": [
+    {
+      "id": "tori",
+      "name": "Tori",
+      "role": "Tori",
+      "gi": true,
+      "hakama": true
+    },
+    {
+      "id": "uke1",
+      "name": "Uke",
+      "role": "Uke",
+      "gi": true
+    }
+  ],
+  "phases": [
+    {
+      "name": "Grepp",
+      "hold": 0.4,
+      "do": [
+        {
+          "attack": "katatedori"
+        }
+      ],
+      "ref": 10.9
+    },
+    {
+      "name": "Irimi",
+      "transition": 0.4,
+      "hold": 0.0,
+      "do": [
+        {
+          "step": "tori.Right",
+          "to": "uke1.LeftFoot",
+          "offset": [
+            -0.18,
+            0.05
+          ],
+          "turn": -30,
+          "weight": 0.75
+        }
+      ],
+      "ref": 11.1
+    },
+    {
+      "name": "Tenkan",
+      "transition": 0.5,
+      "hold": 0.1,
+      "do": [
+        {
+          "pivot": "tori",
+          "foot": "Right",
+          "deg": 180
+        },
+        {
+          "hand": "tori.Right",
+          "at": [
+            0.05,
+            -0.3,
+            0.38
+          ]
+        },
+        {
+          "hand": "tori.Left",
+          "at": [
+            -0.05,
+            -0.45,
+            0.15
+          ]
+        },
+        {
+          "bend": "uke1.Spine",
+          "forward": 12
+        }
+      ],
+      "ref": 11.5
+    },
+    {
+      "name": "Furikaburi",
+      "transition": 0.5,
+      "hold": 0.1,
+      "do": [
+        {
+          "straighten": "uke1.Spine"
+        },
+        {
+          "hand": "tori.Right",
+          "at": [
+            0.1,
+            0.42,
+            0.22
+          ]
+        },
+        {
+          "lean": "uke1",
+          "forward": -8
+        }
+      ],
+      "ref": 12.0
+    },
+    {
+      "name": "Kake",
+      "transition": 0.4,
+      "hold": 0.1,
+      "allow_short": true,
+      "do": [
+        {
+          "step": "tori.Left",
+          "by": [
+            0.25,
+            0.3
+          ],
+          "turn": -60,
+          "weight": 0.6,
+          "body_turn": -60
+        },
+        {
+          "drop_hips": "tori",
+          "m": 0.06
+        },
+        {
+          "drop_hips": "uke1",
+          "m": 0.12
+        },
+        {
+          "lean": "uke1",
+          "forward": -32
+        },
+        {
+          "bend": "uke1.Chest",
+          "forward": -15
+        },
+        {
+          "bend": "uke1.Neck",
+          "forward": 20
+        },
+        {
+          "hand": "tori.Right",
+          "at": [
+            0.22,
+            -0.12,
+            0.42
+          ]
+        },
+        {
+          "hand": "tori.Left",
+          "at": [
+            -0.15,
+            -0.2,
+            0.3
+          ]
+        }
+      ],
+      "ref": 12.25
+    },
+    {
+      "name": "Ukemi",
+      "transition": 0.45,
+      "hold": 0.0,
+      "allow_short": true,
+      "do": [
+        {
+          "release": "uke1"
+        },
+        {
+          "lean": "uke1",
+          "forward": 0
+        },
+        {
+          "move": "uke1",
+          "by": [
+            0.0,
+            -0.45
+          ]
+        },
+        {
+          "ukemi": "uke1",
+          "kind": "backward",
+          "t": 0.35
+        }
+      ],
+      "ref": 12.5
+    },
+    {
+      "name": "Rulle",
+      "transition": 0.45,
+      "hold": 0.0,
+      "allow_short": true,
+      "do": [
+        {
+          "move": "uke1",
+          "by": [
+            0.0,
+            -0.45
+          ]
+        },
+        {
+          "ukemi": "uke1",
+          "kind": "backward",
+          "t": 0.7
+        }
+      ],
+      "ref": 13.0
+    },
+    {
+      "name": "Upp",
+      "transition": 0.5,
+      "hold": 1.0,
+      "allow_short": true,
+      "do": [
+        {
+          "move": "uke1",
+          "by": [
+            0.0,
+            -0.3
+          ]
+        },
+        {
+          "stand": "uke1"
+        },
+        {
+          "kneel": "uke1",
+          "kind": "kiza"
+        },
+        {
+          "stand": "tori"
+        },
+        {
+          "hanmi": "tori",
+          "front": "Right"
+        }
+      ],
+      "ref": 13.8
+    }
+  ]
+}
