@@ -258,6 +258,9 @@ details summary:focus-visible { outline: 2px solid var(--accent); outline-offset
 .stage canvas { display: block; width: 100%; height: 100%; outline: none; }
 .stage .note { position: absolute; right: 8px; bottom: 8px; font: 400 11px/1.3 var(--mono); color: #4a5160;
   background: rgba(255,255,255,.75); padding: 3px 6px; border-radius: 3px; pointer-events: none; }
+.stage .phase-label { position: absolute; left: 10px; top: 8px; font: 700 18px/1.2 var(--display); color: #1b2130;
+  background: rgba(255,255,255,.7); padding: 2px 8px; border-radius: 3px; pointer-events: none; }
+.stage .phase-label:empty { display: none; }
 .stage .loading { position: absolute; inset: 0; display: grid; place-items: center; font: 500 14px/1.4 var(--body); color: #3a4150; }
 .vbar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; margin-top: 8px; font: 400 12px/1 var(--mono); }
 .vbar button, .vbar select { padding: 5px 9px; border: 1px solid var(--rule); border-radius: 6px; background: var(--paper);

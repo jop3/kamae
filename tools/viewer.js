@@ -32,7 +32,8 @@ function buildUI() {
   const canvas = el('canvas', { tabindex: '0', 'aria-label': '3D view of the technique: drag to turn, scroll to zoom, right-drag to move' });
   const loading = el('div', { class: 'loading', text: 'Loading the figures…' });
   const note = el('div', { class: 'note', text: 'drag: turn · scroll: zoom · right-drag: move' });
-  const stage = el('div', { class: 'stage' }, [canvas, loading, note]);
+  const label = el('div', { class: 'phase-label', 'aria-live': 'polite' });
+  const stage = el('div', { class: 'stage' }, [canvas, loading, note, label]);
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
   renderer.shadowMap.enabled = true;
@@ -99,7 +100,7 @@ function buildUI() {
     const w = stage.clientWidth, h = stage.clientHeight;
     if (w && h) { renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix(); }
   }).observe(stage);
-  return { stage, bar, canvas, renderer, scene, camera, controls, play, scrub, time, loading, speed };
+  return { stage, bar, canvas, renderer, scene, camera, controls, play, scrub, time, loading, speed, label };
 }
 
 function loadFigure(file) {
@@ -216,6 +217,8 @@ function setTime(t) {
   let on = 0;
   chips.forEach((b, k) => { if (state.t + 0.02 >= parseFloat(b.dataset.t)) on = k; });
   chips.forEach((b, k) => b.classList.toggle('on', k === on));
+  const name = chips[on]?.querySelector('.pname')?.textContent || '';
+  if (ui.label.textContent !== name) ui.label.textContent = name;
 }
 
 function centroid(out) {
