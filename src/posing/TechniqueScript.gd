@@ -398,10 +398,12 @@ func _refit(m: Dictionary) -> void:
 			var hand: Vector3 = _rig(p[0]).bone_world_transform(grip.hand + "Hand").origin
 			along = clampf((hand - start).dot(end - start) / maxf((end - start).length_squared(), 1e-6), 0.0, 1.0)
 		var hand_side: String = grip.hand
+		var had: Transform3D = grip.offset
 		director._remove(grip)
 		await st.settle(1)
 		await st.grab(p[0], hand_side, target_id, bone, Vector3.ZERO, along, m.get("curl", 0.6),
-			m.get("skews", [0.0, 30.0, -30.0, 45.0, -45.0, 60.0, -60.0, 90.0, -90.0]))
+			m.get("skews", [0.0, 30.0, -30.0, 45.0, -45.0, 60.0, -60.0, 90.0, -90.0]),
+			null if m.get("free", false) else had)
 
 
 ## The hand's world orientation for "point" (where the fingers point) and "palm" (which way the

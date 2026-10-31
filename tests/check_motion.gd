@@ -82,15 +82,21 @@ func _initialize() -> void:
 	await physics_frame
 	var only := OS.get_environment("MOTION_SEQ")
 	var verbose := OS.get_environment("MOTION_VERBOSE") == "1"
-	for f in _files(SEQS):
+	# MOTION_SEQS_DIR / MOTION_POSES_DIR point this at a built technique script
+	# (tools/technique.sh does), and MOTION_REPORT=1 reports the frames instead of judging them
+	# against OUTSTANDING, which is for the committed techniques only.
+	var seqs_dir := OS.get_environment("MOTION_SEQS_DIR") if OS.get_environment("MOTION_SEQS_DIR") != "" else SEQS
+	var poses_dir := OS.get_environment("MOTION_POSES_DIR") if OS.get_environment("MOTION_POSES_DIR") != "" else POSES
+	var report := OS.get_environment("MOTION_REPORT") == "1"
+	for f in _files(seqs_dir):
 		var slug: String = f.get_basename()
 		if only != "" and slug != only:
 			continue
-		var seq := Sequence.load(SEQS.path_join(f))
+		var seq := Sequence.load(seqs_dir.path_join(f))
 		if seq == null:
 			check(false, "%s loads" % f)
 			continue
-		var missing: Array = player.load_sequence(seq, POSES)
+		var missing: Array = player.load_sequence(seq, poses_dir)
 		if not missing.is_empty():
 			check(false, "%s names poses that are saved (missing %s)" % [slug, missing])
 			continue
@@ -110,6 +116,13 @@ func _initialize() -> void:
 				bad.append("t=%.2f %s" % [t, "; ".join(probs)])
 				if verbose:
 					print("      ", bad[-1])
+		if report:
+			print("MOTION %s: %d of %d frames not plausible" % [slug, bad.size(), int(round(seq.duration() * FPS)) + 1])
+			for line in bad.slice(0, 8):
+				print("    ", line)
+			if bad.size() > 8:
+				print("    and %d more frames" % (bad.size() - 8))
+			continue
 		var budget: int = OUTSTANDING.get(slug, 0)
 		var detail := ""
 		if bad.size() > budget:

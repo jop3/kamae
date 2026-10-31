@@ -191,6 +191,10 @@ func _apply_visibility() -> void:
 	if hakama:
 		hakama.visible = _hakama_on
 		hakama_knot.visible = _hakama_on and _dressed
+	# What shows of the trousers under a hakama is seen through its side openings, inside the
+	# cloth, where no light reaches; lit like the jacket it read as a white hole in the hakama.
+	if trouser_material:
+		trouser_material.albedo_color = WHITE * Color(0.38, 0.38, 0.40) if _hakama_on else WHITE
 
 
 # ---------------------------------------------------------------- cut

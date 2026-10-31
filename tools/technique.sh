@@ -3,7 +3,7 @@
 # and a contact sheet of every phase, all under techniques/build/<slug>/.
 #   GODOT=/path/to/godot tools/technique.sh techniques/katatedori_tenkan.json [--no-video]
 # SKIP_BUILD=1 re-renders the last build; REF_VIDEO=clip.mp4 adds a video-vs-render comparison
-# for phases that carry a "ref" time.
+# for phases that carry a "ref" time. MOTION=0 skips the frame-by-frame check of the blends.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 GODOT="${GODOT:-godot}"
@@ -38,6 +38,12 @@ if command -v ffmpeg >/dev/null; then
   for i in $(seq 0 $((n-1))); do filter+="[r$i]"; done
   ffmpeg -v error -y "${args[@]}" -filter_complex "${filter}vstack=inputs=$n" "$dir/contact_sheet.png"
   echo "contact sheet: $dir/contact_sheet.png"
+fi
+# The frames between the poses, checked like the poses (tests/check_motion.gd): a limb that
+# sweeps through a body on the way from one phase to the next shows here and nowhere else.
+if [ "${MOTION:-1}" = 1 ]; then
+  MOTION_REPORT=1 MOTION_SEQS_DIR="$(dirname "$out")" MOTION_POSES_DIR="$dir/poses" \
+    timeout 900 "$GODOT" --headless -s tests/check_motion.gd 2>&1 | sed -n '/^MOTION/,/^RESULT/p' | grep -v "^RESULT" | tee "$dir/motion.txt"
 fi
 if [ "$video" = 1 ]; then
   rm -rf "$dir/frames"; mkdir -p "$dir/frames"

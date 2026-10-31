@@ -9,7 +9,9 @@ const FORMAT := 1
 const MIN_STEPS := 2
 ## The spec asked for 2-5 poses. A technique that ends in a fall needs more than five: the throw
 ## itself is four, and going down, over and back up is three more.
-const MAX_STEPS := 8
+## Technique scripts route a movement through waypoints (a foot round the partner's foot, a
+## body round an arm), each a step held for no time, so the limit is wider than the handout needs.
+const MAX_STEPS := 16
 const DEFAULT_PHASES := ["Grepp", "Kuzushi", "Kake"]
 
 var name: String = ""
