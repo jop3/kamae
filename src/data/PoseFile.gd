@@ -136,6 +136,7 @@ static func _assemble(scene: PosingScene, director: GripDirector, camera, name: 
 			"skin_color": "#" + rig.get_skin_color().to_html(false),
 			"visible": rig.visible,
 			"gi": rig.gi_visible,
+			"hakama": rig.hakama_visible,
 			"appearance": rig.appearance.duplicate(),
 			"root": {"pos": vec_to_array(rig.position), "yaw": rig.rotation.y,
 				"pitch": rig.rotation.x, "roll": rig.rotation.z},
@@ -195,6 +196,7 @@ static func apply(data: Dictionary, scene: PosingScene, director: GripDirector, 
 			rig.set_skin_color(Color.html(c["skin_color"]))
 		rig.visible = c.get("visible", true)
 		rig.set_gi_visible(c.get("gi", false))
+		rig.set_hakama_visible(c.get("hakama", false))   # absent from files older than the hakama
 		# A file written before the realistic figures keeps the look the scene gave this figure.
 		if c.get("appearance") is Dictionary:
 			rig.set_appearance(c["appearance"])

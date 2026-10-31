@@ -12,7 +12,8 @@ where the work stands, how to run it, and what the next session should pick up.
 | `claude/handoff-continuation-8iw00t` | M3W weapons, M4 save/load, camera presets, CI workflow (see "Follow-up session" below) | PR #4 merged |
 | `claude/project-continuation-46gatk` | CI fix (absolute paths in tests), undo for close-the-gap, roll for the second hand | merged |
 | … | one branch per session since; each session's section below names what it did | merged |
-| `claude/continuing-work-g2k02k` | the fist rule in every search, every weapon hold clear (2026-09-16 below) | this branch |
+| `claude/continuing-work-g2k02k` | the fist rule in every search, every weapon hold clear (2026-09-16 below) | merged |
+| `claude/aikido-technique-animation-ttq5iv` | realistic people, the hakama, technique scripts, techniques from video (2026-10-31 below) | this branch |
 
 Milestones done: **M0** project and character, **M1** click-to-select FK posing with a gizmo and PNG
 export, **M2** IK arms and legs with finger curls, **M3** grip attachments. Next up is **M3W**
@@ -100,7 +101,7 @@ settled; what remains is building it.
 CC0 character committed to the repo rather than Mixamo; Linux primary; MP4 via ffmpeg with an AVI
 fallback; JSON rather than `.tres`; flat background by default with transparent available; humanoid
 bone names; Compatibility renderer; 1–5 characters with per-character skin colour; no hakama, with the
-white gi deferred to M9; grip targets abstracted over bones and weapons from M3.
+white gi deferred to M9 (a hakama was added on request on 2026-10-31, off by default); grip targets abstracted over bones and weapons from M3.
 
 ## Still open with the instructor
 
@@ -1061,3 +1062,121 @@ rolled holds is not.
 3. Ushiro ryotedori zenponage from the catalogue, if a way is found that keeps the Tenkan pose.
 4. Katatedori shihonage's kake and kuzushi, and where Uke's forearm goes as the grip turns it.
 Bokken and jo attacks are still not in the catalogue.
+
+## Session 2026-10-31: the hakama
+
+Asked for: a black hakama for Tori, toggled per character apart from the gi, saved with the pose,
+pleated, from the waist to the ankle bone, and holding up through a step, bent knees, seiza and a
+roll. It lives in `Gi.gd` (the "hakama" section) and is built the first time it is asked for.
+
+- **Shape.** Not cut from the body like the gi: cloth this wide has nothing to do with the skin
+  under it. Each leg is its own tube, a "D" in section — a flat inner wall on the midline and a
+  superellipse round the outside — half the waist at the top (just over the belt in front, higher
+  at the back) and flaring to the hem at the ankle bone (`HAKAMA_WAIST`, `HAKAMA_HEM`). The body,
+  the jacket, the lapel and the trousers are only *measured* (`_hakama_room`): per height and
+  angle the section grows until it clears them by 1.2 cm, spread and hung like the jacket's skirt
+  so it does not trace a lapel's edge. The two legs read as one skirt while standing and part
+  as a divided skirt when the legs do.
+- **Details that make it read as a hakama.** Knife pleats as geometry, a ramp in the radius
+  ending in a step at the same angle (five in front, three on the character's right and two on
+  the left; one each side of the centre back), darkened deep in each fold by vertex colour
+  (black cloth hides geometry). The character's right panel reaches 4.5 cm past the midline,
+  lifted over the left one (`HAKAMA_OVERLAP`), front and back: without it a step opened a slit up
+  the middle to the belt. Side openings (hiwaki, `SLIT_*`), the gi showing through them. A himo
+  band over the top edge with a lid in to the waist, a koshi-ita leaning on the small of the back,
+  and the belt's knot (in the belt's colour, so still the identification cue) in front of the
+  himo; the rest of the belt is hidden under it. The gi trousers stay on under it.
+- **Motion.** Skinned with the body's binds, each tube to its own leg: hips, then thigh, then
+  shin (`HAKAMA_WEIGHTS_*`), with the handover heights depending on the side of the tube. The
+  front goes to the thigh early, or a knee raised in seiza or a roll comes through it; the back
+  stays with the hips longer, or the seat comes through when the thighs swing forward; the knee's
+  handover spans 20 cm, or a bent knee stretched the front 4.5× in hanmi.
+- **API and files.** `CharacterRig.set_hakama_visible(bool)` / `hakama_visible` (the rig only
+  builds the Gi node when needed; the hakama is measured over the gi, so the gi is built hidden
+  if only the hakama is asked for). `"hakama": true|false` next to `"gi"` in each character of
+  a pose file, optional on load (old files load with none). A **hakama** checkbox next to **gi**.
+- **Tests.** `tests/test_gi.gd` `_hakama`: toggles (alone and over the gi, what hides), save and
+  load including a file without the flag, skinned to each leg, hem at the ankle bone above the
+  toes, top over the belt, knees 11 cm inside; and in standing rest, a deep hanmi (front knee
+  51°), seiza and mid-roll: no skin or trouser vertex of the legs and seat shows (a physics ray
+  out along its normal must hit cloth; the mat side is skipped: 0, 4 of 2175 at the side slits,
+  6 of 1868), nothing stretched more than 2.4× in hanmi, and no cloth further from the body than
+  standing plus 6–10 cm (a torn-off corner would be). `--demo-hakama <path>` renders standing
+  (front, side, back), hanmi and seiza (front, side) and an early roll (side); all eight are in
+  `tests/run.sh` and the goldens (`hakama_*`). Look at `tests/out/demo/hakama_*.png`.
+
+**Known limits.** No cloth simulation: linear skinning only. In seiza the shin half of each tube
+folds under the thigh half, and the back panel goes down through the mat (hidden by the mat, so it
+would show in a transparent export seen from below the floor only); the front over the knees is a
+stretched sheet, which is roughly what cloth over a knee does. In a roll the hakama follows the
+legs instead of falling with gravity. A very deep stance, the rear thigh far behind, would bring the
+back of the thigh out through the back panel, which stays with the hips down to 0.82–0.56 m; the
+tested hanmi is 40 cm deep. The waist is sized over the gi, so without the gi it stands a little off
+the bare waist. The A-pose rest arms are outside it; hands posed into the hakama are not checked.
+
+
+## Session 2026-10-31 (same day): realistic people, techniques as data, techniques from video
+
+The goal changed this session, from the instructor's own posing tool to: realistic-looking
+people that Claude can pose into **any** technique asked for — from a description or from a
+video — and animate. Decisions taken with the instructor: stay on Godot (the joint, grip,
+stance and fall work is the hard part and transfers; a Blender/Cycles renderer would be
+photoreal but minutes per frame on these CPU-only machines); textured MakeHuman people rather
+than photoreal; everyone in a white gi, Tori also in a hakama; videos are uploaded clips.
+
+**The figures.** `tools/generate_mannequin.py` now adds MakeHuman CC0 eyes, brows, lashes and
+five hair styles to the GLB as proxies weighted from the body. The body mesh and skeleton came
+out byte-identical (checked by hashing the glTF accessors), so no pose moved.
+`CharacterRig.set_appearance()` takes a skin texture, hair style and tint, and eye colour per
+character (`Palette.APPEARANCES` gives each index a different person), saved with the pose as
+`appearance`; `look: "mannequin"` brings back the flat colour. The identification colour stays
+on the belt and in the panel. Two traps: the eye image's alpha is what makes the cornea
+transparent (as a JPEG the eyes were solid black), and `Image.load_from_file` warns for every
+imported file, so textures are read as bytes. Lighting is a warm key, a cool fill, filmic
+tonemapping, a light grey background and a tatami-green mat; every committed pose, the default
+scene and the fixture builder now dress both figures in a gi and Tori in a hakama (the hakama
+itself is the section above).
+
+**Techniques as data.** `src/posing/TechniqueScript.gd` runs a JSON technique
+(`techniques/*.json`, reference `docs/technique-scripts.md`): characters and dress, then phases
+of moves — `attack` (the catalogue), `step` (by an offset, or *to* a bone of the partner),
+`pivot` (tenkan; the planted foot turns on its ball, which `Stance.pivot` alone does not),
+`place`/`move`/`lean`/`bend`/`hand`/`grab`/`release`/`ukemi`/`kneel`/`weapon`… All directions
+are `[right, up, forward]` in the figure's own frame, all turns positive to the left. Each phase
+saves a pose and the anatomy findings are printed per phase and written to `report.json`.
+`tools/technique.sh` builds and renders: stills, a contact sheet in phase order, an MP4
+(`techniques/build/<slug>/`, not committed). Things found while building the examples, all
+fixed in the interpreter: the gripper's walk-in to an unreachable grip walked Tori straight
+through Uke (it now stops 30 cm hip to hip and reports the shortfall); after a backward roll
+the Euler yaw flips by 180°, so "move back" moved Uke forward (headings are read from the
+sideways axis); `place` kept a fallen figure's height.
+
+**From video.** `tools/video_frames.sh` makes time-stamped contact sheets; a phase's `ref` time
+plus `REF_VIDEO=clip.mp4` puts the clip's frame beside each render
+(`compare_with_video.png`). Workflow in `docs/video-to-technique.md`. The instructor's clip
+("Aikido Tsuzuki Waza", Michael Winter und Schüler, 102 s, not committed) is one exercise,
+katatedori tenkan into kokyunage with a backward fall, repeated; the teacher's repetition at
+9.8–13.8 s became `techniques/katatedori_tenkan_kokyunage.json`, and its comparison sheet lines
+up phase by phase. `techniques/shomenuchi_iriminage.json` was written from a description only.
+
+**`CLAUDE.md`** is the short version of all of this for the next session.
+
+**Where the examples are still wrong** (each is a number to change in a script, not code):
+- Shomenuchi iriminage, Tenkan: Tori's left hand is 23 cm short of Uke's neck, and Tori's right
+  forearm passes through Uke's chest; Zanshin has Tori's leg through Uke.
+- Katatedori tenkan kokyunage: Uke's gripping wrist is past range from the tenkan on (the grip
+  turns with Tori's hand and nothing turns Uke's forearm with it), and the kake reads early.
+- The Front/Side camera presets are not the clip's camera; a comparison is easier to read with a
+  script-chosen camera (yaw, height, distance) — the next thing to add.
+
+**Next, in order.**
+1. A `camera` block in a technique script (and per phase), so renders can match a video's view.
+2. A `look` move (head and eyes toward the partner): faces now stare ahead, which is the most
+   obviously unreal thing left in a still.
+3. More techniques in `techniques/` for the kyu syllabus, each checked against a clip where one
+   exists; promote the good ones into `poses/`/`sequences/` (and so into the checks).
+4. Body builds: one body serves everyone. MakeHuman macros (gender, weight, height) change the
+   skeleton; poses are bone rotations plus IK targets, so they may transfer, but the joint
+   tables and every staging distance were measured on this body.
+5. Video rendering is Movie Maker under software GL: a 5 s technique takes about 1.5 minutes,
+   so iterate with `--no-video` and render the MP4 once the stills are right.

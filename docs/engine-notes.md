@@ -178,6 +178,12 @@ now asserts against all three, so a bad character cannot be exported silently.
   `MeshInstance3D.new()` does not, and setting `skin` alone is not enough. Without the path the
   mesh draws in its rest pose whatever the bones do, silently. `Gi` sets the path after adding
   the mesh under the skeleton; `tests/test_gi.gd` checks that it resolves.
+- **A double-sided material lights a wrongly wound face from behind.** With `CULL_DISABLED` every
+  triangle draws, so winding looks irrelevant, but the shader flips the normal of a face it sees
+  from the back: a mesh with correct explicit normals and the opposite winding renders its outside
+  nearly black. For an `ArrayMesh` with explicit normals the hakama's tubes are wound so that
+  `(b - a) × (c - a)` points *against* the normal; SurfaceTool's `generate_normals` follows the
+  winding of `Gi._quad` (as the belt does). The first hakama render was flat black for this.
 - **GDScript lambdas capture locals by value.** A callback that assigns to a local variable of the
   enclosing function changes only its own copy. Write into a Dictionary or Array instead.
 

@@ -343,6 +343,7 @@
 				}
 			},
 			"gi": true,
+			"hakama": true,
 			"id": "tori",
 			"ik": {
 				"LeftArm": {

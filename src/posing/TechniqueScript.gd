@@ -379,8 +379,7 @@ func _reset(chars: Array) -> void:
 		if c.has("appearance"):
 			r.set_appearance(c["appearance"])
 		r.set_gi_visible(c.get("gi", true))
-		if r.has_method("set_hakama_visible"):
-			r.call("set_hakama_visible", c.get("hakama", false))
+		r.set_hakama_visible(c.get("hakama", false))
 	await st.settle()
 	attack_origin = Transform3D.IDENTITY
 

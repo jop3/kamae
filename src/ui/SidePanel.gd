@@ -19,6 +19,7 @@ var _copy_to: OptionButton
 var _primary_uke: OptionButton
 var _char_visible: CheckBox
 var _char_gi: CheckBox
+var _char_hakama: CheckBox
 var _seq_camera: OptionButton
 var _contact_a: OptionButton
 var _contact_b: OptionButton
@@ -161,6 +162,12 @@ func setup(ctrl: PoseController, posing_scene: PosingScene, grip_director: GripD
 		if not _updating and controller.selected_rig:
 			controller.selected_rig.set_gi_visible(on))
 	name_row.add_child(_char_gi)
+	_char_hakama = CheckBox.new(); _char_hakama.text = "hakama"
+	_char_hakama.tooltip_text = "A black hakama, over the gi or on its own (saved with the pose)"
+	_char_hakama.toggled.connect(func(on: bool):
+		if not _updating and controller.selected_rig:
+			controller.selected_rig.set_hakama_visible(on))
+	name_row.add_child(_char_hakama)
 	var pose_row := HBoxContainer.new(); vb.add_child(pose_row)
 	var mirror := Button.new(); mirror.text = "Mirror pose"; mirror.tooltip_text = "Swap left and right on the selected character"
 	mirror.pressed.connect(func(): if controller.selected_rig: controller.mirror_pose(controller.selected_rig))
@@ -1224,6 +1231,8 @@ func _refresh_character_fields() -> void:
 	_char_visible.button_pressed = rig.visible if rig else true
 	if _char_gi:
 		_char_gi.button_pressed = rig.gi_visible if rig else false
+	if _char_hakama:
+		_char_hakama.button_pressed = rig.hakama_visible if rig else false
 	_updating = false
 
 
