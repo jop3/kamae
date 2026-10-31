@@ -315,7 +315,22 @@ function loop(now) {
   requestAnimationFrame(loop);
 }
 
-window.kamaeViewer = { open, close, seek: t => { state.playing = false; setTime(t); } };
+// For tools that look at a moment from a chosen side: degrees round from the side view and up
+// from level, metres from the figures.
+function orbit(yawDeg, pitchDeg, dist) {
+  if (!current) return;
+  frameView('side');
+  state.follow = false;
+  const c = centroid(new THREE.Vector3());
+  const off = ui.camera.position.clone().sub(ui.controls.target).setY(0).normalize();
+  off.applyAxisAngle(new THREE.Vector3(0, 1, 0), THREE.MathUtils.degToRad(yawDeg));
+  const p = THREE.MathUtils.degToRad(pitchDeg);
+  ui.controls.target.copy(c);
+  ui.camera.position.copy(c).addScaledVector(off, Math.cos(p) * dist).add(new THREE.Vector3(0, Math.sin(p) * dist, 0));
+  ui.controls.update();
+}
+
+window.kamaeViewer = { open, close, seek: t => { state.playing = false; setTime(t); }, orbit, frameView };
 
 for (const media of document.querySelectorAll('.media[data-figures]')) {
   for (const b of media.querySelectorAll('.mode')) {
