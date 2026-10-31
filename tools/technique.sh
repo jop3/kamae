@@ -61,6 +61,10 @@ if [ "${SMOOTH:-1}" = 1 ]; then
     timeout 900 "$GODOT" --headless -s tests/check_smooth.gd 2>&1 | grep -E '^(SMOOTH|FAIL)|^    t=' > "$dir/smooth.txt" || true
   grep -E '^(SMOOTH|FAIL)' "$dir/smooth.txt" || true
 fi
+# The 3D view in the gallery (tools/export_viewer.gd): the motion and the figures, under viewer/.
+if [ "${VIEWER:-1}" = 1 ]; then
+  timeout 900 "$GODOT" --headless -s tools/export_viewer.gd -- "$out" "$dir/poses" "$dir/viewer" --characters 2>&1 | grep -E "^motion:|SCRIPT ERROR" || true
+fi
 if [ "$video" = 1 ]; then
   rm -rf "$dir/frames"; mkdir -p "$dir/frames"
   timeout 900 $RUN --path . --write-movie "$dir/frames/f.png" --fixed-fps 30 -- --render-sequence "$out" --poses-dir "$dir/poses" 2>&1 | grep -E "SCRIPT ERROR|sequence rendered" || true

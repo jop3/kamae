@@ -1635,6 +1635,37 @@ check_motion records lowered: jo_dori 11 → 7, ikkyo 15 → 13, shihonage irimi
 ryotemochi 6 → 4, tachi_dori 30 → 25; zenponage and kumitachi unchanged. check_floor clean; every
 golden still unchanged.
 
+The four technique builds measured at the start, rebuilt (jerk m/s³, before → after): katatedori
+kaitennage 2138 → 1432, katatedori kotegaeshi 1247 → 713, katatedori tenkan 1449 → 307, ushiro
+ukemi roll 938 → 958 (a fall: unchanged by design). Frozen frames 33–54 % → 5–23 %. All 19 scripts
+were re-filmed (`tools/build_all.sh`); against the start-of-session code on the same poses, frames
+under the mat went down in most (tenkan kokyunage 40 → 11, shomenuchi ikkyo 37 → 5, morotedori
+kokyunage 33 → 0, the rolls' kiza 9 → 0) and up in two (yokomenuchi shihonage 36 → 39 but 4.9 →
+3.5 cm deep, ushiro ryotedori kotegaeshi 8 → 12, a planted foot at 2.2 cm). Plausibility per build is
+within a few frames either way; tenkan kokyunage (19 → 29) and shomenuchi ikkyo (22 → 29) are
+worse: a stepping leg passing through the partner's leg by more than the 8 cm MotionClearance may
+push, which wants routing, not pushing (below). Before/after films side by side were made for
+tenkan, kaitennage, kotegaeshi and the roll (from a worktree at the session's start; not committed).
+
+### The 3D view (same session, asked for while the films rendered)
+
+"It should be possible for the human watching a technique to zoom in, move the camera around, go
+forward slowly, backwards." The gallery page now has, per technique, **Film** or **3D**: three.js
+(r160 from jsdelivr) with orbit controls (drag to turn, scroll/pinch to zoom, right-drag to move),
+speeds 1×–⅒×, a frame back or on, previous/next phase, a scrubber, Side / Other side / End-on / Above
+views, Follow (keeps the figures centred), full screen, and the keys space, ←/→, shift-←/→, −/+, F.
+- `tools/export_viewer.gd` plays the sequence as the film does and writes every frame's solved pose
+  — per figure the skeleton's transform and every bone's rotation in its parent, read after the
+  solve — to `viewer/<slug>.motion.bin` (+ `.json` with names, frame rate, phases); with
+  `--characters` it also writes each figure as glTF (a clean skeleton and its visible meshes, not
+  the live rig with its IK and picking nodes). `tools/technique.sh` runs it (`VIEWER=0` skips).
+- `tools/slim_glb.py` re-encodes opaque textures as JPEG and drops what glTF cannot carry (the
+  cloth's triplanar weave and normal maps): 7.5 → 4 MB a figure. Both figures are the same in every
+  technique, so the gallery ships each once; a technique's motion is about 160 KB.
+- `tools/viewer.js` is inlined into the page by `tools/gallery.py` (`GALLERY_OUT`, `GALLERY_ONLY`
+  for a trial page). Between frames the bones are slerped, so slow motion is smooth. Not in 3D: the
+  cloth weave, and the hakama hem laid on the mat when kneeling (a Godot shader).
+
 **Still rough** (what the films and check_smooth show next):
 1. **An arm bending out of straight**: TwistFollow does nothing below 5° of flexion and the full twist
    above, so a nearly straight arm that starts to bend gets its whole twist (up to ~75°) in one frame
