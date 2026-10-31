@@ -49,6 +49,9 @@ func load_sequence(seq: Sequence, poses_dir: String) -> Array:
 ## up after the solve, so the blends between them can steer each joint from one keyframe's shape
 ## to the next (PoseBlend.steered_pole). A few frames per step; call it after loading, before
 ## playing or filming. Leaves the scene where the clock is.
+const PREPARE_FRAMES := 4
+
+
 func prepare() -> void:
 	solved = []
 	if sequence == null:
@@ -57,7 +60,7 @@ func prepare() -> void:
 	var found := []
 	for i in sequence.steps.size():
 		apply_time(sequence.step_start(i))
-		for _f in 4:
+		for _f in PREPARE_FRAMES:
 			await tree.process_frame
 		var per := {}
 		for rig in scene.characters:

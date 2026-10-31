@@ -103,6 +103,30 @@ static func child_args(sequence_path: String, poses_dir: String, movie_target: S
 	])
 
 
+## The render notes here which frames it drew while SequencePlayer.prepare showed each pose in
+## turn ("first last": frames first..last-1): the movie writer records every frame drawn.
+const PREPARE_FRAMES_FILE := "prepare_frames.txt"
+
+
+## Drops the frames the render drew before the film starts (PREPARE_FRAMES_FILE) and numbers the
+## rest on without a gap, so the encoder reads them as one run.
+static func drop_prepare_frames(frames_dir: String) -> void:
+	var note := frames_dir.path_join(PREPARE_FRAMES_FILE)
+	var text := FileAccess.get_file_as_string(note)
+	if text.strip_edges() == "":
+		return
+	var parts := text.strip_edges().split(" ")
+	var first := int(parts[0])
+	var last := int(parts[1])
+	for i in range(first, last):
+		DirAccess.remove_absolute(frames_dir.path_join("f%08d.png" % i))
+	var i := last
+	while FileAccess.file_exists(frames_dir.path_join("f%08d.png" % i)):
+		DirAccess.rename_absolute(frames_dir.path_join("f%08d.png" % i), frames_dir.path_join("f%08d.png" % (i - (last - first))))
+		i += 1
+	DirAccess.remove_absolute(note)
+
+
 static func ffmpeg_args(frames_dir: String, output: String) -> PackedStringArray:
 	return PackedStringArray([
 		"-y", "-framerate", str(FPS), "-i", frames_dir.path_join("f%08d.png"),
@@ -130,6 +154,7 @@ func _process(_delta: float) -> void:
 		return
 	if job["ffmpeg"]:
 		var out := []
+		drop_prepare_frames(job["frames_dir"])
 		var code := OS.execute("ffmpeg", ffmpeg_args(job["frames_dir"], job["output"]), out, true)
 		job["ok"] = code == 0 and FileAccess.file_exists(job["output"])
 		job["message"] = "MP4 written to %s" % job["output"] if job["ok"] else "ffmpeg failed (%d): %s" % [code, "".join(out).right(400)]

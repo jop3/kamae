@@ -56,6 +56,20 @@ fi
 if [ "$video" = 1 ]; then
   rm -rf "$dir/frames"; mkdir -p "$dir/frames"
   timeout 900 $RUN --path . --write-movie "$dir/frames/f.png" --fixed-fps 30 -- --render-sequence "$out" --poses-dir "$dir/poses" 2>&1 | grep -E "SCRIPT ERROR|sequence rendered" || true
+  # The frames drawn while the player looked at each pose before filming (prepare) are not film.
+  python3 - "$dir/frames" <<'PY'
+import os, sys
+d = sys.argv[1]; note = os.path.join(d, "prepare_frames.txt")
+if os.path.exists(note):
+    first, last = map(int, open(note).read().split()); n = last - first
+    for i in range(first, last):
+        p = os.path.join(d, "f%08d.png" % i)
+        if os.path.exists(p): os.remove(p)
+    i = last
+    while os.path.exists(os.path.join(d, "f%08d.png" % i)):
+        os.rename(os.path.join(d, "f%08d.png" % i), os.path.join(d, "f%08d.png" % (i - n))); i += 1
+    os.remove(note)
+PY
   if command -v ffmpeg >/dev/null; then
     ffmpeg -v error -y -framerate 30 -i "$dir/frames/f%08d.png" -c:v libx264 -pix_fmt yuv420p -crf 20 "$dir/$slug.mp4"
     rm -rf "$dir/frames"
