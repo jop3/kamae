@@ -1235,3 +1235,68 @@ technique, the frames not plausible were kaitennage 63/145, ushiro ryotedori kot
 kokyudosa 21/115, katatedori kotegaeshi 20/156 (`motion.txt` in each build lists them). They
 are almost all gripping wrists mid-transition and limbs brushing the partner during a turn;
 waypoint phases that refit their grips are the way to bring them down.
+
+## Session 2026-10-31 (afternoon): rolling and falling, and nothing through the tatami
+
+Asked for: "focus on rolling and falling. I saw a lot of clipping through the tatami in the
+videos", with ten uploaded ukemi clips (forward and backward rolls, breakfalls, from technique
+demonstrations; not committed). The clips were read at 1 and 6 fps (`tools/video_frames.sh`).
+
+**First, a measurement.** Nothing checked the floor. `tests/check_floor.gd` plays a sequence at
+the export frame rate, skins the body and the gi on the CPU with the solved pose, and reports the
+deepest vertex under the mat per frame; `tools/technique.sh` writes it to `floor.txt`, and
+`tests/run.sh` runs it on the committed sequences (an `OUTSTANDING` budget that may only shrink).
+Before this session, on the night's 14 builds: Uke's head **1.48 m** under the mat in the middle
+of kaitennage's roll (the whole body, a foot sticking out, in the video), 20 cm in morotedori
+kokyunage, Tori's hakama hem 5–14 cm in every technique, feet 3–8 cm during steps and pivots,
+fingertips and toes 2–13 cm; 40–151 frames per technique. The committed library: 21–70 frames.
+
+Five causes, each fixed where it starts:
+
+1. **A fall was blended about the feet.** The root is at the feet; the blend lerped its position
+   and the pitch, so between "on the shoulder, legs up" and "coming over" the body swung about
+   its feet through the floor. A blend into, through or out of a fall (`PoseBlend._fall_root`)
+   now moves the **hips** along the curve through the neighbouring steps, turns the body about
+   them, and sets the height so the lowest part of the trunk and legs keeps the clearance the
+   two poses have (measured from the pose alone, `_fk_lowest`, the same way at both ends, so a
+   keyframe is reached exactly). A falling figure's free arm is blended in the body's frame,
+   not across the room.
+2. **Getting up unrolled the roll.** After 252° of a forward roll, `stand` writes a pitch of 0,
+   and the blend went 252 → 0, backwards through the floor. `PoseBlend.continue_turn`: an
+   orientation is counted on the way the turn was going (252 → 360); a lean already written as
+   a count of turns (Ukemi's 0 → 360 in one step) is left alone.
+3. **The IK finishes what the blend can only guess.** Legs let go of an IK stance and hands put
+   down by IK are only known after the solve. `CharacterRig.keep_on_mat` (set by the blend for a
+   figure in a fall, strictly between two poses) rests the solved figure on the mat in
+   `skeleton_updated`: lifted out or lowered onto it, by its lowest point including fingertips,
+   toes, heel and the skull (`Ukemi.lowest_point`; the capsules alone miss the face by 4 cm and
+   the toes by 2–3).
+4. **Out-of-reach foot targets.** `Staging.feet_on_floor` met a foot hanging above the mat (hips
+   too high for the stance) by pushing its target down, pass after pass: saved poses — the
+   committed ones too — had leg targets up to 23 cm under the mat and out of reach, the leg
+   straight toward them. Every blend toward such a pose swept the foot through the tatami. The
+   staging now lowers the hips just enough for the leg to reach (`_within_reach_of_floor`; a
+   wide irimi step becomes the deep step it is) and saves a target where the foot is; the blend
+   pulls any old target in to the leg's reach (`PoseBlend.within_reach`) and keeps a foot's sole
+   off the mat while it turns (a pivot turns about the ball, the target is at the ankle).
+5. **The hakama hem** follows the shin (no cloth simulation), so a back leg in a deep stance,
+   kneeling or getting up put the back of the hem through the mat. It is drawn with a shader now
+   (`Gi.resting_on_mat`, StandardMaterial3D's triplanar cloth rewritten as a ShaderMaterial)
+   whose vertex function lays anything that reaches the mat on it; shadows follow. The eight
+   hakama goldens are unchanged (0.0 % of pixels).
+
+**The fall itself, from the clips.** A fall does not turn at an even rate. Going backward the
+body first goes *down* — a deep squat over the rear foot, sitting close to the heel — and only
+then rolls back; going forward it bends low and reaches to the mat before turning over.
+`Ukemi.pitch_deg` turns slowly through the first third (`FORWARD_START`, `BACKWARD_START`) and
+evenly after, so every existing keyframe (t 0.35, 0.4, 0.7, 0.75) is the same shape as before;
+a backward fall tucks at once (`TUCK_IN_BACKWARD`) with an extra squat (`SQUAT_HIP/KNEE`) that is
+gone by the time it rolls. Since a technique saves only a few shapes of a fall, the shapes
+between them came from a straight blend and never showed any of this: a pose now remembers the
+fall a figure is in (`"fall": {"kind", "t"}` per character, `CharacterRig.fall`, set by the
+`ukemi` move), and a blend between two poses of one fall (or from the pose before it, or into
+the stand or kneel after it) follows the fall's own course (`Ukemi.fall_span`, `blend_pitch`,
+`blend_tuck`: the fall at the blended `t`, plus what the two poses add to it, so both ends are
+exact). `tests/test_ukemi.gd` blends standing → 0.35 → 0.7 → standing for both rolls the way a
+technique does and checks every frame is on the mat (not under, not floating) and the poses are
+reached exactly.

@@ -143,6 +143,7 @@ static func _assemble(scene: PosingScene, director: GripDirector, camera, name: 
 			"bones": bones,
 			"ik": ik,
 			"fingers": fingers,
+			"fall": rig.fall.duplicate(),
 		})
 	var grips := []
 	if director:
@@ -195,6 +196,10 @@ static func apply(data: Dictionary, scene: PosingScene, director: GripDirector, 
 		if c.has("skin_color"):
 			rig.set_skin_color(Color.html(c["skin_color"]))
 		rig.visible = c.get("visible", true)
+		rig.keep_on_mat = false   # a saved pose is shown as saved
+		# Which fall the figure is in, and how far through it (Ukemi): what a blend into or out
+		# of this pose follows. Absent from files written before it, and for anyone on their feet.
+		rig.fall = c.get("fall", {}) if c.get("fall") is Dictionary else {}
 		rig.set_gi_visible(c.get("gi", false))
 		rig.set_hakama_visible(c.get("hakama", false))   # absent from files older than the hakama
 		# A file written before the realistic figures keeps the look the scene gave this figure.

@@ -20,6 +20,8 @@ $GODOT --headless --import >/dev/null 2>&1      # once, before anything else
    after it relative to Uke; one phase per moment a handout would show.
 2. `tools/technique.sh techniques/<slug>.json --no-video` (≈40 s). Read
    `techniques/build/<slug>/contact_sheet.png` and the problems printed per phase. Fix, rebuild.
+   `motion.txt` and `floor.txt` in the build list the video frames where a body is implausible
+   or anything of it is under the mat.
 3. When it reads right, build without `--no-video` for `techniques/build/<slug>/<slug>.mp4`
    (≈2–4 min). Send the user the contact sheet, the stills they want and the MP4.
 4. Commit the script (the build directory is not committed). To make it part of the tool's
@@ -32,7 +34,8 @@ page of all of them (`techniques/build/gallery/`).
 Things learned the hard way, all in `docs/technique-scripts.md`: use `where` instead of guessing
 from a camera; give a script a `view` that shows the key moment; `refit` a grip after the held
 arm turns; pins rest the hands (`hand` … `to`), never `grab`; for a backward fall Uke faces the
-way he falls from.
+way he falls from. A fall is phases of `ukemi` with rising `t` (0.35, then 0.7–0.75); the pose
+remembers the fall, and the video between its phases follows the fall's own course on the mat.
 
 Conventions that are easy to get wrong: directions are `[right, up, forward]` in the figure's
 own frame; turns are positive toward the figure's **left** (counter-clockwise from above);

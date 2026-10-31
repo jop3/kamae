@@ -3,7 +3,8 @@
 # and a contact sheet of every phase, all under techniques/build/<slug>/.
 #   GODOT=/path/to/godot tools/technique.sh techniques/katatedori_tenkan.json [--no-video]
 # SKIP_BUILD=1 re-renders the last build; REF_VIDEO=clip.mp4 adds a video-vs-render comparison
-# for phases that carry a "ref" time. MOTION=0 skips the frame-by-frame check of the blends.
+# for phases that carry a "ref" time. MOTION=0 skips the frame-by-frame check of the blends,
+# FLOOR=0 the frame-by-frame check that nothing goes under the mat (floor.txt).
 set -euo pipefail
 cd "$(dirname "$0")/.."
 GODOT="${GODOT:-godot}"
@@ -44,6 +45,13 @@ fi
 if [ "${MOTION:-1}" = 1 ]; then
   MOTION_REPORT=1 MOTION_SEQS_DIR="$(dirname "$out")" MOTION_POSES_DIR="$dir/poses" \
     timeout 900 "$GODOT" --headless -s tests/check_motion.gd 2>&1 | sed -n '/^MOTION/,/^RESULT/p' | grep -v "^RESULT" | tee "$dir/motion.txt"
+fi
+# Nothing of a body under the mat on any frame (tests/check_floor.gd): a fall blended badly, a
+# foot swept through the tatami on its way to a stance.
+if [ "${FLOOR:-1}" = 1 ]; then
+  FLOOR_REPORT=1 FLOOR_VERBOSE=1 FLOOR_SEQS_DIR="$(dirname "$out")" FLOOR_POSES_DIR="$dir/poses" \
+    timeout 900 "$GODOT" --headless -s tests/check_floor.gd 2>&1 | grep -E '^ *(FLOOR|t=)' | sed 's/^      /    /' > "$dir/floor.txt" || true
+  grep '^FLOOR' "$dir/floor.txt" || true
 fi
 if [ "$video" = 1 ]; then
   rm -rf "$dir/frames"; mkdir -p "$dir/frames"

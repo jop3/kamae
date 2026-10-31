@@ -95,6 +95,9 @@ func run(script: Dictionary, out_dir: String) -> Dictionary:
 		seq.view = script["view"]
 	for phase: Dictionary in script.get("phases", []):
 		var phase_name: String = phase.get("name", "Phase %d" % (seq.steps.size() + 1))
+		# A figure is in a fall in a phase that says so (an "ukemi" move), and in no other.
+		for r in scene.characters:
+			r.fall = {}
 		for move in phase.get("do", []):
 			await do_move(move)
 		if not phase.get("save", true):
@@ -163,6 +166,9 @@ func do_move(m: Dictionary) -> void:
 		await _stand_legs(r)
 		Stance.kneel(ctrl, r, Stance.Kneel.KIZA if m.get("kind", "seiza") == "kiza" else Stance.Kneel.SEIZA)
 		await st.settle(4)
+		if m.get("kind", "seiza") == "kiza":
+			Stance.toes_flat(r)
+			await st.settle(2)
 		Ukemi.ground(r)
 		await st.settle(2)
 	elif m.has("stand"):
@@ -226,7 +232,9 @@ func do_move(m: Dictionary) -> void:
 		r.rotation = Vector3(0.0, _heading(r), 0.0)
 		var kinds := {"forward": Ukemi.Kind.FORWARD, "backward": Ukemi.Kind.BACKWARD, "prone": Ukemi.Kind.PRONE}
 		var hips_before: Vector3 = r.bone_world_transform("Hips").origin
-		Ukemi.shape(r, kinds.get(m.get("kind", "forward"), Ukemi.Kind.FORWARD), m.get("t", 0.5))
+		var kind_name: String = m.get("kind", "forward") if kinds.has(m.get("kind", "forward")) else "forward"
+		Ukemi.shape(r, kinds[kind_name], m.get("t", 0.5))
+		r.fall = {"kind": kind_name, "t": float(m.get("t", 0.5))}
 		await st.settle(4)
 		# The fall turns the body about its root, which is at the feet: three quarters through a
 		# backward roll the body lies a body's length *ahead* of where it stood. A script says
@@ -238,6 +246,10 @@ func do_move(m: Dictionary) -> void:
 		await st.settle(2)
 		Ukemi.ground(r)
 		await st.settle(2)
+		for pass_ in 3:   # a hand the fall put through the mat is put on it
+			if Ukemi.hands_on_mat(r) <= 0.0:
+				break
+			await st.settle(3)
 	elif m.has("ground"):
 		Ukemi.ground(_rig(m["ground"]))
 		await st.settle(2)

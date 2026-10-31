@@ -294,12 +294,17 @@ func hang_arm(id: String, side: String) -> void:
 	await hand_at(id, side, off)
 
 
+## The most the hips are lowered to bring a hovering foot down to the mat, metres.
+const MAX_HIP_DROP := 0.04
+
+
 ## Anyone still on their feet stands on the floor: bending the knees tilts the shins, and arm
 ## work can pull a figure about, either of which lifts a foot a centimetre or two.
 func feet_on_floor() -> void:
 	for r in scene.characters:
 		if not r.visible or absf(r.rotation.x) > 0.6 or absf(r.rotation.z) > 0.6:
 			continue
+		await _within_reach_of_floor(r)
 		for pass_ in 3:
 			var moved := false
 			for side in ["Right", "Left"]:
@@ -313,3 +318,37 @@ func feet_on_floor() -> void:
 			if not moved:
 				break
 			await settle(3)
+		await _within_reach_of_floor(r)
+
+
+## A standing leg that cannot reach the mat (the hips set too high for how wide the stance is)
+## used to be "fixed" below by pushing its target further into the floor, pass after pass: the
+## leg stood straight toward a point up to 23 cm under the mat (and as far off to the side), the
+## foot hung a centimetre or two above it, and every blend toward that pose swept the foot down
+## through the tatami. So an out-of-reach target is first put where the foot actually is, and the
+## hips come down by what the foot hovers — a person whose foot does not reach the floor bends
+## the other knee a little — with the targets kept, so the foot is set on the mat where it was.
+## Moving the hips until the leg reached the old target instead dropped Tori 12 cm into a crouch.
+func _within_reach_of_floor(r: CharacterRig) -> void:
+	var hover := 0.0
+	var legs := []
+	for side in ["Right", "Left"]:
+		var leg: Limb = r.limbs[side + "Leg"]
+		if leg.mode != Limb.Mode.IK or _lifted.has("%s/%s" % [r.character_id, side]):
+			continue
+		if r.bone_world_transform(side + "LowerLeg").origin.y < 0.25:
+			return   # kneeling: the knees are on the mat, not reaching for it
+		if leg.reach_shortfall() > 0.003:
+			leg.reset_target_to_pose()
+		legs.append(side)
+		hover = maxf(hover, PoseBlend.sole_lowest(r, side, leg.target.global_transform))
+	if hover < 0.003:
+		return
+	hover = minf(hover, MAX_HIP_DROP)
+	ctrl.set_root(r, r.position - Vector3(0.0, hover, 0.0), r.rotation.y, r.rotation.x, r.rotation.z, Stance.BOTH_LEGS)
+	for side: String in legs:
+		var leg: Limb = r.limbs[side + "Leg"]
+		var t := leg.target.global_transform
+		t.origin.y -= minf(hover, maxf(0.0, PoseBlend.sole_lowest(r, side, t)))
+		leg.target.global_transform = t
+	await settle(3)

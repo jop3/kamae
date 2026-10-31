@@ -5,6 +5,6 @@ set -uo pipefail
 cd "$(dirname "$0")/.."
 for s in techniques/*.json; do
   echo "== $s"
-  tools/technique.sh "$s" 2>&1 | grep -E "^pose|^MOTION|video:|SCRIPT ERROR|ERRORS" || true
+  tools/technique.sh "$s" 2>&1 | grep -E "^pose|^MOTION|^FLOOR|video:|SCRIPT ERROR|ERRORS" || true
 done
 python3 tools/gallery.py

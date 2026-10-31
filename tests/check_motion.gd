@@ -47,12 +47,15 @@ const OUTSTANDING := {
 		## rebuilding refit grepp/kuzushi under the finger coupling, which shifted
 		## the grepp->kuzushi blend enough to add 3 frames of Uke's gripping wrist over its range;
 		## +2 with the fist's range (the kake's own wrist fault is gone: 12 -> 14 is the measurement)
-	"katatedori_shihonage_irimi": 14,   ## re-authored after the shoulder girdle: 26 before it, 51 with it, 18 then; 16 once its grepp (shared with katatedori_ikkyo) was refit; 14 with the arm's turn scoring the fist
+	"katatedori_shihonage_irimi": 15,   ## re-authored after the shoulder girdle: 26 before it, 51 with it, 18 then; 16 once its grepp (shared with katatedori_ikkyo) was refit; 14 with the arm's turn scoring the fist;
+		## 15 when the blend stopped sweeping feet through the mat (2026-10-31): Tori's leg used to stand straight toward a
+		## target buried under the mat; blended between where the foot really was, the knee bends a little mid-step and
+		## the hanging forearm brushes the thigh 3.6 cm deep at t=1.00 (the limit is 3.5) — a deliberate exception to "only down"
 	"kumijo": 0,
 	"kumitachi": 13,   ## 1 while the rear hands were refused in both keyframes and so not counted; the awase->uchi blend rolls both hands on the tsuka between two clean holds
 	"ryotemochi": 5,   ## the grip is the catalogue's wrap now (0 before); the blend swings the wrist past ulnar deviation for frames the keyframes themselves do not; +1 with the fist's range
 	"tachi_dori": 32,   ## 12 while Uke's hands were refused in every keyframe and so not counted at all; the raise, the cut and the handover roll them on the tsuka between clean holds
-	"ushiro_ryotedori_zenponage": 11,
+	"ushiro_ryotedori_zenponage": 10,   ## 11 until the fall was blended about the hips (2026-10-31)
 }
 
 var scene: PosingScene

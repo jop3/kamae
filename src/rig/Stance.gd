@@ -105,6 +105,31 @@ static func kneel(ctrl: PoseController, rig: CharacterRig, kind: int = Kneel.SEI
 		rig.rotation.y, 0.0, 0.0, BOTH_LEGS)
 
 
+## Bends the toes flat on the mat, pointing the way the body faces, as toes do under a foot that
+## stands on its ball (kiza; up on the toes). Left straight they carry on the line of the foot,
+## down into the mat. Call it once the kneel has solved: it reads where the foot is.
+static func toes_flat(rig: CharacterRig) -> void:
+	var sk := rig.skeleton
+	var forward: Vector3 = rig.global_transform.basis.z
+	forward.y = 0.0
+	if forward.length() < 1e-4:
+		return
+	forward = forward.normalized()
+	for side in ["Right", "Left"]:
+		var i := sk.find_bone(side + "Toes")
+		if i < 0:
+			continue
+		var toes := rig.bone_world_transform(side + "Toes")
+		var foot := rig.bone_world_transform(side + "Foot")
+		var along := toes.basis.y.normalized()
+		var want := (forward - Vector3.UP * 0.15).normalized()
+		if along.dot(want) > 0.999:
+			continue
+		var turn := Basis(Quaternion(along, want))
+		var global := (turn * toes.basis).orthonormalized()
+		sk.set_bone_pose_rotation(i, (foot.basis.orthonormalized().inverse() * global).get_rotation_quaternion().normalized())
+
+
 ## How high the hip joint sits above the root when the figure is standing at rest.
 static func hip_rest_height(rig: CharacterRig) -> float:
 	var sk := rig.skeleton
