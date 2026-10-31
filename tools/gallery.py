@@ -78,9 +78,11 @@ def collect():
             "poster": os.path.join(stills, f"{s}_{slug(key['name'])}_{view}.png"),
             "sheet": os.path.join(build, "contact_sheet.png"),
             "compare": os.path.join(build, "compare_with_video.png"),
-            "attack": attack_of(script),
+            "attack": (script["label"], "") if script.get("label") else attack_of(script),
+            "ukemi": name.startswith("ukemi_"),
         })
-    return items
+    # The falls first (Uke on his own, every kind the techniques use), then the techniques.
+    return [it for it in items if it["ukemi"]] + [it for it in items if not it["ukemi"]]
 
 
 def build_media(items):
@@ -114,6 +116,9 @@ def page(items):
                       f'alt="Each phase of {e(sc["name"])} beside the matching frame of the source video">'
                       f'<figcaption>Left: the source clip at each phase\'s time. Right: the render.</figcaption></figure>')
         known = f'<p class="known"><span>Known</span> {e(sc["known"])}</p>' if sc.get("known") else ""
+        if n == 0 or it["ukemi"] != items[n - 1]["ukemi"]:
+            cards.append(f'<h2 class="section" id="{"ukemi" if it["ukemi"] else "techniques"}">'
+                         f'{"Ukemi — falling and rolling" if it["ukemi"] else "Techniques"}</h2>')
         cards.append(f'''
 <article class="tech" id="{s}">
   <div class="media">
@@ -134,7 +139,9 @@ def page(items):
   </div>
 </article>''')
     index = "".join(f'<li><a href="#{it["slug"]}">{e(it["script"]["name"])}</a></li>' for it in items)
-    return TEMPLATE.replace("{{COUNT}}", str(len(items))).replace("{{INDEX}}", index).replace("{{CARDS}}", "".join(cards))
+    falls = sum(1 for it in items if it["ukemi"])
+    count = f"{len(items) - falls} techniques" + (f" · {falls} ukemi" if falls else "")
+    return TEMPLATE.replace("{{COUNT}}", count).replace("{{INDEX}}", index).replace("{{CARDS}}", "".join(cards))
 
 
 TEMPLATE = r'''<title>Kamae Technique Library</title>
@@ -172,6 +179,8 @@ header p { margin: 0; max-width: 64ch; color: var(--muted); }
 nav ul { list-style: none; padding: 0; margin: 8px 0 0; display: flex; flex-wrap: wrap; gap: 6px 14px; }
 nav a { color: var(--accent); text-decoration: none; font-size: 14px; }
 nav a:hover, nav a:focus-visible { text-decoration: underline; }
+.section { font: 700 clamp(22px, 3vw, 30px)/1.2 var(--display); margin: 40px 0 0; padding-bottom: 8px;
+  border-bottom: 2px solid var(--ink); scroll-margin-top: 16px; }
 .tech { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 28px;
   padding-block: 36px; border-bottom: 1px solid var(--rule); scroll-margin-top: 16px; }
 .media video { width: 100%; max-width: 100%; aspect-ratio: 16 / 9; background: #000; border-radius: 4px; display: block; }
@@ -202,13 +211,13 @@ footer { padding-top: 24px; font-size: 13px; color: var(--muted); max-width: 70c
 </style>
 <div class="wrap">
   <header>
-    <p class="kicker">Kamae · {{COUNT}} techniques</p>
+    <p class="kicker">Kamae · {{COUNT}}</p>
     <h1>Technique library</h1>
-    <p>Each technique is a short script of moves, built into poses and filmed by the Kamae posing engine. Tori wears the hakama, Uke the gi with the amber belt. Click a phase to jump the video to it.</p>
+    <p>Each technique is a short script of moves, built into poses and filmed by the Kamae posing engine. Tori wears the hakama, Uke the gi with the coloured belt. The falls come first: every kind of ukemi the techniques use, Uke on his own. Click a phase to jump the video to it.</p>
     <nav aria-label="Techniques"><ul>{{INDEX}}</ul></nav>
   </header>
   {{CARDS}}
-  <footer>Rendered with Kamae from the scripts in <code>techniques/</code>. These are drafts written from descriptions and one video; an instructor's corrections go into the scripts.</footer>
+  <footer>Rendered with Kamae from the scripts in <code>techniques/</code>. These are drafts written from descriptions and a few clips; an instructor's corrections go into the scripts.</footer>
 </div>
 <script>
 for (const list of document.querySelectorAll('.phases')) {

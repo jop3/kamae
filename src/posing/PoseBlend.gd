@@ -106,7 +106,9 @@ static func _apply_character(rig: CharacterRig, ca: Dictionary, cb: Dictionary, 
 	var rnext: Dictionary = cnext.get("root", rb)
 	var p0 := PoseFile.array_to_vec(rprev.get("pos", ra.get("pos", [0, 0, 0])))
 	var p3 := PoseFile.array_to_vec(rnext.get("pos", rb.get("pos", [0, 0, 0])))
-	var falling := u > 0.0 and u < 1.0 and (is_fall(lean_a) or is_fall(lean_b))
+	# A figure is falling between two poses when either is tipped over, or when either says it is
+	# in a fall: the squat a backward fall starts with is barely tipped at all.
+	var falling := u > 0.0 and u < 1.0 and (is_fall(lean_a) or is_fall(lean_b) or not span.is_empty())
 	rig.keep_on_mat = falling
 	if not falling:
 		rig.position = p1.cubic_interpolate(p2, p0, p3, u)

@@ -163,7 +163,9 @@ static func squat_amount(kind: int, t: float) -> float:
 
 ## Which fall a blend between two poses is part of: their `fall` records (CharacterRig.fall),
 ## as {"kind": Kind, "from": t, "to": t}, or {} when the two are not one fall. A pose with no
-## fall next to one with a fall is where it starts (t 0) or where the figure is back up (t 1).
+## fall before one with a fall is where it starts (t 0). A pose with no fall after one is where
+## the figure is back up: over the top (t 1) from a fall more than half way round, and back the
+## way it came (t 0) from one that is not — a backward fall that rocks back up to sitting.
 ## Being laid face down is not a roll and is blended as it always was.
 static func fall_span(fa: Dictionary, fb: Dictionary) -> Dictionary:
 	var kinds := {"forward": Kind.FORWARD, "backward": Kind.BACKWARD}
@@ -176,7 +178,8 @@ static func fall_span(fa: Dictionary, fb: Dictionary) -> Dictionary:
 	if fb.is_empty():
 		if not kinds.has(fa.get("kind")):
 			return {}
-		return {"kind": kinds[fa["kind"]], "from": float(fa.get("t", 0.0)), "to": 1.0}
+		var t := float(fa.get("t", 0.0))
+		return {"kind": kinds[fa["kind"]], "from": t, "to": 1.0 if t >= 0.5 else 0.0}
 	if not kinds.has(fb.get("kind")):
 		return {}
 	return {"kind": kinds[fb["kind"]], "from": 0.0, "to": float(fb.get("t", 0.0))}
@@ -284,8 +287,8 @@ const FINGERTIP_REACH := 0.022
 const FINGERTIP_RADIUS := 0.008
 ## The toes reach past the foot's capsule the same way: a kneeling figure's toes went 2-3 cm into
 ## the mat when only the capsules were grounded.
-const TOE_REACH := 0.03
-const TOE_RADIUS := 0.02
+const TOE_REACH := 0.04
+const TOE_RADIUS := 0.022
 ## A body this little under the mat is a body resting on it (the skin gives, and the capsules
 ## are coarser than the skin), and is left alone.
 const MAT_SLACK := 0.005

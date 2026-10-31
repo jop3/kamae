@@ -108,6 +108,9 @@ static func kneel(ctrl: PoseController, rig: CharacterRig, kind: int = Kneel.SEI
 ## Bends the toes flat on the mat, pointing the way the body faces, as toes do under a foot that
 ## stands on its ball (kiza; up on the toes). Left straight they carry on the line of the foot,
 ## down into the mat. Call it once the kneel has solved: it reads where the foot is.
+const TOES_BEND_MAX := 55.0
+
+
 static func toes_flat(rig: CharacterRig) -> void:
 	var sk := rig.skeleton
 	var forward: Vector3 = rig.global_transform.basis.z
@@ -125,7 +128,13 @@ static func toes_flat(rig: CharacterRig) -> void:
 		var want := (forward - Vector3.UP * 0.15).normalized()
 		if along.dot(want) > 0.999:
 			continue
-		var turn := Basis(Quaternion(along, want))
+		# As far as the toes bend (MTP extension, Joints: 60°), short of it: the rest of a kiza
+		# foot's angle is the ankle's and the ball of the foot's.
+		var angle := minf(along.angle_to(want), deg_to_rad(TOES_BEND_MAX))
+		var axis := along.cross(want)
+		if axis.length() < 1e-5:
+			continue
+		var turn := Basis(axis.normalized(), angle)
 		var global := (turn * toes.basis).orthonormalized()
 		sk.set_bone_pose_rotation(i, (foot.basis.orthonormalized().inverse() * global).get_rotation_quaternion().normalized())
 
