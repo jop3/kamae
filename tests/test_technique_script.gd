@@ -68,6 +68,20 @@ func _initialize() -> void:
 	check(grepp["grips"].size() == 1, "Grepp: Uke holds Tori's wrist")
 	check(tenkan["grips"].size() == 1, "Tenkan: the grip is kept through the turn")
 
+	# Faces: each saved pose has the two looking at each other, within the neck's range.
+	PoseFile.apply(grepp, scene, director, ctrl)
+	await settle(4)
+	for pair in [["tori", "uke1"], ["uke1", "tori"]]:
+		var a := scene.get_character(pair[0])
+		var b := scene.get_character(pair[1])
+		var h := a.bone_world_transform("Head")
+		var rest := a.skeleton.global_transform.basis * a.skeleton.get_bone_global_rest(a.skeleton.find_bone("Head")).basis
+		var face: Vector3 = h.basis.orthonormalized() * (rest.orthonormalized().inverse() * a.global_transform.basis.z.normalized())
+		var to: Vector3 = (b.bone_world_transform("Head").origin - h.origin).normalized()
+		check(rad_to_deg(face.angle_to(to)) < 25.0, "Grepp: %s looks at %s (%.0f° off)" % [pair[0], pair[1], rad_to_deg(face.angle_to(to))])
+	var necks := Array(Anatomy.scene_problems(scene, director)).filter(func(p: String): return p.contains("Neck") or p.contains(": Head:"))
+	check(necks.is_empty(), "Grepp: the look stays inside the neck's range %s" % [necks])
+
 	# The step lands beside Uke's front foot, and the pivot turns Tori half round on it.
 	PoseFile.apply(irimi, scene, director, ctrl)
 	await settle(4)

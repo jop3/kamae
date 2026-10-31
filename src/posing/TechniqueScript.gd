@@ -28,6 +28,18 @@ var attack_origin := Transform3D.IDENTITY
 var report := {"phases": [], "errors": []}
 
 const DEFAULT_SKEWS := [0.0, 30.0, -30.0, 45.0, -45.0]
+## Who looks where, by figure id: "uke1.Head" (a bone of anyone), "none", or [right, up, forward]
+## (a direction in the figure's own frame). Unset, a figure looks at its partner's face.
+var looks := {}
+## How the turn is shared between the neck and the head, which together turn about 100° either
+## way (Joints: neck 70°, head 30° of rotation); JointLimits keeps each inside its own range.
+const LOOK_SHARE := {"Neck": 0.6, "Head": 1.0}
+## The most each bone is turned by a look, inside its range with some to spare; and how far off
+## the body's own facing a partner may be and still be looked at — someone standing beside you
+## is watched out of the corner of the eye, not by craning round.
+const LOOK_MAX := {"Neck": 50.0, "Head": 22.0}
+const LOOK_FIELD := 100.0
+var _look_used := {}
 const DEFAULT_CHARACTERS := [
 	{"id": "tori", "name": "Tori", "role": "Tori", "gi": true, "hakama": true},
 	{"id": "uke1", "name": "Uke", "role": "Uke", "gi": true},
@@ -68,6 +80,10 @@ func run(script: Dictionary, out_dir: String) -> Dictionary:
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(poses_dir))
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(seq_dir))
 	await _reset(script.get("characters", DEFAULT_CHARACTERS))
+	looks = {}
+	for c: Dictionary in script.get("characters", []):
+		if c.has("look"):
+			looks[c["id"]] = c["look"]
 	var seq := Sequence.new()
 	seq.name = name
 	seq.camera = script.get("camera", "Side")
@@ -202,6 +218,8 @@ func do_move(m: Dictionary) -> void:
 		await st.settle(2)
 	elif m.has("weapon"):
 		await _weapon(m)
+	elif m.has("look"):
+		looks[m["look"]] = m.get("at", "none")
 	elif m.has("settle"):
 		await st.settle(int(m["settle"]))
 	else:
@@ -392,10 +410,13 @@ func _save_pose(dir: String, pose_name: String, allow_short: bool) -> void:
 	await st.feet_on_floor()
 	if not allow_short:
 		await _step_in_to_grips()
+	var before_look := await _look_all()
 	var data: Dictionary = await PoseFile.capture_baked(scene, director, cam, pose_name)
 	var path := PoseFile.pose_path(dir, pose_name)
 	PoseFile.save(path, data)
 	var probs := Anatomy.scene_problems(scene, director)
+	_unlook(before_look)
+	await st.settle(2)
 	report["phases"].append({"pose": pose_name, "path": path, "problems": Array(probs),
 		"grip_error": director.worst_error()})
 	print("pose %s: grips %d, worst grip error %.3f m%s" % [pose_name, director.grips.size(), director.worst_error(),
@@ -459,6 +480,95 @@ func _closest_trunk(r: CharacterRig, at: Vector3) -> float:
 		var o: Vector3 = other.bone_world_transform("Hips").origin
 		best = minf(best, Vector2(hips.x - o.x, hips.z - o.z).length())
 	return best
+
+
+# ---------------------------------------------------------------- looking
+
+## Turns every standing figure's neck and head toward what it looks at, just before a pose is
+## saved, and returns the rotations it replaced so `_unlook` can put them back: a look decorates
+## the pose it is saved with, and the next phase's moves start from the head as the script left it.
+## A face that stares straight ahead past its partner is the first thing that makes a still read
+## as dolls rather than people.
+func _look_all() -> Dictionary:
+	var saved := {}
+	for r: CharacterRig in scene.characters:
+		if not r.visible or absf(r.rotation.x) > 0.5 or absf(r.rotation.z) > 0.5:
+			continue   # falling or lying: the fall shapes the neck (Ukemi's tuck)
+		var goal = _look_goal(r)
+		if goal == null:
+			continue
+		saved[r] = {}
+		_look_used.clear()
+		for bone: String in LOOK_SHARE:
+			var i := r.skeleton.find_bone(bone)
+			saved[r][i] = r.skeleton.get_bone_pose_rotation(i)
+		# Neck first, then the head from where the neck left it; twice, since each solve moves
+		# the eyes the next turn is measured from.
+		for pass_ in 2:
+			for bone: String in LOOK_SHARE:
+				_turn_toward(r, bone, goal, LOOK_SHARE[bone] * (0.5 if pass_ == 1 else 1.0), LOOK_MAX[bone])
+				await st.settle(1)
+	return saved
+
+
+func _unlook(saved: Dictionary) -> void:
+	for r in saved:
+		for i in saved[r]:
+			r.skeleton.set_bone_pose_rotation(i, saved[r][i])
+
+
+## A world point to look at, or null.
+func _look_goal(r: CharacterRig):
+	var at = looks.get(r.character_id, "")
+	if at is String and at == "none":
+		return null
+	if at is Array:
+		return r.bone_world_transform("Head").origin + _flat_basis(r) * _local3(at) * 3.0
+	if at is String and at != "":
+		var q := _part(at)
+		var t := scene.get_character(q[0])
+		return t.bone_world_transform(q[1] if q[1] != "" else "Head").origin if t else null
+	# The partner: Tori looks at the first Uke, everyone else at Tori.
+	var partner: CharacterRig = null
+	for o: CharacterRig in scene.characters:
+		if o != r and o.visible and (o.role == "Tori") != (r.role == "Tori"):
+			partner = o
+			break
+	if partner == null:
+		return null
+	var face: Vector3 = partner.bone_world_transform("Head").origin
+	var to := face - r.global_position
+	to.y = 0.0
+	var ahead := _flat_basis(r) * Vector3(0, 0, 1)
+	if to.length() > 0.05 and rad_to_deg(ahead.angle_to(to.normalized())) > LOOK_FIELD:
+		return null
+	return face
+
+
+## Turns `bone` by `share` of the angle between where the face points and `goal`, about the bone.
+## Where the face points is the body's forward carried through the head's turn from rest.
+func _turn_toward(r: CharacterRig, bone: String, goal: Vector3, share: float, max_deg: float) -> void:
+	var sk := r.skeleton
+	var i := sk.find_bone(bone)
+	var head := r.bone_world_transform("Head")
+	var rest_head := sk.global_transform.basis * sk.get_bone_global_rest(sk.find_bone("Head")).basis
+	var forward: Vector3 = (head.basis.orthonormalized() * (rest_head.orthonormalized().inverse() * r.global_transform.basis.z.normalized())).normalized()
+	var eyes: Vector3 = head.origin + head.basis.y.normalized() * 0.08
+	var want: Vector3 = (goal - eyes).normalized()
+	if want.length() < 0.5 or forward.dot(want) > 0.9995:
+		return
+	var axis := forward.cross(want).normalized()
+	var angle := forward.angle_to(want) * share
+	# What this bone has already been turned by a look this pose, against its cap.
+	var key := "%s/%s" % [r.character_id, bone]
+	var used: float = _look_used.get(key, 0.0)
+	angle = clampf(angle, 0.0, maxf(0.0, deg_to_rad(max_deg) - used))
+	_look_used[key] = used + angle
+	var parent := sk.get_bone_parent(i)
+	var p_basis := r.bone_world_transform(sk.get_bone_name(parent)).basis.orthonormalized()
+	var local := Basis(sk.get_bone_pose_rotation(i))
+	var turned := (p_basis.inverse() * Basis(axis, angle) * p_basis * local).orthonormalized()
+	sk.set_bone_pose_rotation(i, turned.get_rotation_quaternion())
 
 
 # ---------------------------------------------------------------- helpers

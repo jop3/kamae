@@ -132,6 +132,22 @@ middleage_asian_male young_african_male young_caucasian_female middleage_asian_f
 | `{"weapon": "bokken1", "to": [right, up, forward], "of": "uke1", "dir": [right, up, forward], "fit": "uke1"}` | Moves it (furikaburi, a cut), the holder's hands refitted. |
 | `{"weapon": "bokken1", "take": "tori.Right"}` | Puts it in another hand (a disarm). |
 
+### Where they look
+
+Before each pose is saved, every standing figure turns its neck and head toward its partner's
+face (Tori toward the first Uke, everyone else toward Tori), within the neck's range — unless the
+partner is more than 100° off the way the body faces, when the figure looks ahead (someone
+beside you is watched out of the corner of the eye). Falling figures are left as the fall shapes
+them. The look is not carried into the next phase's moves.
+
+| Move | Does |
+|---|---|
+| `{"look": "tori", "at": "uke1.RightHand"}` | From this phase on, looks at that bone. |
+| `{"look": "tori", "at": [0, -0.3, 1]}` | Looks in a direction, `[right, up, forward]` in the figure's frame (ahead and down: `[0, -0.3, 1]`). |
+| `{"look": "tori", "at": "none"}` | Leaves the head as the moves put it. `"at": ""` goes back to the partner. |
+
+A character can carry `"look"` in `characters` too, for the whole technique.
+
 `{"settle": 4}` waits frames, if something needs to solve before the next move reads it.
 
 ## Writing one well
