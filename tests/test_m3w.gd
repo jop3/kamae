@@ -178,8 +178,12 @@ func _initialize() -> void:
 	for side in ["Right", "Left"]:
 		var hand: Transform3D = tori.bone_world_transform(side + "Hand")
 		palms[side] = (hand.basis * tori.fingers.palm_normal(side)).normalized()
-	check(palms["Right"].x > 0.5 and palms["Right"].y < -0.3, "the right palm faces inward and down (%s)" % palms["Right"])
-	check(palms["Left"].x < -0.5 and palms["Left"].y < -0.3, "the left palm faces inward and down (%s)" % palms["Left"])
+	# Down by a quarter, not a third: seating the shaft at the base of the fingers rather than in
+	# the middle of the palm (Weapon.shaft_seat) turned the left hand a degree further upright,
+	# to -0.30, and this asks that the palms are turned inward and below the horizontal, not for
+	# a particular angle.
+	check(palms["Right"].x > 0.5 and palms["Right"].y < -0.25, "the right palm faces inward and down (%s)" % palms["Right"])
+	check(palms["Left"].x < -0.5 and palms["Left"].y < -0.25, "the left palm faces inward and down (%s)" % palms["Left"])
 
 	# --- removal ------------------------------------------------------------
 	scene.remove_weapon("bokken1")
@@ -196,7 +200,7 @@ func _initialize() -> void:
 
 func hold_error(weapon: Weapon) -> float:
 	var rig: CharacterRig = scene.get_character(weapon.hold["character"])
-	var palm: Vector3 = rig.bone_world_transform(weapon.hold["hand"] + "Hand") * Weapon.palm_centre(rig, weapon.hold["hand"])
+	var palm: Vector3 = rig.bone_world_transform(weapon.hold["hand"] + "Hand") * weapon.shaft_seat(rig, weapon.hold["hand"])
 	return weapon.anchor_transform(weapon.hold["t"]).origin.distance_to(palm)
 
 

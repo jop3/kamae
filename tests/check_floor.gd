@@ -22,11 +22,8 @@ const STRIDE := 3
 const FPS := float(MovieExport.FPS)
 
 ## Frames still under the mat, per committed sequence. May only go down, like check_motion's.
-## katatedori_shihonage_irimi: one frame of Uke's stepping foot turned past what the ankle gives
-## (the target's sole is on the mat, the foot is not; the IK cannot hold the orientation).
-const OUTSTANDING := {
-	"katatedori_shihonage_irimi": 1,
-}
+## None today: the last (Uke's stepping foot in shihonage irimi) went with the refit grips.
+const OUTSTANDING := {}
 
 var failures := 0
 var scene: PosingScene

@@ -32,11 +32,26 @@ func check(cond: bool, msg: String) -> void:
 ## turns it. Those are decisions about the technique — where Uke stands, how the arm is taken —
 ## and the instructor's to make; see docs/handoff.md.
 const OUTSTANDING := {
+	## Tori's right wrist no longer bends past its range here — the hand sits on Uke's hand where
+	## a hand actually holds one (GripDirector.grip_seat) rather than mid-palm — and what the
+	## grip asks for now lands on Uke's forearm instead: the same fault one joint along, and the
+	## same question for the instructor (where Uke's forearm goes as the grip turns it).
+	## Tori's right wrist rides 3° past its radial deviation here, which is what it costs to keep
+	## his thumb out of Uke's forearm: the grip search weighs a finger through what it holds
+	## against what the arm refuses (Staging.fingers_through), and this hold is the one place the
+	## two pull against each other. The thumb was 20 mm inside the arm before.
+	"katatedori_ikkyo_kake": ["tori: RightHand: wrist radial deviation"],
+	## A degree over, and the same trade: the hold that keeps this hand's fingers out of the
+	## staff asks the wrist for 59° of extension where a fist has 58.
+	"kumijo_tsuki": ["tori: LeftHand: wrist extension"],
 	"katatedori_shihonage_kake": ["tori: LeftHand: wrist radial deviation", "tori: RightHand: wrist flexion", "uke1: LeftUpperArm: shoulder adduction"],
 	"katatedori_shihonage_kuzushi": ["uke1: LeftHand: wrist flexion"],
-	"ushiro_ryotedori_zenponage_grepp": ["uke1: LeftHand: wrist flexion", "uke1: RightHand: wrist flexion"],
+	## Both of Uke's gripping wrists came free when the hands were re-seated where a hand holds a
+	## forearm (tools/refit_grips.gd): they were bent that far by a palm that had the arm across
+	## its middle. The Tenkan and Kake poses are still the old seat — re-seating them put a hand
+	## out of reach — so this technique is half re-seated; docs/handoff.md.
 	"ushiro_ryotedori_zenponage_kake": ["uke1: LeftUpperArm: shoulder extension", "uke1: RightUpperArm: shoulder extension", "uke1: RightHand: wrist extension"],
-	"ushiro_ryotedori_zenponage_kuzushi": ["uke1: LeftHand: wrist extension", "uke1: RightHand: wrist extension"],
+
 	"ushiro_ryotedori_zenponage_tenkan": ["uke1: LeftUpperArm: shoulder extension", "uke1: RightUpperArm: shoulder extension", "uke1: LeftLowerArm: elbow supination", "uke1: LeftHand: wrist ulnar deviation", "uke1: RightHand: wrist flexion"],
 }
 

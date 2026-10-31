@@ -97,7 +97,7 @@ func _initialize() -> void:
 		for w in scene.weapons:
 			if w.drive == "hand" and not w.hold.is_empty():
 				var holder := scene.get_character(w.hold["character"])
-				var palm: Vector3 = holder.bone_world_transform(w.hold["hand"] + "Hand") * Weapon.palm_centre(holder, w.hold["hand"])
+				var palm: Vector3 = holder.bone_world_transform(w.hold["hand"] + "Hand") * w.shaft_seat(holder, w.hold["hand"])
 				check(w.anchor_transform(w.hold["t"]).origin.distance_to(palm) < 0.06, "%s: %s is in %s's palm (%.3f m)" % [slug, w.weapon_id, w.hold["character"], w.anchor_transform(w.hold["t"]).origin.distance_to(palm)])
 		for c in scene.weapon_contacts:
 			var a: Weapon = scene.get_weapon(c["a"]); var b: Weapon = scene.get_weapon(c["b"])

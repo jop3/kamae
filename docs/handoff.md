@@ -12,8 +12,9 @@ where the work stands, how to run it, and what the next session should pick up.
 | `claude/handoff-continuation-8iw00t` | M3W weapons, M4 save/load, camera presets, CI workflow (see "Follow-up session" below) | PR #4 merged |
 | `claude/project-continuation-46gatk` | CI fix (absolute paths in tests), undo for close-the-gap, roll for the second hand | merged |
 | … | one branch per session since; each session's section below names what it did | merged |
-| `claude/continuing-work-g2k02k` | the fist rule in every search, every weapon hold clear (2026-09-16 below) | merged |
-| `claude/aikido-technique-animation-ttq5iv` | realistic people, the hakama, technique scripts, techniques from video (2026-10-31 below) | this branch |
+| `claude/continuing-work-g2k02k` | the fist rule in every search, every weapon hold clear (2026-09-16 below) | PR #10 merged |
+| `claude/handoff-check-wxx58t` | the fit keeps a hand's hold, fists close on the shaft (2026-09-16, afternoon and evening) | merged into the next branch on 2026-10-31 |
+| `claude/aikido-technique-animation-ttq5iv` | realistic people, the hakama, technique scripts, techniques from video, falls on the mat (2026-10-31 below) | this branch |
 
 Milestones done: **M0** project and character, **M1** click-to-select FK posing with a gizmo and PNG
 export, **M2** IK arms and legs with finger curls, **M3** grip attachments. Next up is **M3W**
@@ -1062,6 +1063,209 @@ rolled holds is not.
 3. Ushiro ryotedori zenponage from the catalogue, if a way is found that keeps the Tenkan pose.
 4. Katatedori shihonage's kake and kuzushi, and where Uke's forearm goes as the grip turns it.
 Bokken and jo attacks are still not in the catalogue.
+
+## Session 2026-09-16 (afternoon): the fit keeps the hold a hand already has
+
+The previous session's first "next": `_fit_weapon_hands_once` scored a candidate hold by its
+distance from the weapon's *default* roll and skew, so two consecutive poses of a technique could
+fit the same hand three quarters of a turn apart although both holds were within the wrist's
+range — and the frames between them asked the wrist, half-way, for what neither pose asks.
+
+A `Grip` now records the `roll_deg` and `skew_deg` it was attached with (they were thrown away
+once the offset was captured), `PoseFile` saves them, and the fit measures a candidate from the
+hold the hand already has rather than from the default. The candidates are walked nearest-first,
+so a hand whose own hold still costs nothing keeps it without the rest of the grid being tried,
+and ties keep the lists' own order (Godot's `sort_custom` is not stable, and a fit that starts
+from the default must try exactly what it tried before). `FIT_VERBOSE=2` prints every candidate
+with its excess, its reach error and its turn; that is how the numbers below were read.
+
+**What it bought.** Kumitachi's blend went from 13 frames not plausible to **none**:
+the cut now keeps the awase's holds — 15° of roll and 20° of skew away — where fitting from the
+default put it 60° of skew away and rolled both hands right round the tsuka in between. Kumijo,
+jo dori and every empty-hand technique are unchanged, and `check_anatomy.gd` is unchanged (no
+keyframe hold moved off zero excess: the preference is a tie-break between holds the joints
+allow, never a reason to accept one they refuse).
+
+**What it did not buy, and why.** Tachi dori is still 32 frames, and this is not a preference
+the fit can express. Probed candidate by candidate, Uke's left hand has *no* roll that clears its
+wrist in both the kamae and the furikaburi: zero-excess holds are 105–135° in the kamae and
+−45–45° in the furikaburi, disjoint sets. The hand must turn on the tsuka as the sword is raised,
+the fit already picks the shortest turn that clears both ends (75°), and what is left is where
+the hand travels *during* that turn — an intermediate pose (`tools/add_step.gd`, the next item),
+not a better fit. Rewriting the handoff's expectation honestly: item 1 took kumitachi's frames,
+not tachi dori's.
+
+**One thing found on the way.** The fit was not reproducible. An arm's pole is taken from where
+the arm is now, so the pose that was kept depended on whichever candidate the search happened to
+try last — which the nearest-first order changed. It showed up as kumijo drifting in the fourth
+decimal and one blend frame crossing a 3° slack (33° of ulnar deviation against a 30° limit) that
+it had been sitting just under. The chosen hold is now always come to *through the default hold*,
+from the same place every time, and kumijo is back to zero with the rest unchanged. Worth knowing
+generally: a re-solve of the same target is not the same arm unless it is reached the same way.
+
+`tests/golden` was refreshed for the four weapon poses whose geometry moved (kumitachi awase and
+uchi, tachi dori kamae and furikaburi); all four were inside the 2% tolerance anyway. Looked at
+the cut close up before accepting it: both fists wrap the tsuka, rear fist at the kashira, wrists
+straight.
+
+### Looked at the grips, and they were wrong
+
+Shown the renders, the instructor's reaction was that the hand grips looked weird. They were, and
+nothing measured it: a hand holding a weapon is exempt from `Anatomy.weapon_intersections` (the
+shaft runs through the fist by design), so no check ever asked whether the fingers were round the
+shaft. `--demo-grip <pose> <character> <Right|Left> <out.png>` is a new hook in `Main.gd` that
+puts the camera 25 cm from one hand, from the back of the hand, from the thumb and along the
+forearm; it is how the rest of this was found, and it is how the next change to a hold should be
+judged.
+
+**What it showed.** `Weapon.PALM_ALONG` put the shaft 6 cm along the hand from the wrist — the
+middle of the palm — and the mannequin's knuckles are at 10 cm. So the fist closed *past* the
+shaft: measured against the shaft's surface, the knuckles stood 30–38 mm off it while only the
+fingertips came within 5–13 mm. On screen the tsuka crossed the heel of the hand and the fingers
+gripped air beside it.
+
+**The fix.** `Weapon.shaft_seat` seats the shaft across the base of the fingers instead, at
+`FingerCurl.knuckle_centre` (the mean of the four knuckles, measured off the rig's rest pose)
+plus a palm's thickness and the shaft's own half-width out along the palm normal. Both parts come
+from the rig and the weapon rather than from a hand-typed constant. Every finger joint now lies
+within about a centimetre of the shaft's surface, and the renders read as a bokken and a jo held
+in two fists. `palm_centre` stays as it was for *bone* grips — a hand wrapped round a forearm
+looks right and is checked elsewhere — so this change is weapons only.
+
+**What it cost.** Every weapon hold sits 3.5 cm further along the hand, so every weapon arm was
+refitted and the blends between the refitted holds are new ones. `check_motion.gd`'s record went
+up for three sequences — jo dori 21 → 29, kumijo 0 → 2, tachi dori 32 → 37 — while kumitachi
+stayed at 0. The keyframes themselves are all still clean (`check_anatomy.gd` is unchanged, no
+`OUTSTANDING` entry gained), so what these count is the same fault as the rest of the list: a
+wrist a few degrees over half-way between two poses that are both fine. Recorded with its reason
+rather than hidden; the answer is the intermediate poses, which is the next item.
+
+Halving the roll grid to 7.5° steps was part of getting there: with the fit keeping the hold a
+hand already has, the step size *is* how far a hand must turn when its own hold stops clearing
+the wrist. On the 15° grid the refitted kumitachi had 11 frames, on this one it has none, and the
+search costs no more because a hold that still clears is taken before the rest of the grid runs.
+
+**Next, in order.**
+1. The re-grip intermediate poses (`tools/add_step.gd`), placed by hand to route round the
+   obstacle — now also what tachi dori's 37 frames, jo dori's 29 and kumijo's 2 need, per the
+   2026-09-11 note.
+2. Ushiro ryotedori zenponage from the catalogue, if a way is found that keeps the Tenkan pose.
+3. Katatedori shihonage's kake and kuzushi, and where Uke's forearm goes as the grip turns it.
+4. Nothing measures a grip yet. The close-ups say these ones are right; a check that every
+   gripping finger joint sits within a centimetre of what it holds would keep them that way, and
+   would have caught this fault the day the weapons were built.
+Bokken and jo attacks are still not in the catalogue.
+
+## Session 2026-09-16 (evening): what a hand closes on
+
+Shown the weapon holds, the instructor said the grips looked weird. They were, and this session
+found out why, first for a shaft and then — where the attention went next — for the empty-hand
+grips, which had the same fault twice over.
+
+**Nothing measured a grip.** A hand holding something is exempt from every intersection check
+(`Anatomy.weapon_intersections`, `body_intersections`): a held shaft runs through the fist by
+design, and so does a gripped forearm. So a hand could close beside what it held, or straight
+through it, and every check still passed. `tests/check_grips.gd` is the missing measurement —
+every finger joint of every grip in every committed pose, against the surface of what that hand
+holds — and `--demo-grip <pose> <character> <Right|Left> <out.png>` (Main.gd) is how to look at
+one: the camera 25 cm off the hand from four sides, stepping back out of any body it would
+otherwise be inside.
+
+**Three faults, all the same shape: a guessed number where a measurement belonged.**
+
+1. *Where the thing sits in the hand.* `Weapon.PALM_ALONG` put it 6 cm along the hand — the
+   middle of the palm — and this mannequin's knuckles are at 10 cm. The fist shut past the
+   tsuka; a forearm crossed the heel of the hand with the fingers reaching it by their tips.
+   `Weapon.shaft_seat` and `GripDirector.grip_seat` now put it across the base of the fingers,
+   at `FingerCurl.knuckle_centre` plus a palm's thickness and the held thing's own radius.
+2. *How thick the thing is.* The collision capsules are deliberately coarse — a forearm's is
+   40 mm where the arm is 27 — so a grip seated on one holds 13 mm of air. `CharacterRig.skin_radius`
+   measures the mesh itself, in four bands along each bone, because a limb tapers: this forearm
+   is 36 mm at the elbow and 23 at the wrist.
+3. *How far the fingers close.* `apply_grip_preset` shut every finger to 0.85–0.9 and
+   `curl_for_bone` remapped the capsule radius, neither of which knows what the hand is holding.
+   `FingerCurl.curls_onto` walks each finger down its own rest chain — the same walk the
+   modifier makes, so the two cannot drift — and closes it until any part of it would be inside
+   the surface. A finger fitted by its fingertip alone still lies straight across what it holds
+   with its middle inside it, which is exactly what the first attempt rendered.
+
+**Measured result.** Every finger joint of a rebuilt grip now sits within about a centimetre of
+the surface it holds, where before they stood 20–30 mm clear on one side and up to 30 mm inside
+on the other. Two of Uke's wrists in ushiro ryotedori came free of their joint limits as a
+side-effect — they were bent that far by a palm with the arm across its middle — and
+`check_anatomy.gd` lost both entries.
+
+**What it cost, and what it gave back.** The weapon numbers went the other way this time, because
+a hand that is not a full fist leaves its wrist more range: jo dori 29 → 10 blend frames, kumijo
+2 → 0, tachi dori 37 → 33. The empty-hand ones went up where the hands moved: katatedori ikkyo
+14 → 16, shihonage 14 → 19, ryotemochi 5 → 6, while ushiro ryotedori went 11 → 9. Shihonage's
+kake swapped one recorded fault for another (Tori's wrist for Uke's elbow and back again as the
+fit changed); it is the same open question about that technique. Two unit tests measured the old
+seat and now measure the new one, and `test_joints` needed a new example of a wrist that refuses,
+because its old one stopped refusing.
+
+**tools/refit_grips.gd** re-seats the hands in a pose that is already committed, running the same
+search a fresh grab does but from the bodies as that pose has them. It exists because a full
+rebuild throws away corrections: it is how ryotemochi and two of the ushiro ryotedori poses got
+the new grips while keeping their staging. The other two zenponage poses (Tenkan, Kake) could not
+take it — re-seating put a hand out of reach — so that technique is half re-seated, and its Kake
+still holds a hand half a metre from the arm it is supposed to be holding. `check_grips.gd` says
+so now, which is the point.
+
+**The hand by itself.** `--demo-hands <out.png>` renders the hand holding nothing, in ten poses
+(open, relaxed, half closed, fist, one finger to the palm, pointing, thumb across, pinch, hook),
+from the palm, the back and the little-finger edge, with the light following the camera and a 30°
+lens so the shape is not bent by perspective. What it shows about `FingerCurl` on its own, before
+any grip is involved: a finger at full curl does not close *onto* the palm, it closes *into* it —
+the tip and the last phalanx disappear inside the hand — and the thumb at full curl buries itself
+in the palm the same way. A fist reads as a smooth blob rather than four fingers. That is the
+curl's own fidelity, not the grip code's, and it is why a grip that is right by the numbers can
+still look wrong.
+
+### The curl stops at the palm, and the search sees the fingers
+
+Two more, straight out of those renders.
+
+**A curl that stops at the palm.** `FingerCurl.max_curl` works out, per finger and once per rig,
+how far that finger can close before any part of it would be inside the hand, and the modifier
+clamps every curl to it. The palm is a box measured off the rest mesh (`CharacterRig.palm_box`:
+how far it reaches along the hand, how deep from the back to the palm's own surface, how wide),
+because a plane is the wrong model — a closed finger lies *across the front* of the palm, which
+is not inside it; inside is between the palm's surface and the back of the hand. Two things had
+to be right for it to work at all: the knuckle is part of the hand and sits in that box from the
+start, so only the joints that begin outside it can be driven into it; and `chain_at_curl` had to
+clamp too, so the grip fit and the modifier agree on what a curl of 1 means. A curl of 1 is now a
+closed hand rather than a hand closed through itself, and the fist reads as four fingers.
+
+**A grip search that weighs the fingers.** `Staging.fingers_through` and `fingers_through_shaft`
+measure what `check_grips.gd` measures — how far the fingers are inside what the hand holds — and
+both searches now carry it in their cost alongside the joints. A hold the arm can make with its
+thumb through the wrist it is holding is not a hold, and nothing had told the search that. It
+cleared seven of the thumb entries and all six of the index-through-a-jo ones. What it cost, both
+recorded: Tori's right wrist rides 3° past its radial deviation in katatedori ikkyo's kake, and
+his left 1° past its extension in kumijo's thrust, because at those two holds the fingers and the
+joints pull against each other. In the blends it paid: katatedori ikkyo 16 → 15 and tachi dori
+33 → 30, against jo dori 10 → 11 and kumijo 0 → 4.
+
+**Next, in order.**
+1. The thumbs that are left. `check_grips.gd` still lists a handful 13–32 mm inside what the hand
+   holds, where no side or skew the search tries can clear them. A thumb does not curl round a
+   shaft like a finger — its metacarpal has to swing across the palm first — and a single curl
+   per finger has no way to ask for that. That is a second parameter on the thumb, not a better
+   search.
+2. Ushiro ryotedori zenponage's Tenkan and Kake: hands that hold nothing, which is where
+   `tools/refit_grips.gd` gives up and the technique needs authoring rather than fitting.
+3. `tachi_dori_irimi`: Tori takes Uke's forearm and the sword is then refitted in Uke's hands,
+   which moves that forearm out from under the hand already on it. Either re-take the grab after
+   the weapon fit, or teach the fit not to move a limb somebody is holding.
+4. The re-grip intermediate poses (`tools/add_step.gd`), still what most of the blend frames need.
+5. Katatedori shihonage's kake and kuzushi, and where Uke's forearm goes as the grip turns it.
+Bokken and jo attacks are still not in the catalogue.
+
+
+_The two 2026-09-16 sections above were written on `claude/handoff-check-wxx58t`, which was left
+unmerged while the work below went on from `main`; it was merged in on 2026-10-31 (see the end
+of this file for what that took)._
 
 ## Session 2026-10-31: the hakama
 
