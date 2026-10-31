@@ -51,9 +51,11 @@ sheets; pick a repetition and read it at 6 fps; write the script with a `ref` ti
 
 ## Tests
 
-`GODOT=$GODOT tests/run.sh` (about an hour on the agent machines; `RENDER_ACCEPTANCE=0` skips
-rendering a video of every acceptance technique and takes about half that). One test or check
-alone: `$GODOT --headless -s tests/<name>.gd` (seconds to ten minutes). Rendered stills are compared with `tests/golden/`; refresh deliberately
+Test what you changed, not everything: run the test files and checks that cover the code you
+touched, alone — `$GODOT --headless -s tests/<name>.gd` (seconds to a few minutes), and
+`MOTION_SEQ=<slug>` / `FLOOR_SEQ=<slug>` to check one sequence. The full
+`GODOT=$GODOT tests/run.sh` takes about an hour on the agent machines (`RENDER_ACCEPTANCE=0`
+halves it); run it only when asked. Rendered stills are compared with `tests/golden/`; refresh deliberately
 with `UPDATE_GOLDEN=1` after a change that is meant to change the look, and look at them first.
 The `OUTSTANDING` lists in `check_anatomy.gd`/`check_motion.gd` may only shrink.
 
