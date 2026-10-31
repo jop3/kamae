@@ -28,8 +28,9 @@ $GODOT --headless --import >/dev/null 2>&1      # once, before anything else
    library, copy its poses and sequence into `poses/` and `sequences/` — but then
    `tests/check_anatomy.gd` and `tests/check_motion.gd` judge it too.
 
-`tools/build_all.sh` rebuilds every script and `python3 tools/gallery.py` makes the browsable
-page of all of them (`techniques/build/gallery/`).
+`tools/build_all.sh` rebuilds every script (about 3–4 minutes each with video) and
+`python3 tools/gallery.py` makes the browsable page of all of them (`techniques/build/gallery/`),
+the falls (`techniques/ukemi_*.json`, Uke on his own) first.
 
 Things learned the hard way, all in `docs/technique-scripts.md`: use `where` instead of guessing
 from a camera; give a script a `view` that shows the key moment; `refit` a grip after the held
@@ -50,8 +51,9 @@ sheets; pick a repetition and read it at 6 fps; write the script with a `ref` ti
 
 ## Tests
 
-`GODOT=$GODOT tests/run.sh` (several minutes; `RENDER_ACCEPTANCE=0` skips rendering every
-acceptance technique). Rendered stills are compared with `tests/golden/`; refresh deliberately
+`GODOT=$GODOT tests/run.sh` (about an hour on the agent machines; `RENDER_ACCEPTANCE=0` skips
+rendering a video of every acceptance technique and takes about half that). One test or check
+alone: `$GODOT --headless -s tests/<name>.gd` (seconds to ten minutes). Rendered stills are compared with `tests/golden/`; refresh deliberately
 with `UPDATE_GOLDEN=1` after a change that is meant to change the look, and look at them first.
 The `OUTSTANDING` lists in `check_anatomy.gd`/`check_motion.gd` may only shrink.
 
