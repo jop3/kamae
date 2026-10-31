@@ -50,6 +50,9 @@ var belt_material: StandardMaterial3D
 var hakama: MeshInstance3D
 var hakama_knot: MeshInstance3D
 var hakama_material: StandardMaterial3D
+## What the hakama is drawn with: hakama_material's look, with a hem that rests on the mat
+## (resting_on_mat).
+var hakama_shader_material: ShaderMaterial
 var _dressed := true
 var _hakama_on := false
 ## Generated once per process and shared: the weave images are the same for every character.
@@ -160,6 +163,75 @@ static func _cloth_material(kind: String, tint: Color) -> StandardMaterial3D:
 		m.uv1_scale = Vector3.ONE * (1.0 / TILE_M)
 	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
 	return m
+
+
+## The shader `resting_on_mat` draws with: StandardMaterial3D's object-space triplanar cloth
+## (albedo and normal map, vertex colour as albedo), plus one thing a StandardMaterial3D cannot
+## do — a vertex that the skinning puts under the mat is put on it. Without cloth simulation a
+## hakama's hem follows the shin, so in a deep stance, kneeling or getting up from a fall the
+## back of the hem went down through the tatami (11-14 cm in the technique videos); cloth that
+## meets the mat lies on it. The shadow pass uses the same vertex function.
+const RESTING_SHADER := """
+shader_type spatial;
+render_mode blend_mix, depth_draw_opaque, cull_disabled, diffuse_burley, specular_schlick_ggx;
+uniform vec4 albedo : source_color;
+uniform sampler2D texture_albedo : source_color, filter_linear_mipmap, repeat_enable;
+uniform sampler2D texture_normal : hint_roughness_normal, filter_linear_mipmap, repeat_enable;
+uniform float normal_scale;
+uniform float roughness : hint_range(0.0, 1.0);
+uniform vec3 uv1_scale;
+uniform float mat_y = 0.0;
+uniform float lift = 0.002;
+varying vec3 uv1_triplanar_pos;
+varying vec3 uv1_power_normal;
+
+void vertex() {
+	uv1_power_normal = abs(NORMAL);
+	uv1_power_normal /= dot(uv1_power_normal, vec3(1.0));
+	uv1_triplanar_pos = VERTEX * uv1_scale * vec3(1.0, -1.0, 1.0);
+	vec4 world = MODEL_MATRIX * vec4(VERTEX, 1.0);
+	if (world.y < mat_y + lift) {
+		world.y = mat_y + lift;
+		VERTEX = (inverse(MODEL_MATRIX) * world).xyz;
+	}
+}
+
+vec4 triplanar_texture(sampler2D p_sampler, vec3 p_weights, vec3 p_pos) {
+	vec4 samp = vec4(0.0);
+	samp += texture(p_sampler, p_pos.xy) * p_weights.z;
+	samp += texture(p_sampler, p_pos.xz) * p_weights.y;
+	samp += texture(p_sampler, p_pos.zy * vec2(-1.0, 1.0)) * p_weights.x;
+	return samp;
+}
+
+void fragment() {
+	vec4 albedo_tex = triplanar_texture(texture_albedo, uv1_power_normal, uv1_triplanar_pos) * COLOR;
+	ALBEDO = albedo.rgb * albedo_tex.rgb;
+	ROUGHNESS = roughness;
+	SPECULAR = 0.5;
+	NORMAL_MAP = triplanar_texture(texture_normal, uv1_power_normal, uv1_triplanar_pos).rgb;
+	NORMAL_MAP_DEPTH = normal_scale;
+}
+"""
+static var _resting_shader: Shader
+
+
+## `m` (a cloth material from _cloth_material, triplanar) as a ShaderMaterial whose vertices stay
+## on or above the mat.
+static func resting_on_mat(m: StandardMaterial3D) -> ShaderMaterial:
+	if _resting_shader == null:
+		_resting_shader = Shader.new()
+		_resting_shader.code = RESTING_SHADER
+	var out := ShaderMaterial.new()
+	out.shader = _resting_shader
+	out.set_shader_parameter("albedo", m.albedo_color)
+	out.set_shader_parameter("texture_albedo", m.albedo_texture)
+	out.set_shader_parameter("texture_normal", m.normal_texture)
+	out.set_shader_parameter("normal_scale", m.normal_scale)
+	out.set_shader_parameter("roughness", m.roughness)
+	out.set_shader_parameter("uv1_scale", m.uv1_scale)
+	out.set_shader_parameter("mat_y", Ukemi.MAT_Y)
+	return out
 
 
 func set_belt_color(c: Color) -> void:
@@ -854,16 +926,17 @@ func _build_hakama() -> void:
 	hakama_material.roughness = 0.75
 	hakama_material.normal_scale = 1.0
 	hakama_material.vertex_color_use_as_albedo = true   # the shade deep in each fold (_hakama_ring)
+	hakama_shader_material = resting_on_mat(hakama_material)
 	var mesh := ArrayMesh.new()
 	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, _hakama_tubes())
-	mesh.surface_set_material(0, hakama_material)
+	mesh.surface_set_material(0, hakama_shader_material)
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	st.set_color(Color.WHITE)
 	_himo(st)
 	_koshi_ita(st)
 	st.generate_normals()
-	st.set_material(hakama_material)
+	st.set_material(hakama_shader_material)
 	st.commit(mesh)
 	hakama = MeshInstance3D.new()
 	hakama.name = "Hakama"

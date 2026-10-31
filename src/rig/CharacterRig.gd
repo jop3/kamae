@@ -43,10 +43,25 @@ var girdle: ShoulderGirdle
 ## Reading Skeleton3D directly outside that signal returns the *authored* pose, not the posed one
 ## (see docs/engine-notes.md), so everything that asks "where is this bone now" goes through here.
 var _solved_poses: Array[Transform3D] = []
+## bone -> the mesh's own radius along it, in BANDS bands from its joint to the next, measured
+## from the rest pose (skin_radius).
+var _skin_radii: Dictionary = {}
+const BANDS := 4
+## side -> the palm as a box in the hand bone's frame (palm_box).
+var _palm_boxes: Dictionary = {}
 ## limb key ("RightArm", "LeftLeg", …) -> Limb
 var limbs: Dictionary = {}
 ## False while rendering for export: IK handles stay hidden whatever the limb modes do.
 var show_handles := true
+## Set by PoseBlend for a figure blended into or out of a fall, between the two poses only: once
+## the pose has solved, the figure is rested on the mat (Ukemi.keep_on_mat) — lifted out of it or
+## lowered onto it. The blend grounds a fall from the pose alone, before the IK runs; this catches
+## what only the solve shows: a hand put down by IK, a fingertip, the legs an IK stance lets go of.
+var keep_on_mat := false
+## The fall this figure is in, as Ukemi shaped it: {"kind": "forward"|"backward"|"prone",
+## "t": 0..1}, empty when it is not falling. Saved with the pose; a blend between two poses
+## of one fall follows the fall's own course between them (PoseBlend, Ukemi.blend_fall).
+var fall := {}
 
 ## The four IK-able chains, in the order their nodes are added to the skeleton.
 const LIMB_CHAINS := [
@@ -127,6 +142,7 @@ func _build_limbs() -> void:
 	skeleton.add_child(girdle)
 	fingers = FingerCurl.new()
 	fingers.name = "FingerCurl"
+	fingers.rig = self
 	skeleton.add_child(fingers)
 	fingers.calibrate()
 	for chain in LIMB_CHAINS:
@@ -336,6 +352,145 @@ func get_skin_color() -> Color:
 	return id_color
 
 
+## The radius of the *mesh* around `bone` in the rest pose, in metres: the median distance from
+## the bone's axis of the vertices it mostly owns. This is what a hand holding that bone has to
+## close around, and it is not `BodyCapsules.radius`, which is a deliberately coarse collision
+## capsule — a forearm's capsule is 40 mm where the skin is 27 mm, and a grip seated on the
+## capsule floats above the arm. Measured once per rig and kept.
+## `along` is where on the bone (0 its own joint, 1 the next), because a limb tapers: this
+## forearm is 35 mm at the elbow and 23 mm at the wrist, and a grip seated on the average of the
+## two sinks into one end.
+func skin_radius(bone_name: String, along: float = 0.5) -> float:
+	if _skin_radii.is_empty():
+		_measure_skin_radii()
+	var bands: PackedFloat32Array = _skin_radii.get(bone_name, PackedFloat32Array())
+	if bands.is_empty():
+		return BodyCapsules.radius(bone_name)
+	return bands[clampi(int(clampf(along, 0.0, 0.999) * bands.size()), 0, bands.size() - 1)]
+
+
+func _measure_skin_radii() -> void:
+	_skin_radii = {"": 0.0}   # never empty again, even if the mesh cannot be read
+	if body == null or body.mesh == null or body.skin == null or skeleton == null:
+		return
+	var arrays: Array = body.mesh.surface_get_arrays(0)
+	var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+	var bones: PackedInt32Array = arrays[Mesh.ARRAY_BONES]
+	var weights: PackedFloat32Array = arrays[Mesh.ARRAY_WEIGHTS]
+	if verts.is_empty() or bones.is_empty():
+		return
+	var per_vertex := bones.size() / verts.size()
+	var bind_bone := PackedInt32Array()
+	for b in body.skin.get_bind_count():
+		var bone := body.skin.get_bind_bone(b)
+		if bone < 0:
+			bone = skeleton.find_bone(body.skin.get_bind_name(b))
+		bind_bone.append(bone)
+	var axis := {}
+	var by_bone := {}   # bone -> band -> distances
+	for v in verts.size():
+		var best := -1
+		var best_w := 0.0
+		for k in per_vertex:
+			var w := weights[v * per_vertex + k]
+			if w > best_w:
+				best_w = w
+				best = bind_bone[bones[v * per_vertex + k]]
+		# A vertex shared between two bones says nothing about either one's thickness.
+		if best < 0 or best_w < 0.6:
+			continue
+		if not axis.has(best):
+			var kids := skeleton.get_bone_children(best)
+			var a: Vector3 = skeleton.get_bone_global_rest(best).origin
+			var b: Vector3 = a + skeleton.get_bone_global_rest(best).basis.y * 0.08
+			if kids.size() > 0:
+				b = skeleton.get_bone_global_rest(kids[0]).origin
+			axis[best] = [a, b]
+			by_bone[best] = []
+			for band in BANDS:
+				by_bone[best].append(PackedFloat32Array())
+		var a0: Vector3 = axis[best][0]
+		var ab: Vector3 = axis[best][1] - a0
+		var along := clampf((verts[v] - a0).dot(ab) / maxf(ab.length_squared(), 1e-9), 0.0, 0.999)
+		by_bone[best][int(along * BANDS)].append(verts[v].distance_to(BodyCapsules.closest_on_segment(verts[v], a0, axis[best][1])))
+	for bone: int in by_bone:
+		var bands := PackedFloat32Array()
+		var ok := true
+		for band: PackedFloat32Array in by_bone[bone]:
+			if band.size() < 8:
+				ok = false
+				break
+			band.sort()
+			bands.append(band[band.size() / 2])
+		if ok:
+			_skin_radii[skeleton.get_bone_name(bone)] = bands
+
+
+## The palm as a box in the hand bone's frame, measured off the rest mesh: how far it reaches
+## along the hand (y), how deep it is from the back of the hand to the palm's own surface
+## (along the palm normal) and how wide (along the palm width). This is what a finger closing
+## has to stop at. Nothing told the curl the palm was there before, so a finger at full curl
+## closed *into* the hand rather than onto it, and a fist was a smooth lump rather than four
+## fingers (--demo-hands). Keys: y_min, y_max, back, front, half_width.
+func palm_box(side: String) -> Dictionary:
+	if _palm_boxes.is_empty():
+		_measure_palm_boxes()
+	return _palm_boxes.get(side, {})
+
+
+func _measure_palm_boxes() -> void:
+	_palm_boxes = {"": {}}
+	if body == null or body.mesh == null or body.skin == null or skeleton == null or fingers == null:
+		return
+	var arrays: Array = body.mesh.surface_get_arrays(0)
+	var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+	var bones: PackedInt32Array = arrays[Mesh.ARRAY_BONES]
+	var weights: PackedFloat32Array = arrays[Mesh.ARRAY_WEIGHTS]
+	if verts.is_empty() or bones.is_empty():
+		return
+	var per_vertex := bones.size() / verts.size()
+	var bind_bone := PackedInt32Array()
+	for b in body.skin.get_bind_count():
+		var bone := body.skin.get_bind_bone(b)
+		if bone < 0:
+			bone = skeleton.find_bone(body.skin.get_bind_name(b))
+		bind_bone.append(bone)
+	for side in ["Right", "Left"]:
+		var hand := skeleton.find_bone(side + "Hand")
+		if hand < 0:
+			continue
+		var to_hand: Transform3D = skeleton.get_bone_global_rest(hand).affine_inverse()
+		var n: Vector3 = fingers.palm_normal(side).normalized()
+		var w: Vector3 = fingers.palm_width(side).normalized()
+		var along := PackedFloat32Array()
+		var depth := PackedFloat32Array()
+		var across := PackedFloat32Array()
+		for v in verts.size():
+			var best := -1
+			var best_w := 0.0
+			for k in per_vertex:
+				var weight := weights[v * per_vertex + k]
+				if weight > best_w:
+					best_w = weight
+					best = bind_bone[bones[v * per_vertex + k]]
+			if best != hand or best_w < 0.6:
+				continue
+			var p: Vector3 = to_hand * verts[v]
+			along.append(p.y)
+			depth.append(p.dot(n))
+			across.append(p.dot(w))
+		if along.size() < 20:
+			continue
+		along.sort(); depth.sort(); across.sort()
+		var pct := func(arr: PackedFloat32Array, f: float) -> float:
+			return arr[clampi(int(arr.size() * f), 0, arr.size() - 1)]
+		_palm_boxes[side] = {
+			"y_min": pct.call(along, 0.05), "y_max": pct.call(along, 0.95),
+			"back": pct.call(depth, 0.05), "front": pct.call(depth, 0.90),
+			"half_width": maxf(absf(pct.call(across, 0.05)), absf(pct.call(across, 0.95))),
+		}
+
+
 func bone_names() -> PackedStringArray:
 	var names := PackedStringArray()
 	for i in skeleton.get_bone_count():
@@ -346,6 +501,8 @@ func bone_names() -> PackedStringArray:
 func _cache_solved_poses() -> void:
 	for i in skeleton.get_bone_count():
 		_solved_poses[i] = skeleton.get_bone_global_pose(i)
+	if keep_on_mat:
+		Ukemi.keep_on_mat(self)
 
 
 ## Where a bone actually is on screen, in world space, as of the last completed pose evaluation.

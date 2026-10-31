@@ -81,13 +81,25 @@ func hold(id: String, side: String, type: String, t: float = -1.0, weapon_id: St
 ## default's guess (a jo's at 90° past it, a bokken's at 75°), and a cut brought down needs
 ## 60° of skew: up to ±60° of roll the search stopped at its own edge with the cost still
 ## falling and called those hands impossible.
-const HOLD_ROLLS := [0.0, -15.0, 15.0, -30.0, 30.0, -45.0, 45.0, -60.0, 60.0, -75.0, 75.0, -90.0, 90.0]
+##
+## The rolls go in 7.5° steps rather than 15°: with the fit keeping the hold a hand already has,
+## the step is how far a hand must turn between two poses when its own hold stops clearing the
+## wrist, and halving it halved those turns — kumitachi's cut, 11 frames not plausible on the
+## 15° grid, has none on this one. The search costs no more for it, because a hold that still
+## clears its joints is taken before the rest of the grid is tried.
+const HOLD_ROLLS := [0.0, -7.5, 7.5, -15.0, 15.0, -22.5, 22.5, -30.0, 30.0, -37.5, 37.5, -45.0, 45.0, -52.5, 52.5, -60.0, 60.0, -67.5, 67.5, -75.0, 75.0, -82.5, 82.5, -90.0, 90.0]
 const HOLD_SKEWS := [0.0, -20.0, 20.0, -40.0, 40.0, -60.0, 60.0]
 
 ## Turns each of `id`'s hands that grips `weapon` about the shaft, and skews the fingers across
 ## it, to where its wrist, elbow and shoulder refuse least: the roll and the skew of a hold are
 ## what a two-handed weapon grip leaves to the wrist, and the default hold's 45° was a guess. Weapon-driven weapons only
 ## (both hands are grips); a hand-driven holder's own hand is placed by its arm.
+##
+## A hand that already holds the weapon keeps the hold it has wherever its joints allow: the
+## poses of a technique are fitted one after another on the same hands, and a hand rolled one
+## way in one pose and back in the next asks the wrist, half-way between them, for a turn
+## neither pose asks for (tests/check_motion.gd). FIT_VERBOSE=1 prints each hand's chosen hold,
+## =2 every candidate it was chosen over.
 func fit_weapon_hands(id: String, weapon: Weapon) -> void:
 	# Two passes: the arms share a shoulder girdle, so fitting the second hand moves the first
 	# hand's shoulder and can undo its fit; the second pass re-fits each hand against the other
@@ -98,34 +110,86 @@ func fit_weapon_hands(id: String, weapon: Weapon) -> void:
 
 func _fit_weapon_hands_once(id: String, weapon: Weapon) -> void:
 	var r := rig(id)
+	var verbose := OS.get_environment("FIT_VERBOSE")
 	for grip in director.grips_for(id).duplicate():
 		if grip.target.kind != GripTarget.Kind.WEAPON or grip.target.weapon_id != weapon.weapon_id:
 			continue
 		var hand: String = grip.hand
 		var t: float = grip.target.t
+		# Closed onto the shaft before anything is measured: a fist leaves the wrist less range
+		# than an open hand and the search reads that range (JointLimits).
+		GripDirector.close_fingers_on_weapon(r, hand, weapon)
 		var base: float = float(weapon.default_hold(hand)["roll_deg"])
+		# A hand that already holds the shaft is measured from the hold it has, not from the
+		# weapon's default guess: consecutive poses of a technique refit the same hands, and a
+		# hand rolled 75° from the default in one pose and back to it in the next asks the wrist
+		# for the whole turn in between, which is what the frames between them were failing on.
+		var from_roll: float = grip.roll_deg if grip.hold_known else base
+		var from_skew: float = grip.skew_deg if grip.hold_known else 0.0
+		# Nearest candidate first, so a hand whose own hold still costs nothing keeps it without
+		# the rest of the grid being tried. Ties keep the lists' own order (Godot's sort is not
+		# stable), so a fit from the default hold tries exactly what it tried before.
+		var rolls := _nearest_first(HOLD_ROLLS, func(d: float) -> float: return _turn(base + d, from_roll))
+		var skews := _nearest_first(HOLD_SKEWS, func(sk: float) -> float: return absf(sk - from_skew))
 		var current: Grip = grip
-		var best_roll := base
-		var best_skew := 0.0
+		var best_roll := from_roll
+		var best_skew := from_skew
 		var best_cost := INF
-		for d in HOLD_ROLLS:
-			for sk in HOLD_SKEWS:
+		for d in rolls:
+			for sk in skews:
 				director._remove(current)
 				current = director._attach_to_weapon_raw(r, hand, weapon, t, true, base + float(d), float(sk))
 				await settle(4)
-				var cost := arm_refusal_excess(r, hand) + 2000.0 * director.error_for(current) + 0.02 * (absf(float(d)) + absf(float(sk)))
+				var turn := _turn(base + float(d), from_roll) + absf(float(sk) - from_skew)
+				var excess := arm_refusal_excess(r, hand)
+				var cost := excess + 2000.0 * director.error_for(current) + 0.02 * turn \
+					+ 30.0 * fingers_through_shaft(r, hand, weapon)
+				if verbose == "2":
+					print("  try %s/%s roll %+.0f skew %+.0f: excess %.1f reach %.3f turn %.0f"
+						% [id, hand, base + float(d), float(sk), excess, director.error_for(current), turn])
 				if cost < best_cost:
 					best_cost = cost; best_roll = base + float(d); best_skew = float(sk)
 				if best_cost < 1e-3:
 					break
 			if best_cost < 1e-3:
 				break
+		# Through the default hold, always: an arm's pole is taken from where the arm is now, so
+		# the pose kept would otherwise depend on whichever candidate the search happened to try
+		# last, and that is the order the grid was walked in. Coming to the chosen hold from the
+		# same place every time makes the fit reproducible.
+		director._remove(current)
+		current = director._attach_to_weapon_raw(r, hand, weapon, t, true, base, 0.0)
+		await settle(4)
 		director._remove(current)
 		director._attach_to_weapon_raw(r, hand, weapon, t, true, best_roll, best_skew)
 		await settle(4)
-		if OS.get_environment("FIT_VERBOSE") == "1":
+		if verbose == "1" or verbose == "2":
 			print("fit %s/%s on %s t=%.3f: roll %+.0f skew %+.0f cost %.2f; refused now: %s"
 				% [id, hand, weapon.weapon_id, t, best_roll, best_skew, best_cost, "; ".join(r.joint_limits.report())])
+
+
+## `values` ordered by `distance`, ties in the order they were given.
+static func _nearest_first(values: Array, distance: Callable) -> Array:
+	var order := range(values.size())
+	order.sort_custom(func(i: int, j: int) -> bool:
+		var di: float = distance.call(float(values[i]))
+		var dj: float = distance.call(float(values[j]))
+		return di < dj if not is_equal_approx(di, dj) else i < j)
+	var out := []
+	for i in order:
+		out.append(float(values[i]))
+	return out
+
+
+## How far a hand turns on the shaft to go from one roll to another, in degrees the short way round.
+static func _turn(roll_deg: float, from_deg: float) -> float:
+	return absf(wrapf(roll_deg - from_deg, -180.0, 180.0))
+
+
+## How much of the fitted curl a grip may settle for, tried tightest first (see `grab`).
+const CURL_EASE := [1.0, 0.8, 0.6]
+## The skews a wrapped grip falls back to when the catalogue's own leave the arm refused.
+const WIDE_SKEWS := [0.0, -10.0, 10.0, -20.0, 20.0, -30.0, 30.0, -40.0, 40.0]
 
 
 ## A hanmi stance: `front` foot a step forward, rear foot back and turned out, knees bent by
@@ -178,6 +242,12 @@ func grab(gripper: String, hand: String, target: String, bone: String, approach_
 	if g.limbs[hand + "Arm"].mode != Limb.Mode.IK:
 		await ctrl.set_limb_mode(g, hand + "Arm", Limb.Mode.IK)
 	var t := rig(target)
+	# Close the fingers onto what is being held before anything is measured: the wrist's range
+	# depends on the hand's curl (a fist bends less than an open hand), so the side and skew
+	# search below must see the hand it is going to end up with. `curl` is now only what a
+	# finger that cannot reach falls back to.
+	var seat_along := clampf(along, 0.25, 0.9)
+	close_fingers_onto(g, hand, t, bone, curl, seat_along)
 	var start: Vector3 = t.bone_world_transform(bone).origin
 	var children := t.skeleton.get_bone_children(t.skeleton.find_bone(bone))
 	var shaft := Vector3.UP
@@ -199,25 +269,47 @@ func grab(gripper: String, hand: String, target: String, bone: String, approach_
 		var reach := GripDirector.hold_radius(bone) + 0.04
 		var best_cost := INF
 		var best_side := radial
-		for candidate in [radial, -radial]:
-			for f in [false, true]:
-				for sk in skews:
-					g.limbs[hand + "Arm"].target.global_position = start + candidate * reach
-					await settle(2)
-					var trial := director.attach_wrapped(g, hand, t, bone, true, f, float(sk))
-					await settle(4)
-					var cost := arm_refusal_excess(g, hand) + 2000.0 * director.error_for(trial) + 0.02 * absf(float(sk))
-					if prefer is Transform3D:
-						var turn: float = ((prefer as Transform3D).basis.orthonormalized().inverse() * trial.offset.basis.orthonormalized()).get_rotation_quaternion().get_angle()
-						cost += PREFER_WEIGHT * rad_to_deg(turn)
-					director._remove(trial)
-					if cost < best_cost:
-						best_cost = cost; best_side = candidate; flip = f; skew = float(sk)
+		# ... and how far the fingers close is part of the search too: a hand closed onto what it
+		# holds leaves its wrist less range than an open one (JointLimits reads the curl), so a
+		# grip the joints refuse by a few degrees is worth taking with the fingers a little short
+		# of the surface rather than not at all. CURL_EASE is how much of the fitted curl to try,
+		# tightest first; anything looser than this is a hand not holding anything.
+		var best_ease := 1.0
+		# The catalogue's own skews first; if none of them leaves the arm free, the wider list,
+		# because a grip the joints refuse is worse than one whose fingers run a little more
+		# diagonally across the wrist than the catalogue thought.
+		# (A hold to prefer — the wrap the hand had before, when a grip is refit — is weighed in
+		# the cost, but only what the joints refuse decides whether the wider list is needed.)
+		var best_refused := INF
+		var rounds := [skews, WIDE_SKEWS]
+		for round_skews in rounds:
+			if best_refused < 1e-3:
+				break
+			for candidate in [radial, -radial]:
+				for f in [false, true]:
+					for sk in round_skews:
+						for ease in CURL_EASE:
+							close_fingers_onto(g, hand, t, bone, curl, seat_along, float(ease))
+							g.limbs[hand + "Arm"].target.global_position = start + candidate * reach
+							await settle(2)
+							var trial := director.attach_wrapped(g, hand, t, bone, true, f, float(sk))
+							await settle(4)
+							var cost := arm_refusal_excess(g, hand) + 2000.0 * director.error_for(trial) \
+								+ 0.02 * absf(float(sk)) + 2.0 * (1.0 - float(ease)) \
+								+ 60.0 * fingers_through(g, hand, t, bone)
+							var refused := cost
+							if prefer is Transform3D:
+								var turn: float = ((prefer as Transform3D).basis.orthonormalized().inverse() * trial.offset.basis.orthonormalized()).get_rotation_quaternion().get_angle()
+								cost += PREFER_WEIGHT * rad_to_deg(turn)
+							director._remove(trial)
+							if cost < best_cost:
+								best_refused = refused
+								best_cost = cost; best_side = candidate; flip = f; skew = float(sk); best_ease = float(ease)
 		approach_offset = best_side * reach
+		close_fingers_onto(g, hand, t, bone, curl, seat_along, best_ease)
 	g.limbs[hand + "Arm"].target.global_position = start + approach_offset
 	await settle()
 	var grip := director.attach_wrapped(g, hand, rig(target), bone, true, flip, skew)
-	fingers(gripper, hand, curl)
 	await settle(3)
 	return grip
 
@@ -225,6 +317,63 @@ func grab(gripper: String, hand: String, target: String, bone: String, approach_
 ## Degrees of refused joint a grip is worth for each degree it does not turn the hand from the
 ## wrap it had: a flip to the far side of the arm (180°) has to save the arm 54° to be taken.
 const PREFER_WEIGHT := 0.3
+
+
+## Closes each of `hand`'s fingers as far as resting on `bone` takes, no further: the curl is
+## worked out from the mesh's own radius there and the finger's own length
+## (FingerCurl.curls_onto), rather than from a number in the catalogue. A finger that cannot
+## reach round what it holds keeps `fallback`.
+func close_fingers_onto(g: CharacterRig, hand: String, t: CharacterRig, bone: String, fallback: float, along: float = 0.5, ease: float = 1.0) -> void:
+	var seat := GripDirector.grip_seat(g, hand, t, bone, along)
+	var axis: Vector3 = Weapon.canonical_basis(g, hand).y
+	var fitted := g.fingers.curls_onto(hand, seat, axis, t.skin_radius(bone, along))
+	for finger: String in fitted:
+		var c: float = fitted[finger]
+		g.fingers.set_curl(hand, finger, (fallback if is_equal_approx(c, 1.0) else c) * ease)
+
+
+## How far `hand`'s fingers are inside `bone`, in metres summed over the joints that are in it.
+## The search reads this as well as the joints: a hold the arm can make with its thumb through
+## the wrist it holds is not a hold, and nothing but this told the search so (tests/check_grips.gd
+## measures the same thing on the poses that are kept).
+static func fingers_through(g: CharacterRig, hand: String, t: CharacterRig, bone: String) -> float:
+	var a: Vector3 = t.bone_world_transform(bone).origin
+	var kids := t.skeleton.get_bone_children(t.skeleton.find_bone(bone))
+	var b: Vector3 = a + t.bone_world_transform(bone).basis.y * 0.2
+	if kids.size() > 0:
+		b = t.bone_world_transform(t.skeleton.get_bone_name(kids[0])).origin
+	var palm: Vector3 = g.bone_world_transform(hand + "Hand").origin
+	var along: float = clampf((palm - a).dot(b - a) / maxf((b - a).length_squared(), 1e-9), 0.0, 1.0)
+	var surface: float = t.skin_radius(bone, along) + FINGER_RADIUS
+	var total := 0.0
+	for finger in FingerCurl.FINGERS:
+		for part: String in FingerCurl.SEGMENTS[finger]:
+			var n: String = "%s%s%s" % [hand, finger, part]
+			if g.skeleton.find_bone(n) < 0:
+				continue
+			var p: Vector3 = g.bone_world_transform(n).origin
+			total += maxf(0.0, surface - p.distance_to(BodyCapsules.closest_on_segment(p, a, b)))
+	return total
+
+
+## The same for a hand on a weapon: how far its fingers are inside the shaft, summed.
+static func fingers_through_shaft(g: CharacterRig, hand: String, weapon: Weapon) -> float:
+	var a: Vector3 = weapon.anchor_transform(0.0).origin
+	var b: Vector3 = weapon.anchor_transform(1.0).origin
+	var surface: float = weapon.shaft_half() + FINGER_RADIUS
+	var total := 0.0
+	for finger in FingerCurl.FINGERS:
+		for part: String in FingerCurl.SEGMENTS[finger]:
+			var n: String = "%s%s%s" % [hand, finger, part]
+			if g.skeleton.find_bone(n) < 0:
+				continue
+			var p: Vector3 = g.bone_world_transform(n).origin
+			total += maxf(0.0, surface - p.distance_to(BodyCapsules.closest_on_segment(p, a, b)))
+	return total
+
+
+## A finger bone's own radius, for measuring how far it is inside what it holds.
+const FINGER_RADIUS := 0.011
 
 
 ## Degrees by which `hand`'s arm (shoulder, elbow, wrist) is past its joints' ranges on screen,
@@ -294,12 +443,17 @@ func hang_arm(id: String, side: String) -> void:
 	await hand_at(id, side, off)
 
 
+## The most the hips are lowered to bring a hovering foot down to the mat, metres.
+const MAX_HIP_DROP := 0.04
+
+
 ## Anyone still on their feet stands on the floor: bending the knees tilts the shins, and arm
 ## work can pull a figure about, either of which lifts a foot a centimetre or two.
 func feet_on_floor() -> void:
 	for r in scene.characters:
 		if not r.visible or absf(r.rotation.x) > 0.6 or absf(r.rotation.z) > 0.6:
 			continue
+		await _within_reach_of_floor(r)
 		for pass_ in 3:
 			var moved := false
 			for side in ["Right", "Left"]:
@@ -313,3 +467,37 @@ func feet_on_floor() -> void:
 			if not moved:
 				break
 			await settle(3)
+		await _within_reach_of_floor(r)
+
+
+## A standing leg that cannot reach the mat (the hips set too high for how wide the stance is)
+## used to be "fixed" below by pushing its target further into the floor, pass after pass: the
+## leg stood straight toward a point up to 23 cm under the mat (and as far off to the side), the
+## foot hung a centimetre or two above it, and every blend toward that pose swept the foot down
+## through the tatami. So an out-of-reach target is first put where the foot actually is, and the
+## hips come down by what the foot hovers — a person whose foot does not reach the floor bends
+## the other knee a little — with the targets kept, so the foot is set on the mat where it was.
+## Moving the hips until the leg reached the old target instead dropped Tori 12 cm into a crouch.
+func _within_reach_of_floor(r: CharacterRig) -> void:
+	var hover := 0.0
+	var legs := []
+	for side in ["Right", "Left"]:
+		var leg: Limb = r.limbs[side + "Leg"]
+		if leg.mode != Limb.Mode.IK or _lifted.has("%s/%s" % [r.character_id, side]):
+			continue
+		if r.bone_world_transform(side + "LowerLeg").origin.y < 0.25:
+			return   # kneeling: the knees are on the mat, not reaching for it
+		if leg.reach_shortfall() > 0.003:
+			leg.reset_target_to_pose()
+		legs.append(side)
+		hover = maxf(hover, PoseBlend.sole_lowest(r, side, leg.target.global_transform))
+	if hover < 0.003:
+		return
+	hover = minf(hover, MAX_HIP_DROP)
+	ctrl.set_root(r, r.position - Vector3(0.0, hover, 0.0), r.rotation.y, r.rotation.x, r.rotation.z, Stance.BOTH_LEGS)
+	for side: String in legs:
+		var leg: Limb = r.limbs[side + "Leg"]
+		var t := leg.target.global_transform
+		t.origin.y -= minf(hover, maxf(0.0, PoseBlend.sole_lowest(r, side, t)))
+		leg.target.global_transform = t
+	await settle(3)

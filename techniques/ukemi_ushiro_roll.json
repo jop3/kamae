@@ -1,0 +1,130 @@
+{
+  "name": "Ushiro ukemi (roll)",
+  "label": "Ukemi · backward roll, up to kiza",
+  "description": "Ushiro kaiten ukemi, the backward roll. Uke steps back, sinks into a deep squat over the rear foot and sits close to the heel, rolls back on a round back with the chin in and the head turned to the side, goes over the right shoulder and comes up into kiza, then stands.",
+  "source": "the uploaded ukemi clips (2026-10-31), backward rolls in ukemi_02 (1.1-2.6 s) and ukemi_08 (0-5 s)",
+  "camera": "Side",
+  "characters": [
+    {
+      "id": "uke1",
+      "name": "Uke",
+      "role": "Uke",
+      "gi": true
+    }
+  ],
+  "phases": [
+    {
+      "name": "Kamae",
+      "transition": 0.0,
+      "hold": 0.5,
+      "allow_short": true,
+      "do": [
+        {
+          "hanmi": "uke1",
+          "front": "Left"
+        }
+      ]
+    },
+    {
+      "name": "Sätt",
+      "transition": 0.6,
+      "hold": 0.0,
+      "allow_short": true,
+      "do": [
+        {
+          "move": "uke1",
+          "by": [
+            0.0,
+            -0.15
+          ]
+        },
+        {
+          "ukemi": "uke1",
+          "kind": "backward",
+          "t": 0.15
+        }
+      ]
+    },
+    {
+      "name": "Rygg",
+      "transition": 0.45,
+      "hold": 0.0,
+      "allow_short": true,
+      "do": [
+        {
+          "move": "uke1",
+          "by": [
+            0.0,
+            -0.35
+          ]
+        },
+        {
+          "ukemi": "uke1",
+          "kind": "backward",
+          "t": 0.4
+        }
+      ]
+    },
+    {
+      "name": "Över",
+      "transition": 0.45,
+      "hold": 0.0,
+      "allow_short": true,
+      "do": [
+        {
+          "move": "uke1",
+          "by": [
+            0.0,
+            -0.35
+          ]
+        },
+        {
+          "ukemi": "uke1",
+          "kind": "backward",
+          "t": 0.7
+        }
+      ]
+    },
+    {
+      "name": "Kiza",
+      "transition": 0.5,
+      "hold": 0.3,
+      "allow_short": true,
+      "do": [
+        {
+          "move": "uke1",
+          "by": [
+            0.0,
+            -0.25
+          ]
+        },
+        {
+          "stand": "uke1"
+        },
+        {
+          "move": "uke1",
+          "turn": 180
+        },
+        {
+          "kneel": "uke1",
+          "kind": "kiza"
+        }
+      ]
+    },
+    {
+      "name": "Upp",
+      "transition": 0.6,
+      "hold": 1.0,
+      "allow_short": true,
+      "do": [
+        {
+          "stand": "uke1"
+        },
+        {
+          "hanmi": "uke1",
+          "front": "Left"
+        }
+      ]
+    }
+  ]
+}

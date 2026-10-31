@@ -71,6 +71,12 @@ func _ready() -> void:
 	if args.has("--import-draft"):
 		await _import_draft(args)
 		return
+	if args.has("--demo-hands"):
+		await _render_hand_poses(args[args.find("--demo-hands") + 1])
+		return
+	if args.has("--demo-grip"):
+		await _render_grip_closeup(args)
+		return
 	if args.has("--demo-gi"):
 		await _render_demo_gi(args[args.find("--demo-gi") + 1])
 		return
@@ -340,7 +346,7 @@ func _render_demo_weapon(path: String) -> void:
 	var edge: Vector3 = -w.global_transform.basis.z
 	for side in ["Right", "Left"]:
 		var hand: Transform3D = tori.bone_world_transform(side + "Hand")
-		var palm: Vector3 = hand * Weapon.palm_centre(tori, side)
+		var palm: Vector3 = hand * w.shaft_seat(tori, side)
 		var fingers: Vector3 = (tori.bone_world_transform(side + "MiddleProximal").origin - hand.origin).normalized()
 		var tip: Vector3 = tori.bone_world_transform(side + "MiddleDistal").origin
 		var thumb: Vector3 = tori.bone_world_transform(side + "ThumbDistal").origin
@@ -409,6 +415,128 @@ func _render_demo_hand(path: String) -> void:
 			await StillExport.capture(get_viewport(), p, false, _hide_always(), _hide_for_transparent())
 			print("hand demo saved: ", p)
 	get_tree().quit()
+
+
+## The hand by itself, holding nothing, in the poses a hand makes: what the finger curls do,
+## looked at rather than measured. The arm is put out in front so the hand is clear of the body,
+## and each pose is rendered from the palm, the back and the little-finger edge.
+##   --demo-hands <out.png>
+const HAND_POSES := [
+	["open", {}],
+	["relaxed", {"Thumb": 0.25, "Index": 0.3, "Middle": 0.35, "Ring": 0.4, "Little": 0.45}],
+	["fist", {"Thumb": 1.0, "Index": 1.0, "Middle": 1.0, "Ring": 1.0, "Little": 1.0}],
+	["half_closed", {"Thumb": 0.5, "Index": 0.5, "Middle": 0.5, "Ring": 0.5, "Little": 0.5}],
+	["index_to_palm", {"Index": 1.0}],
+	["little_to_palm", {"Little": 1.0}],
+	["pointing", {"Thumb": 0.6, "Middle": 1.0, "Ring": 1.0, "Little": 1.0}],
+	["thumb_across", {"Thumb": 1.0}],
+	["pinch", {"Thumb": 0.9, "Index": 0.85}],
+	["hook", {"Index": 0.8, "Middle": 0.8, "Ring": 0.8, "Little": 0.8}],
+]
+
+func _render_hand_poses(out: String) -> void:
+	var tori: CharacterRig = posing_scene.get_character("tori")
+	posing_scene.remove_character("uke1")
+	posing_scene.show_handles = false
+	tori.set_show_handles(false)
+	floor_grid.visible = false
+	await get_tree().process_frame
+	# The arm out in front and a little to the side, so nothing but the hand is in the picture.
+	await controller.set_limb_mode(tori, "RightArm", Limb.Mode.IK)
+	tori.limbs["RightArm"].target.global_position = tori.bone_world_transform("RightUpperArm").origin + Vector3(-0.12, 0.05, 0.42)
+	tori.limbs["RightArm"].reset_pole()
+	for i in 4:
+		await get_tree().process_frame
+	for entry in HAND_POSES:
+		var name: String = entry[0]
+		var curls: Dictionary = entry[1]
+		for finger in FingerCurl.FINGERS:
+			tori.fingers.set_curl("Right", finger, float(curls.get(finger, 0.0)))
+		for i in 4:
+			await get_tree().process_frame
+		var h: Transform3D = tori.bone_world_transform("RightHand")
+		var centre: Vector3 = h * Vector3(0, 0.07, 0)
+		var normal: Vector3 = h.basis * tori.fingers.palm_normal("Right")
+		var width: Vector3 = h.basis * tori.fingers.palm_width("Right")
+		for view in [["palm", normal], ["back", -normal], ["edge", -width]]:
+			var dir: Vector3 = (view[1] as Vector3).normalized()
+			# A narrow lens from a little further back: 50° at arm's length bends a hand out of
+			# shape, and what these are for is looking at its shape.
+			camera.fov = 30.0
+			camera.look_from(dir, centre, 0.28)
+			# The sun follows the camera for these: the scene's own light comes from one side, and
+			# a hand looked at from the other is a silhouette.
+			var sun := get_node_or_null("Sun") as DirectionalLight3D
+			if sun:
+				sun.global_transform = Transform3D().looking_at(-(dir + Vector3(0.25, 0.4, 0.0)).normalized(), Vector3.UP)
+				sun.global_position = centre + dir * 2.0 + Vector3(0, 1.0, 0)
+			for i in 3:
+				await get_tree().process_frame
+			var p := "%s_%s_%s.png" % [out.get_basename(), name, view[0]]
+			await StillExport.capture(get_viewport(), p, false, _hide_always(), _hide_for_transparent())
+			print("hand pose saved: %s (camera %.2f m away, fov %.0f)" % [p, camera.global_position.distance_to(centre), camera.fov])
+	get_tree().quit()
+
+
+## A saved pose with the camera close in on one hand, from the back of the hand, from the thumb
+## and along the forearm: what a hold actually looks like, at a size a wide still cannot show.
+##   --demo-grip <pose.json> <character> <Right|Left> <out.png> [--grip-distance 0.25]
+func _render_grip_closeup(args: PackedStringArray) -> void:
+	var i := args.find("--demo-grip")
+	var pose_path := args[i + 1]
+	var id := args[i + 2]
+	var hand := args[i + 3]
+	var out := args[i + 4]
+	var distance := float(args[args.find("--grip-distance") + 1]) if args.has("--grip-distance") else 0.25
+	var data := PoseFile.load(pose_path)
+	if data.is_empty():
+		push_error("Cannot read pose %s" % pose_path)
+		get_tree().quit(1)
+		return
+	PoseFile.apply(data, posing_scene, grip_director)
+	posing_scene.show_handles = false
+	for rig in posing_scene.characters:
+		rig.set_show_handles(false)
+	for k in 4:
+		await get_tree().process_frame
+	var r: CharacterRig = posing_scene.get_character(id)
+	if r == null:
+		push_error("Pose %s has no character %s" % [pose_path, id])
+		get_tree().quit(1)
+		return
+	var h: Transform3D = r.bone_world_transform(hand + "Hand")
+	var centre: Vector3 = h * Vector3(0, 0.06, 0)
+	var normal: Vector3 = h.basis * r.fingers.palm_normal(hand)
+	var width: Vector3 = h.basis * r.fingers.palm_width(hand)
+	# Every direction is tried from outside in: a camera 25 cm from a hand that two people are
+	# holding between them can easily sit inside one of them, and an inside-out body fills the
+	# frame with flat colour. A view whose eye is inside a capsule is moved out along its own
+	# direction until it is clear, and dropped if it never is.
+	for view in [["back", -normal], ["thumb", width], ["along", h.basis.y], ["edge", normal.cross(width).normalized()]]:
+		var dir: Vector3 = (view[1] as Vector3).normalized()
+		var clear := distance
+		while clear < distance * 4.0 and _inside_a_body(centre + dir * clear):
+			clear += 0.05
+		if _inside_a_body(centre + dir * clear):
+			print("grip close-up skipped (no clear view): ", view[0])
+			continue
+		camera.look_from(dir, centre, clear)
+		for k in 3:
+			await get_tree().process_frame
+		var p := "%s_%s.png" % [out.get_basename(), view[0]]
+		await StillExport.capture(get_viewport(), p, false, _hide_always(), _hide_for_transparent())
+		print("grip close-up saved: ", p)
+	get_tree().quit()
+
+
+## Is `p` inside anyone's body capsules? Used to keep a close-up camera out of a torso.
+func _inside_a_body(p: Vector3) -> bool:
+	for rig in posing_scene.characters:
+		if not rig.visible:
+			continue
+		if BodyCapsules.penetration(p, 0.02, rig) > 0.0:
+			return true
+	return false
 
 
 ## Test hook: both figures in gi, standing and in a katatedori with one arm raised, so the

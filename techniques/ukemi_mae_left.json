@@ -1,0 +1,129 @@
+{
+  "name": "Mae ukemi (left)",
+  "label": "Ukemi · forward roll over the left shoulder",
+  "description": "Zenpo kaiten ukemi, the forward roll, over the left shoulder. From left hanmi Uke bends low and reaches the left arm down in a curve, fingers in; the roll goes from the hand along the arm and the shoulder, diagonally across the back to the right hip, the head turned away from the leading shoulder, and comes up into kiza and then to the feet, facing the way the roll went.",
+  "source": "the uploaded ukemi clips (2026-10-31), forward rolls in ukemi_01 and ukemi_02",
+  "camera": "Side",
+  "characters": [
+    {
+      "id": "uke1",
+      "name": "Uke",
+      "role": "Uke",
+      "gi": true
+    }
+  ],
+  "phases": [
+    {
+      "name": "Kamae",
+      "transition": 0.0,
+      "hold": 0.5,
+      "allow_short": true,
+      "do": [
+        {
+          "hanmi": "uke1",
+          "front": "Left"
+        }
+      ]
+    },
+    {
+      "name": "Ner",
+      "transition": 0.6,
+      "hold": 0.0,
+      "allow_short": true,
+      "do": [
+        {
+          "move": "uke1",
+          "by": [
+            0.0,
+            0.25
+          ]
+        },
+        {
+          "ukemi": "uke1",
+          "kind": "forward",
+          "t": 0.2,
+          "lead": "Left"
+        }
+      ]
+    },
+    {
+      "name": "Axel",
+      "transition": 0.45,
+      "hold": 0.0,
+      "allow_short": true,
+      "do": [
+        {
+          "move": "uke1",
+          "by": [
+            0.0,
+            0.35
+          ]
+        },
+        {
+          "ukemi": "uke1",
+          "kind": "forward",
+          "t": 0.4,
+          "lead": "Left"
+        }
+      ]
+    },
+    {
+      "name": "Rygg",
+      "transition": 0.45,
+      "hold": 0.0,
+      "allow_short": true,
+      "do": [
+        {
+          "move": "uke1",
+          "by": [
+            0.0,
+            0.35
+          ]
+        },
+        {
+          "ukemi": "uke1",
+          "kind": "forward",
+          "t": 0.65,
+          "lead": "Left"
+        }
+      ]
+    },
+    {
+      "name": "Kiza",
+      "transition": 0.5,
+      "hold": 0.3,
+      "allow_short": true,
+      "do": [
+        {
+          "move": "uke1",
+          "by": [
+            0.0,
+            0.3
+          ]
+        },
+        {
+          "stand": "uke1"
+        },
+        {
+          "kneel": "uke1",
+          "kind": "kiza"
+        }
+      ]
+    },
+    {
+      "name": "Upp",
+      "transition": 0.6,
+      "hold": 1.0,
+      "allow_short": true,
+      "do": [
+        {
+          "stand": "uke1"
+        },
+        {
+          "hanmi": "uke1",
+          "front": "Left"
+        }
+      ]
+    }
+  ]
+}

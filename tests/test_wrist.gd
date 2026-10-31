@@ -49,7 +49,11 @@ func _initialize() -> void:
 	tori.limbs["RightArm"].target.global_position = tori.bone_world_transform("RightUpperArm").origin + Vector3(0.10, 0.0, 0.25)
 	await settle()
 	await ctrl.set_limb_mode(uke, "LeftArm", Limb.Mode.IK)
-	uke.limbs["LeftArm"].target.global_position = tori.bone_world_transform("RightLowerArm").origin + Vector3(-0.06, 0.06, 0.06)
+	# The hand comes to the forearm a little higher than it used to: what a hand holds now lies
+	# across the base of its fingers rather than the middle of its palm (GripDirector.grip_seat),
+	# which is 4 cm further along the hand, and the old approach left this wrist 7° past its
+	# radial deviation before it had taken hold of anything.
+	uke.limbs["LeftArm"].target.global_position = tori.bone_world_transform("RightLowerArm").origin + Vector3(-0.06, 0.10, 0.02)
 	await settle(3)
 	var grip := director.attach_wrapped(uke, "Left", tori, "RightLowerArm")
 	await settle(3)
@@ -141,13 +145,17 @@ func _initialize() -> void:
 	await settle(3)
 	var neck_a: Vector3 = uke.bone_world_transform("Neck").origin
 	var neck_b: Vector3 = uke.bone_world_transform("Head").origin
-	var palm: Vector3 = tori.bone_world_transform("RightHand") * Weapon.palm_centre(tori, "Right")
-	var off := palm.distance_to(BodyCapsules.closest_on_segment(palm, neck_a, neck_b))
+	# The knuckles, not the middle of the palm: what a hand holds lies across the base of the
+	# fingers (GripDirector.grip_seat), a palm's thickness plus the neck's own radius out.
+	var knuckles: Vector3 = tori.bone_world_transform("RightHand") * tori.fingers.knuckle_centre("Right")
+	var off := knuckles.distance_to(BodyCapsules.closest_on_segment(knuckles, neck_a, neck_b))
+	var want: float = uke.skin_radius("Neck", 0.5) + Weapon.PALM_PAD
 	check(director.worst_error() < 0.003, "the neck grip is exact (%.4f m)" % director.worst_error())
-	check(absf(off - GripDirector.hold_radius("Neck")) < 0.006, "the palm sits at the neck's radius (%.3f m off the axis, wanted %.3f)" % [off, GripDirector.hold_radius("Neck")])
+	check(absf(off - want) < 0.012, "the palm sits at the neck's radius (%.3f m off the axis, wanted %.3f)" % [off, want])
 	check(GripDirector.hold_radius("Neck") > GripDirector.WRAP_RADIUS, "a neck is held on its surface, not wrapped like a wrist")
 	check(GripDirector.curl_for_bone("Neck") < GripDirector.curl_for_bone("RightLowerArm"), "fingers close less on a neck than on a wrist")
 	var exempt := BodyCapsules.neighbours(uke, "Neck")
+	var palm: Vector3 = tori.bone_world_transform("RightHand") * Weapon.palm_centre(tori, "Right")
 	check(BodyCapsules.penetration(palm, GripDirector.HAND_RADIUS, uke, exempt) < 0.006, "the hand is clear of the rest of Uke's body")
 	# Uke turns and leans; the hand rides on the surface and is pushed out of whatever comes.
 	var worst_pen := 0.0

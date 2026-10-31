@@ -1,0 +1,104 @@
+{
+  "name": "Ushiro ukemi (back fall)",
+  "label": "Ukemi · backward fall, rocking back up",
+  "description": "Ushiro ukemi without rolling over: Uke sinks into a squat and sits back close to the heel, rocks back onto the upper back with the legs over and the chin in, and rocks forward again to sitting and up to standing, the way a fall from kotegaeshi or iriminage is often taken.",
+  "source": "the uploaded ukemi clips (2026-10-31), ukemi_03 and ukemi_08",
+  "camera": "Side",
+  "characters": [
+    {
+      "id": "uke1",
+      "name": "Uke",
+      "role": "Uke",
+      "gi": true
+    }
+  ],
+  "phases": [
+    {
+      "name": "Kamae",
+      "transition": 0.0,
+      "hold": 0.5,
+      "allow_short": true,
+      "do": [
+        {
+          "hanmi": "uke1",
+          "front": "Left"
+        }
+      ]
+    },
+    {
+      "name": "Sätt",
+      "transition": 0.6,
+      "hold": 0.0,
+      "allow_short": true,
+      "do": [
+        {
+          "move": "uke1",
+          "by": [
+            0.0,
+            -0.15
+          ]
+        },
+        {
+          "ukemi": "uke1",
+          "kind": "backward",
+          "t": 0.18
+        }
+      ]
+    },
+    {
+      "name": "Rygg",
+      "transition": 0.45,
+      "hold": 0.2,
+      "allow_short": true,
+      "do": [
+        {
+          "move": "uke1",
+          "by": [
+            0.0,
+            -0.25
+          ]
+        },
+        {
+          "ukemi": "uke1",
+          "kind": "backward",
+          "t": 0.36
+        }
+      ]
+    },
+    {
+      "name": "Tillbaka",
+      "transition": 0.5,
+      "hold": 0.0,
+      "allow_short": true,
+      "do": [
+        {
+          "move": "uke1",
+          "by": [
+            0.0,
+            0.2
+          ]
+        },
+        {
+          "ukemi": "uke1",
+          "kind": "backward",
+          "t": 0.16
+        }
+      ]
+    },
+    {
+      "name": "Upp",
+      "transition": 0.7,
+      "hold": 1.0,
+      "allow_short": true,
+      "do": [
+        {
+          "stand": "uke1"
+        },
+        {
+          "hanmi": "uke1",
+          "front": "Left"
+        }
+      ]
+    }
+  ]
+}

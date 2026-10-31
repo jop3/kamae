@@ -1,0 +1,69 @@
+{
+  "name": "Ukemi face down",
+  "label": "Ukemi · laid face down for a pin",
+  "description": "Being laid face down, as for an ikkyo or nikyo pin: Uke goes down forward onto the knees and forearms and lies flat, face turned to the side.",
+  "source": "the uploaded ukemi clips (2026-10-31), the pins in ukemi_05 and ukemi_06",
+  "camera": "Side",
+  "characters": [
+    {
+      "id": "uke1",
+      "name": "Uke",
+      "role": "Uke",
+      "gi": true
+    }
+  ],
+  "phases": [
+    {
+      "name": "Kamae",
+      "transition": 0.0,
+      "hold": 0.5,
+      "allow_short": true,
+      "do": [
+        {
+          "hanmi": "uke1",
+          "front": "Right"
+        }
+      ]
+    },
+    {
+      "name": "Ner",
+      "transition": 0.7,
+      "hold": 0.0,
+      "allow_short": true,
+      "do": [
+        {
+          "move": "uke1",
+          "by": [
+            0.0,
+            0.15
+          ]
+        },
+        {
+          "ukemi": "uke1",
+          "kind": "prone",
+          "t": 0.25
+        }
+      ]
+    },
+    {
+      "name": "Osae",
+      "transition": 0.6,
+      "hold": 1.2,
+      "allow_short": true,
+      "do": [
+        {
+          "move": "uke1",
+          "by": [
+            0.0,
+            0.2
+          ]
+        },
+        {
+          "ukemi": "uke1",
+          "kind": "prone",
+          "t": 0.5
+        }
+      ]
+    }
+  ]
+}

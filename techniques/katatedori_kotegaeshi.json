@@ -3,6 +3,11 @@
   "description": "Gyaku hanmi katatedori: Uke's left hand on Tori's right wrist. Tori enters beside Uke's front foot and turns tenkan, leading Uke round; Tori's left hand takes the back of Uke's gripping hand, thumb on the back between the knuckles, and Uke lets go. Tori turns back toward Uke, leading the hand in a circle at hip height, then covers it with the right hand and turns it outward — Uke's palm toward Uke, fingers up — stepping back with the left foot. Uke's wrist leads him over backward into ushiro ukemi.",
   "source": "written from the description above",
   "camera": "Side",
+  "view": {
+    "yaw": 30,
+    "height": 1.7,
+    "zoom": 1.0
+  },
   "phases": [
     {
       "name": "Grepp",
