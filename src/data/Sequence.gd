@@ -14,6 +14,9 @@ const DEFAULT_PHASES := ["Grepp", "Kuzushi", "Kake"]
 
 var name: String = ""
 var camera: String = "Side"       ## "Front" | "Side" | "per_pose"
+## An optional chosen view (CameraPresets.view): {"yaw": degrees swung from Side, "height": metres,
+## "zoom": framing factor}. Set, it is what the video is filmed from and a third still per phase.
+var view: Dictionary = {}
 var steps: Array = []
 
 
@@ -77,13 +80,17 @@ func step_start(i: int) -> float:
 
 
 func to_dict() -> Dictionary:
-	return {"format": FORMAT, "name": name, "camera": camera, "steps": steps.duplicate(true)}
+	var d := {"format": FORMAT, "name": name, "camera": camera, "steps": steps.duplicate(true)}
+	if not view.is_empty():
+		d["view"] = view.duplicate()
+	return d
 
 
 static func from_dict(d: Dictionary) -> Sequence:
 	var seq := Sequence.new()
 	seq.name = d.get("name", "")
 	seq.camera = d.get("camera", "Side")
+	seq.view = d.get("view", {}) if d.get("view") is Dictionary else {}
 	seq.steps = d.get("steps", []).duplicate(true)
 	return seq
 

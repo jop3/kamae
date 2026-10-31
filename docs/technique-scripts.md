@@ -48,6 +48,7 @@ range or a limb "through" a body is usually a move placed a little wrong, not a 
   "description": "what the technique is, in words — the source the moves were written from",
   "source": "where it came from (a video and times, a book, an instructor)",
   "camera": "Side",                       // "Side" | "Front" | "per_pose"
+  "view": {"yaw": 180, "height": 1.7, "zoom": 0.9},   // optional: see below
   "characters": [                         // optional; this is the default
     {"id": "tori", "name": "Tori", "role": "Tori", "gi": true, "hakama": true,
      "appearance": {"skin": "middleage_caucasian_male", "hair": "short02", "eyes": "grey"}},
@@ -59,6 +60,13 @@ range or a limb "through" a body is usually a move placed a little wrong, not a 
   ]
 }
 ```
+
+`view` chooses the camera the video is filmed from, and adds a third still per phase
+(`*_view.png`, used by the contact sheet and the video comparison in place of Side): `yaw`
+degrees swung from the Side view (positive counter-clockwise from above; 180 is the Side view
+from the other side), `height` of the camera in metres (1.4 by default), `zoom` above 1 closer.
+To match a clip, turn it until the two stand on the same sides of the picture as in the clip,
+and raise it as high as the clip's camera.
 
 Phase keys: `name` (the pose is "<technique> <name>"), `do` (the moves), `transition` (seconds of
 blend into this pose, default 0.7), `hold` (seconds held, default 0.3), `allow_short` (keep a
@@ -113,6 +121,7 @@ middleage_asian_male young_african_male young_caucasian_female middleage_asian_f
 | `{"elbow": "tori.Right", "toward": [right, up, forward]}` | Steers the elbow (the IK pole), from the shoulder. |
 | `{"arm_down": "uke1.Left"}` | The arm hangs at the side. |
 | `{"grab": "tori.Left", "target": "uke1.RightLowerArm", "along": 0.6}` | The hand takes and wraps that bone, from the side its own forearm can reach with a straight wrist; it stays on as both bodies move. `curl`, `skews` (degrees the fingers may run across the bone), `from` (`[right, up, forward]` approach in the target's frame) optional. Wrist grips: `LowerArm` ~0.85 or `Hand`; elbow control: `UpperArm` ~0.8 or `LowerArm` ~0.1; collar: `UpperChest`/`Neck`. |
+| `{"refit": "uke1.Left"}` | Takes a held grip again where the hand now is, the wrap and finger angle chosen afresh. Use it after the held arm turns (a tenkan, a raise, a wrist turned over): a grip keeps the wrap it was taken with, so otherwise the gripping wrist bends through the whole turn. |
 | `{"release": "uke1"}` / `{"release": "uke1.Left"}` | Lets go: every grip of that figure, or one hand's. |
 | `{"fingers": "tori.Right", "curl": 0.6}` | Opens (0) or closes (1) a hand. |
 

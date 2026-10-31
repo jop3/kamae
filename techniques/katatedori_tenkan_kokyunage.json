@@ -3,6 +3,11 @@
   "description": "Tsuzuki waza 1 (Michael Winter): gyaku hanmi katatedori, Uke's left hand on Tori's right wrist. Tori enters beside Uke's front foot and turns tenkan so both face the same way, raises the held hand up past the face, which lifts Uke's balance up and back, then turns in toward Uke and cuts down behind him; Uke falls backward (ushiro ukemi) and rolls up onto one knee.",
   "source": "Aikido Tsuzuki Waza, Michael Winter und Schueler (uploaded clip, not in the repository); 'ref' is each phase's time in that clip, teacher's repetition",
   "camera": "Side",
+  "view": {
+    "yaw": 180,
+    "height": 1.7,
+    "zoom": 0.9
+  },
   "characters": [
     {
       "id": "tori",
@@ -38,11 +43,14 @@
           "step": "tori.Right",
           "to": "uke1.LeftFoot",
           "offset": [
-            -0.18,
+            -0.24,
             0.05
           ],
           "turn": -30,
           "weight": 0.75
+        },
+        {
+          "refit": "uke1.Left"
         }
       ],
       "ref": 11.1
@@ -76,6 +84,9 @@
         {
           "bend": "uke1.Spine",
           "forward": 12
+        },
+        {
+          "refit": "uke1.Left"
         }
       ],
       "ref": 11.5
@@ -99,6 +110,9 @@
         {
           "lean": "uke1",
           "forward": -8
+        },
+        {
+          "refit": "uke1.Left"
         }
       ],
       "ref": 12.0
@@ -121,15 +135,18 @@
         },
         {
           "drop_hips": "tori",
-          "m": 0.06
+          "m": 0.08
+        },
+        {
+          "release": "uke1"
         },
         {
           "drop_hips": "uke1",
-          "m": 0.12
+          "m": 0.22
         },
         {
           "lean": "uke1",
-          "forward": -32
+          "forward": -38
         },
         {
           "bend": "uke1.Chest",
@@ -137,13 +154,21 @@
         },
         {
           "bend": "uke1.Neck",
-          "forward": 20
+          "forward": 25
+        },
+        {
+          "hand": "uke1.Left",
+          "at": [
+            -0.15,
+            0.25,
+            0.3
+          ]
         },
         {
           "hand": "tori.Right",
           "at": [
             0.22,
-            -0.12,
+            -0.2,
             0.42
           ]
         },
@@ -151,7 +176,7 @@
           "hand": "tori.Left",
           "at": [
             -0.15,
-            -0.2,
+            -0.25,
             0.3
           ]
         }
@@ -165,18 +190,13 @@
       "allow_short": true,
       "do": [
         {
-          "release": "uke1"
+          "hanmi": "tori",
+          "front": "Right",
+          "drop": 0.05
         },
         {
           "lean": "uke1",
           "forward": 0
-        },
-        {
-          "move": "uke1",
-          "by": [
-            0.0,
-            -0.45
-          ]
         },
         {
           "ukemi": "uke1",
@@ -196,7 +216,7 @@
           "move": "uke1",
           "by": [
             0.0,
-            -0.45
+            -0.5
           ]
         },
         {
@@ -217,7 +237,7 @@
           "move": "uke1",
           "by": [
             0.0,
-            -0.3
+            -0.25
           ]
         },
         {

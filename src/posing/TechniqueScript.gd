@@ -27,6 +27,10 @@ var attack_origin := Transform3D.IDENTITY
 ## What happened, phase by phase: pose names, what the joints refused, unknown moves.
 var report := {"phases": [], "errors": []}
 
+## Every move do_move knows, by its verb (the key that names it).
+const VERBS := ["attack", "from_pose", "place", "move", "pivot", "turn_foot", "step", "hanmi", "drop_hips",
+	"kneel", "stand", "lean", "bend", "straighten", "hand", "elbow", "arm_down", "grab", "refit", "release",
+	"fingers", "ukemi", "ground", "weapon", "look", "settle"]
 const DEFAULT_SKEWS := [0.0, 30.0, -30.0, 45.0, -45.0]
 ## Who looks where, by figure id: "uke1.Head" (a bone of anyone), "none", or [right, up, forward]
 ## (a direction in the figure's own frame). Unset, a figure looks at its partner's face.
@@ -87,6 +91,8 @@ func run(script: Dictionary, out_dir: String) -> Dictionary:
 	var seq := Sequence.new()
 	seq.name = name
 	seq.camera = script.get("camera", "Side")
+	if script.get("view") is Dictionary:
+		seq.view = script["view"]
 	for phase: Dictionary in script.get("phases", []):
 		var phase_name: String = phase.get("name", "Phase %d" % (seq.steps.size() + 1))
 		for move in phase.get("do", []):
@@ -195,6 +201,8 @@ func do_move(m: Dictionary) -> void:
 		if m.has("from"):
 			approach = _flat_basis(_rig(t[0])) * _local3(m["from"])
 		await st.grab(p[0], p[1], t[0], t[1], approach, m.get("along", 0.0), m.get("curl", 0.6), m.get("skews", DEFAULT_SKEWS))
+	elif m.has("refit"):
+		await _refit(m)
 	elif m.has("release"):
 		var p := _part(m["release"])
 		for grip in director.grips_for(p[0]):
@@ -334,6 +342,35 @@ func _hand(m: Dictionary) -> void:
 	if m.has("curl"):
 		st.fingers(p[0], p[1], m["curl"])
 	await st.settle(3)
+
+
+## "refit": takes a held grip again where the hand now is, letting the wrap's search choose the
+## side and the finger angle afresh for the arm as it now stands. A grip keeps the wrap it was
+## taken with, so when the held arm turns (Tori's hand rising in a tenkan, the wrist turned over
+## in a kotegaeshi) the gripping wrist is bent through whatever the turn is; a real hand shifts
+## on the wrist instead, and this is that shift.
+func _refit(m: Dictionary) -> void:
+	var p := _part(m["refit"])
+	for grip in director.grips_for(p[0]).duplicate():
+		if p[1] != "" and grip.hand != p[1]:
+			continue
+		if grip.target.kind != GripTarget.Kind.BONE:
+			continue
+		var target_id: String = grip.target.character_id
+		var bone: String = grip.target.bone_name
+		var tr := _rig(target_id)
+		var start: Vector3 = tr.bone_world_transform(bone).origin
+		var kids := tr.skeleton.get_bone_children(tr.skeleton.find_bone(bone))
+		var along := 0.0
+		if kids.size() > 0:
+			var end: Vector3 = tr.bone_world_transform(tr.skeleton.get_bone_name(kids[0])).origin
+			var hand: Vector3 = _rig(p[0]).bone_world_transform(grip.hand + "Hand").origin
+			along = clampf((hand - start).dot(end - start) / maxf((end - start).length_squared(), 1e-6), 0.0, 1.0)
+		var hand_side: String = grip.hand
+		director._remove(grip)
+		await st.settle(1)
+		await st.grab(p[0], hand_side, target_id, bone, Vector3.ZERO, along, m.get("curl", 0.6),
+			m.get("skews", [0.0, 30.0, -30.0, 45.0, -45.0, 60.0, -60.0, 90.0, -90.0]))
 
 
 ## "weapon": a bokken, jo or tanto. "hold": "uke1.Right" puts it in one hand; "kamae": "uke1"

@@ -232,9 +232,12 @@ func _render_stills(args: PackedStringArray) -> void:
 		player.seek(seq.step_start(i))
 		for k in 3:
 			await get_tree().process_frame
-		for view in ["front", "side"]:
+		for view in ["front", "side"] + (["view"] if not seq.view.is_empty() else []):
 			camera.fov = CameraPresets.FOV_DEG
-			camera.apply_preset(CameraPresets.front(posing_scene) if view == "front" else CameraPresets.side(posing_scene))
+			match view:
+				"front": camera.apply_preset(CameraPresets.front(posing_scene))
+				"side": camera.apply_preset(CameraPresets.side(posing_scene))
+				_: camera.apply_preset(CameraPresets.view(posing_scene, seq.view))
 			var path := stills_dir.path_join("%s_%s_%s.png" % [seq.slug(), phases[i], view])
 			await StillExport.capture(get_viewport(), path, transparent, _hide_always(), _hide_for_transparent())
 			print("still saved: ", path)
@@ -250,6 +253,9 @@ func _apply_sequence_camera(seq: Sequence) -> void:
 		player.apply_time(seq.step_start(i))
 		points.append_array(CameraPresets.frame_points(posing_scene, true))
 	player.apply_time(0.0)
+	if not seq.view.is_empty():
+		camera.apply_preset(CameraPresets.view(posing_scene, seq.view, points))
+		return
 	match seq.camera:
 		"Front":
 			camera.apply_preset(CameraPresets.front(posing_scene, points))

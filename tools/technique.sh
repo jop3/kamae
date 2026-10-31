@@ -20,7 +20,7 @@ else
 fi
 [ -n "$out" ] || { echo "build failed" >&2; exit 1; }
 dir=$(dirname "$(dirname "$out")"); slug=$(basename "$out" .json)
-mkdir -p "$dir/stills"
+rm -rf "$dir/stills"; mkdir -p "$dir/stills"
 timeout 600 $RUN --path . --resolution 1920x1080 -- --render-stills "$out" --poses-dir "$dir/poses" --stills-dir "$dir/stills" 2>&1 | grep -E "SCRIPT ERROR|still saved" || true
 if command -v ffmpeg >/dev/null; then
   # One row per phase in the sequence's order, Front beside Side, small enough to read at once.
@@ -30,7 +30,8 @@ if command -v ffmpeg >/dev/null; then
     phase=${p#${slug}_}; [ "$phase" = "$p" ] && phase=$p
     f="$dir/stills/${slug}_${phase}"
     [ -f "${f}_front.png" ] || f=$(ls "$dir"/stills/*"${phase}"_front.png | head -1 | sed 's/_front.png$//')
-    args+=(-i "${f}_front.png" -i "${f}_side.png"); n=$((n+1))
+    second="${f}_side.png"; [ -f "${f}_view.png" ] && second="${f}_view.png"   # a script's chosen view
+    args+=(-i "${f}_front.png" -i "$second"); n=$((n+1))
   done
   filter=""; for i in $(seq 0 $((n-1))); do
     filter+="[$((2*i)):v]scale=640:-1[a$i];[$((2*i+1)):v]scale=640:-1[b$i];[a$i][b$i]hstack[r$i];"; done
@@ -54,7 +55,8 @@ if [ -n "${REF_VIDEO:-}" ] && command -v ffmpeg >/dev/null; then
   while read -r name t; do
     p=$(python3 -c "import sys,re; print(re.sub(r'[^a-z0-9]+','_',sys.argv[1].lower()).strip('_'))" "$name")
     ffmpeg -nostdin -v error -y -ss "$t" -i "$REF_VIDEO" -frames:v 1 -vf "scale=640:-2" "$dir/compare/ref_$p.png"
-    args+=(-i "$dir/compare/ref_$p.png" -i "$dir/stills/${slug}_${p}_side.png"); n=$((n+1))
+    still="$dir/stills/${slug}_${p}_side.png"; [ -f "$dir/stills/${slug}_${p}_view.png" ] && still="$dir/stills/${slug}_${p}_view.png"
+    args+=(-i "$dir/compare/ref_$p.png" -i "$still"); n=$((n+1))
   done < <(python3 -c "
 import json,sys
 for ph in json.load(open(sys.argv[1])).get('phases',[]):

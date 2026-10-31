@@ -33,6 +33,24 @@ static func side(scene: PosingScene, points: Array[Vector3] = []) -> Dictionary:
 	return _preset(scene, along.normalized().cross(Vector3.UP).normalized(), points)
 
 
+## A chosen view, for matching a video: swung `yaw_deg` from the Side preset about the vertical
+## (positive counter-clockwise seen from above), the camera at `height` metres, framing every
+## point with `zoom` (above 1 closer, below 1 further).
+static func view(scene: PosingScene, v: Dictionary, points: Array[Vector3] = []) -> Dictionary:
+	var axis: Dictionary = scene.tori_uke_axis()
+	var along: Vector3 = axis["to"] - axis["from"]
+	along.y = 0.0
+	if along.length() < 0.001:
+		along = Vector3(0, 0, 1)
+	var horizontal := along.normalized().cross(Vector3.UP).normalized().rotated(Vector3.UP, deg_to_rad(float(v.get("yaw", 0.0))))
+	var sphere := bounding_sphere(scene, points)
+	var center: Vector3 = sphere["center"]
+	var distance := float(sphere["radius"]) / tan(deg_to_rad(FOV_DEG) * 0.5) * MARGIN / maxf(float(v.get("zoom", 1.0)), 0.1)
+	var eye := center + horizontal * distance
+	eye.y = float(v.get("height", HEIGHT))
+	return {"direction": (eye - center).normalized(), "center": center, "distance": eye.distance_to(center)}
+
+
 ## Direction is the horizontal unit vector from the scene centre towards the camera.
 static func _preset(scene: PosingScene, horizontal: Vector3, points: Array[Vector3] = []) -> Dictionary:
 	var sphere := bounding_sphere(scene, points)

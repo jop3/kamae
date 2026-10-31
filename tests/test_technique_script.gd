@@ -31,9 +31,7 @@ func _initialize() -> void:
 		if f.ends_with(".json"):
 			scripts.append(f)
 	check(scripts.size() >= 2, "techniques/ has scripts (%d)" % scripts.size())
-	var verbs := ["attack", "from_pose", "place", "move", "pivot", "turn_foot", "step", "hanmi", "drop_hips",
-		"kneel", "stand", "lean", "bend", "straighten", "hand", "elbow", "arm_down", "grab", "release",
-		"fingers", "ukemi", "ground", "weapon", "settle"]
+	var verbs := TechniqueScript.VERBS
 	for f in scripts:
 		var s := TechniqueScript.load_file("res://techniques".path_join(f))
 		var unknown := []
@@ -58,6 +56,11 @@ func _initialize() -> void:
 	check(report["phases"].size() == 4, "a pose per phase")
 	var seq := Sequence.load(report["sequence"])
 	check(seq != null and seq.steps.size() == 4, "a sequence of the four poses")
+	var viewed := Sequence.from_dict(Sequence.new().to_dict())
+	check(viewed.view.is_empty() and not viewed.to_dict().has("view"), "a sequence without a view saves none")
+	var with_view := Sequence.new()
+	with_view.view = {"yaw": 180.0, "height": 1.7}
+	check(Sequence.from_dict(with_view.to_dict()).view.get("yaw") == 180.0, "a chosen view is saved with the sequence")
 
 	var poses := {}
 	for ph in report["phases"]:
