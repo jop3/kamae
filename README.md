@@ -4,6 +4,24 @@ An engine for creating illustrations and videos of budo positions and techniques
 
 Kamae is a small Godot 4.6 desktop tool that lets an Aikido instructor hand-pose two neutral figures (Tori and Uke), keep grips attached while bodies move, save poses, sequence them into a technique, and export clean stills and short clips for a printed grading handout.
 
+## What it does
+
+Two realistic people (MakeHuman CC0 bodies with skin, eyes and hair, a white gi, Tori in a black
+hakama) are posed into an aikido technique and animated into stills and an MP4. A technique is a
+JSON script — an attack from the catalogue, then phases of plain moves such as "step beside Uke's
+front foot", "turn 180° on that foot", "take his wrist", "fall backward" — which the posing
+engine turns into anatomically checked poses:
+
+```sh
+GODOT=/path/to/godot tools/technique.sh techniques/shomenuchi_iriminage.json
+# -> techniques/build/shomenuchi_iriminage/{contact_sheet.png, stills/, shomenuchi_iriminage.mp4}
+```
+
+Scripts are written from a description or from a video (`tools/video_frames.sh` to read a clip,
+`REF_VIDEO=clip.mp4` to compare the render with it frame by frame). See
+`docs/technique-scripts.md`, `docs/video-to-technique.md` and `CLAUDE.md`. The interactive tool
+below is still there for posing by hand.
+
 ## Status
 
 M0–M8 on this branch: Godot project, CC0 mannequin with 52 humanoid bones
@@ -27,6 +45,8 @@ The character asset is generated, not hand-modelled: see `tools/README.md`.
 - `docs/build-plan.md` — architecture, milestones, tests.
 - `docs/engine-notes.md` — Godot 4.6 behaviour the code depends on (IK timing, capture constraints).
 - `docs/guide.md` — instructor guide: how to pose, grip, use weapons, sequence and export.
+- `docs/technique-scripts.md` — the technique script format, every move.
+- `docs/video-to-technique.md` — turning a video into a technique script.
 - `docs/handoff.md` — where the work stands and what the next session should pick up.
 - `feasibility/` — headless Godot experiments that prove the risky parts (IK, two-body grip follow, hand orientation, transparent stills, Movie Maker). Results in `feasibility/results/RESULTS.md`.
 

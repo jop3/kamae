@@ -169,7 +169,11 @@ func fingers(id: String, side: String, curl: float) -> void:
 ## direction turned a quarter round the shaft. For a wrist held from in front that is the
 ## *side* of the wrist with the thumb on top — not the top, which is where a script would put
 ## it and where the wrist would have to bend 90° sideways to hold it.
-func grab(gripper: String, hand: String, target: String, bone: String, approach_offset: Vector3 = Vector3.ZERO, along: float = 0.0, curl: float = 0.6, skews: Array = [0.0]) -> Grip:
+## `prefer`, when given, is a wrap the hand already has (a Grip's offset): every candidate then
+## also costs how far it would turn the hand from it, so re-taking a grip shifts the hand on the
+## arm rather than flipping it round to the other side, which a blend would carry the wrist
+## through on the way.
+func grab(gripper: String, hand: String, target: String, bone: String, approach_offset: Vector3 = Vector3.ZERO, along: float = 0.0, curl: float = 0.6, skews: Array = [0.0], prefer = null) -> Grip:
 	var g := rig(gripper)
 	if g.limbs[hand + "Arm"].mode != Limb.Mode.IK:
 		await ctrl.set_limb_mode(g, hand + "Arm", Limb.Mode.IK)
@@ -203,6 +207,9 @@ func grab(gripper: String, hand: String, target: String, bone: String, approach_
 					var trial := director.attach_wrapped(g, hand, t, bone, true, f, float(sk))
 					await settle(4)
 					var cost := arm_refusal_excess(g, hand) + 2000.0 * director.error_for(trial) + 0.02 * absf(float(sk))
+					if prefer is Transform3D:
+						var turn: float = ((prefer as Transform3D).basis.orthonormalized().inverse() * trial.offset.basis.orthonormalized()).get_rotation_quaternion().get_angle()
+						cost += PREFER_WEIGHT * rad_to_deg(turn)
 					director._remove(trial)
 					if cost < best_cost:
 						best_cost = cost; best_side = candidate; flip = f; skew = float(sk)
@@ -213,6 +220,11 @@ func grab(gripper: String, hand: String, target: String, bone: String, approach_
 	fingers(gripper, hand, curl)
 	await settle(3)
 	return grip
+
+
+## Degrees of refused joint a grip is worth for each degree it does not turn the hand from the
+## wrap it had: a flip to the far side of the arm (180°) has to save the arm 54° to be taken.
+const PREFER_WEIGHT := 0.3
 
 
 ## Degrees by which `hand`'s arm (shoulder, elbow, wrist) is past its joints' ranges on screen,

@@ -1,0 +1,227 @@
+{
+  "name": "Katatedori Kaitennage",
+  "description": "Soto kaiten. Gyaku hanmi katatedori: Uke's left hand on Tori's right wrist. Tori steps to Uke's left side and cuts the held arm down and back past his own hip, bending Uke forward; Tori's left hand comes down on the back of Uke's neck, keeping his head low. Tori's right hand takes Uke's left wrist and raises the arm up behind Uke's back like a wheel turning; stepping in, Tori drives the arm forward over Uke's head and Uke rolls forward (mae ukemi), coming up onto one knee.",
+  "source": "written from the description above",
+  "camera": "Side",
+  "view": {
+    "yaw": 200,
+    "height": 1.7,
+    "zoom": 1.0
+  },
+  "phases": [
+    {
+      "name": "Grepp",
+      "hold": 0.4,
+      "do": [
+        {
+          "attack": "katatedori"
+        }
+      ]
+    },
+    {
+      "name": "Kuzushi",
+      "transition": 0.6,
+      "hold": 0.1,
+      "do": [
+        {
+          "place": "tori",
+          "of": "uke1",
+          "at": [
+            -0.52,
+            0.22
+          ],
+          "facing": 120
+        },
+        {
+          "hanmi": "tori",
+          "front": "Right"
+        },
+        {
+          "bend": "uke1.Spine",
+          "forward": 30
+        },
+        {
+          "bend": "uke1.Chest",
+          "forward": 15
+        },
+        {
+          "hand": "tori.Right",
+          "at": [
+            0.2,
+            -0.5,
+            -0.1
+          ]
+        },
+        {
+          "refit": "uke1.Left"
+        },
+        {
+          "hand": "tori.Left",
+          "to": "uke1.Neck",
+          "offset": [
+            -0.04,
+            0.15,
+            0.0
+          ],
+          "curl": 0.3
+        }
+      ]
+    },
+    {
+      "name": "Kaiten",
+      "transition": 0.6,
+      "hold": 0.1,
+      "do": [
+        {
+          "release": "uke1"
+        },
+        {
+          "bend": "uke1.Spine",
+          "forward": 40
+        },
+        {
+          "bend": "uke1.Chest",
+          "forward": 20
+        },
+        {
+          "hand": "uke1.Left",
+          "at": [
+            -0.05,
+            0.2,
+            -0.3
+          ]
+        },
+        {
+          "grab": "tori.Right",
+          "target": "uke1.LeftLowerArm",
+          "along": 0.9
+        },
+        {
+          "hand": "tori.Left",
+          "to": "uke1.Neck",
+          "offset": [
+            -0.04,
+            0.15,
+            0.0
+          ],
+          "curl": 0.3
+        }
+      ]
+    },
+    {
+      "name": "Kake",
+      "transition": 0.5,
+      "hold": 0.1,
+      "allow_short": true,
+      "do": [
+        {
+          "step": "tori.Left",
+          "by": [
+            0.0,
+            0.25
+          ],
+          "weight": 0.7
+        },
+        {
+          "lean": "uke1",
+          "forward": 15
+        },
+        {
+          "hand": "uke1.Left",
+          "at": [
+            -0.05,
+            0.1,
+            0.1
+          ]
+        },
+        {
+          "refit": "tori.Right"
+        }
+      ]
+    },
+    {
+      "name": "Ukemi",
+      "transition": 0.45,
+      "hold": 0.0,
+      "allow_short": true,
+      "do": [
+        {
+          "release": "tori"
+        },
+        {
+          "move": "uke1",
+          "by": [
+            0.0,
+            0.4
+          ]
+        },
+        {
+          "ukemi": "uke1",
+          "kind": "forward",
+          "t": 0.35
+        },
+        {
+          "hand": "tori.Right",
+          "at": [
+            0.1,
+            -0.25,
+            0.45
+          ]
+        },
+        {
+          "arm_down": "tori.Left"
+        }
+      ]
+    },
+    {
+      "name": "Rulle",
+      "transition": 0.45,
+      "hold": 0.0,
+      "allow_short": true,
+      "do": [
+        {
+          "move": "uke1",
+          "by": [
+            0.0,
+            0.45
+          ]
+        },
+        {
+          "ukemi": "uke1",
+          "kind": "forward",
+          "t": 0.7
+        }
+      ]
+    },
+    {
+      "name": "Upp",
+      "transition": 0.5,
+      "hold": 1.0,
+      "allow_short": true,
+      "do": [
+        {
+          "move": "uke1",
+          "by": [
+            0.0,
+            0.3
+          ]
+        },
+        {
+          "stand": "uke1"
+        },
+        {
+          "move": "uke1",
+          "turn": 180
+        },
+        {
+          "kneel": "uke1",
+          "kind": "kiza"
+        },
+        {
+          "hanmi": "tori",
+          "front": "Left"
+        }
+      ]
+    }
+  ]
+}

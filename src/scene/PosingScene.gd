@@ -29,6 +29,7 @@ func add_character(id: String, display_name: String, role: String, color: Color 
 	rig.setup()
 	rig.set_show_handles(show_handles)
 	rig.set_skin_color(color if color != Color.TRANSPARENT else Palette.color_for_index(characters.size()))
+	rig.set_appearance(Palette.appearance_for_index(characters.size()))
 	characters.append(rig)
 	characters_changed.emit()
 	return rig
@@ -91,6 +92,11 @@ func setup_default() -> void:
 	var uke := add_character("uke1", "Uke", "Uke")
 	uke.position = Vector3(0, 0, 0.5)
 	uke.rotation.y = PI
+	# Realistic figures are dressed: a gi on both, and Tori in a hakama. Done here and when the panel adds a figure,
+	# not in add_character, so tests that build bodies by the hundred do not each build a gi.
+	tori.set_gi_visible(true)
+	tori.set_hakama_visible(true)
+	uke.set_gi_visible(true)
 
 
 ## The Uke the camera presets line up on (spec §5.7). Empty means the first character with the

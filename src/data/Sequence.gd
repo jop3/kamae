@@ -9,11 +9,16 @@ const FORMAT := 1
 const MIN_STEPS := 2
 ## The spec asked for 2-5 poses. A technique that ends in a fall needs more than five: the throw
 ## itself is four, and going down, over and back up is three more.
-const MAX_STEPS := 8
+## Technique scripts route a movement through waypoints (a foot round the partner's foot, a
+## body round an arm), each a step held for no time, so the limit is wider than the handout needs.
+const MAX_STEPS := 16
 const DEFAULT_PHASES := ["Grepp", "Kuzushi", "Kake"]
 
 var name: String = ""
 var camera: String = "Side"       ## "Front" | "Side" | "per_pose"
+## An optional chosen view (CameraPresets.view): {"yaw": degrees swung from Side, "height": metres,
+## "zoom": framing factor}. Set, it is what the video is filmed from and a third still per phase.
+var view: Dictionary = {}
 var steps: Array = []
 
 
@@ -77,13 +82,17 @@ func step_start(i: int) -> float:
 
 
 func to_dict() -> Dictionary:
-	return {"format": FORMAT, "name": name, "camera": camera, "steps": steps.duplicate(true)}
+	var d := {"format": FORMAT, "name": name, "camera": camera, "steps": steps.duplicate(true)}
+	if not view.is_empty():
+		d["view"] = view.duplicate()
+	return d
 
 
 static func from_dict(d: Dictionary) -> Sequence:
 	var seq := Sequence.new()
 	seq.name = d.get("name", "")
 	seq.camera = d.get("camera", "Side")
+	seq.view = d.get("view", {}) if d.get("view") is Dictionary else {}
 	seq.steps = d.get("steps", []).duplicate(true)
 	return seq
 

@@ -133,12 +133,32 @@ static func _apply_character(rig: CharacterRig, ca: Dictionary, cb: Dictionary, 
 		rig.set_limb_mode(key, Limb.Mode.IK)
 		var ta := PoseFile.array_to_transform(ea.get("target", eb.get("target")))
 		var tb := PoseFile.array_to_transform(eb.get("target", ea.get("target")))
-		limb.target.global_transform = ta.interpolate_with(tb, u)
+		var t := ta.interpolate_with(tb, u)
+		if not limb.is_arm and ik_in_a and ik_in_b:
+			t.origin.y += step_lift(ta.origin, tb.origin, u)
+		limb.target.global_transform = t
 		var pa := PoseFile.array_to_vec(ea.get("pole", eb.get("pole", [0, 0, 0])))
 		var pb := PoseFile.array_to_vec(eb.get("pole", ea.get("pole", [0, 0, 0])))
 		limb.pole.global_position = pa.lerp(pb, u)
 		limb.set_orient_to_target(bool(ea.get("orient", eb.get("orient", false))))
 		limb.set_influence(1.0 if (ik_in_a and ik_in_b) else (1.0 - u if ik_in_a else u))
+
+
+## How high a foot is carried at `u` on its way from `from` to `to`. A foot that moves across
+## the mat between two poses where it stands on it is stepped, not slid: lifted on an arc as
+## high as a quarter of the stride, up to 10 cm, and set down again. A foot that only turns, or
+## moves less than a short shuffle, stays down; so does one that was not on the mat to begin
+## with (a kick, a fall). Exactly zero at either pose, so a saved pose is shown as saved.
+const STEP_MIN := 0.08
+const STEP_MAX_LIFT := 0.10
+const STEP_FLOOR := 0.2
+
+
+static func step_lift(from: Vector3, to: Vector3, u: float) -> float:
+	var stride := Vector2(to.x - from.x, to.z - from.z).length()
+	if stride < STEP_MIN or from.y > STEP_FLOOR or to.y > STEP_FLOOR:
+		return 0.0
+	return minf(STEP_MAX_LIFT, stride * 0.25) * sin(PI * clampf(u, 0.0, 1.0))
 
 
 static func _apply_weapons(scene: PosingScene, a: Dictionary, b: Dictionary, u: float) -> void:

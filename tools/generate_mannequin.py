@@ -13,6 +13,30 @@ print("basemesh", basemesh.name, "verts", len(basemesh.data.vertices), "modifier
 arm = HumanService.add_builtin_rig(basemesh, "mixamo", import_weights=True)
 print("armature", arm.name, "bones", len(arm.data.bones))
 
+# The parts that make the figure read as a person rather than a mannequin: eyes, brows, lashes
+# and a choice of hair, each a MakeHuman CC0 proxy fitted to this body and weighted from it, so
+# they follow the head. They are added before the bones are renamed, because the weights are
+# copied by the rig's own vertex-group names, and Blender renames the groups with the bones.
+# Every hair style is exported; the tool shows one per character (CharacterRig.set_hair).
+from bl_ext.user_default.mpfb.services.locationservice import LocationService
+DATA = LocationService.get_user_data()
+PROXIES = [("eyes/high-poly/high-poly.mhclo", "Eyes", "Eyes"),
+           ("eyebrows/eyebrow001/eyebrow001.mhclo", "Eyebrows", "Eyebrows"),
+           ("eyelashes/eyelashes01/eyelashes01.mhclo", "Eyelashes", "Eyelashes")]
+HAIR = ["short02", "short04", "short01", "ponytail01", "bob02"]
+PROXIES += [("hair/%s/%s.mhclo" % (h, h), "Hair", "Hair_" + h) for h in HAIR]
+proxies = []
+for rel, kind, name in PROXIES:
+    obj = HumanService.add_mhclo_asset(os.path.join(DATA, rel), basemesh, asset_type=kind, subdiv_levels=0,
+                                       material_type="MAKESKIN", set_up_rigging=True, interpolate_weights=True,
+                                       import_subrig=False, import_weights=True)
+    obj.name = name
+    for mod in list(obj.modifiers):
+        if mod.type not in ("ARMATURE", "MASK"):
+            obj.modifiers.remove(mod)
+    proxies.append(obj)
+    print("proxy", name, "verts", len(obj.data.vertices), "modifiers", [m.type for m in obj.modifiers])
+
 # MakeHuman's helper geometry (clothes/joint cubes) is excluded by the Mask modifier MPFB sets up
 # for the 'body' vertex group. Leave that modifier in place and let the glTF exporter apply it
 # (export_apply=True): deleting the vertices by hand with bmesh detaches the skin weights from their
@@ -40,10 +64,15 @@ for b in arm.data.bones:
 print("unmapped bones:", unmapped)
 print("bones:", [b.name for b in arm.data.bones])
 
-# Simple flat material
-mat = bpy.data.materials.new("Skin"); mat.use_nodes = True
-mat.node_tree.nodes["Principled BSDF"].inputs["Base Color"].default_value = (0.8,0.8,0.8,1)
-basemesh.data.materials.clear(); basemesh.data.materials.append(mat)
+# One plain material per part, named so the tool can find it: the textures (skin, iris, brow,
+# lash and hair images under assets/characters/textures/) are applied in Godot, per character.
+def plain_material(obj, name):
+    mat = bpy.data.materials.new(name); mat.use_nodes = True
+    mat.node_tree.nodes["Principled BSDF"].inputs["Base Color"].default_value = (0.8,0.8,0.8,1)
+    obj.data.materials.clear(); obj.data.materials.append(mat)
+plain_material(basemesh, "Skin")
+for obj in proxies:
+    plain_material(obj, obj.name)
 basemesh.name = "Body"; arm.name = "Skeleton"
 
 # Guard against broken skin weights: rotating one finger phalanx may only move vertices close to it.
@@ -77,5 +106,7 @@ assert worst_fit < 0.12, "rig is not fitted to the mesh: %s sits %.3f m away" % 
 assert worst < 0.12, "skin weights look wrong: one finger bend moves geometry by %.3f m" % worst
 
 bpy.ops.object.select_all(action='DESELECT'); basemesh.select_set(True); arm.select_set(True)
+for obj in proxies:
+    obj.select_set(True)
 bpy.ops.export_scene.gltf(filepath=out, use_selection=True, export_format='GLB', export_apply=True, export_skins=True, export_animations=False, export_yup=True, export_texcoords=True, export_normals=True, export_materials='EXPORT')
 print("exported", out, os.path.getsize(out))

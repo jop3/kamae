@@ -74,6 +74,9 @@ func _ready() -> void:
 	if args.has("--demo-gi"):
 		await _render_demo_gi(args[args.find("--demo-gi") + 1])
 		return
+	if args.has("--demo-hakama"):
+		await _render_demo_hakama(args[args.find("--demo-hakama") + 1])
+		return
 	if args.has("--demo-hand"):
 		await _render_demo_hand(args[args.find("--demo-hand") + 1])
 		return
@@ -229,9 +232,12 @@ func _render_stills(args: PackedStringArray) -> void:
 		player.seek(seq.step_start(i))
 		for k in 3:
 			await get_tree().process_frame
-		for view in ["front", "side"]:
+		for view in ["front", "side"] + (["view"] if not seq.view.is_empty() else []):
 			camera.fov = CameraPresets.FOV_DEG
-			camera.apply_preset(CameraPresets.front(posing_scene) if view == "front" else CameraPresets.side(posing_scene))
+			match view:
+				"front": camera.apply_preset(CameraPresets.front(posing_scene))
+				"side": camera.apply_preset(CameraPresets.side(posing_scene))
+				_: camera.apply_preset(CameraPresets.view(posing_scene, seq.view))
 			var path := stills_dir.path_join("%s_%s_%s.png" % [seq.slug(), phases[i], view])
 			await StillExport.capture(get_viewport(), path, transparent, _hide_always(), _hide_for_transparent())
 			print("still saved: ", path)
@@ -247,6 +253,9 @@ func _apply_sequence_camera(seq: Sequence) -> void:
 		player.apply_time(seq.step_start(i))
 		points.append_array(CameraPresets.frame_points(posing_scene, true))
 	player.apply_time(0.0)
+	if not seq.view.is_empty():
+		camera.apply_preset(CameraPresets.view(posing_scene, seq.view, points))
+		return
 	match seq.camera:
 		"Front":
 			camera.apply_preset(CameraPresets.front(posing_scene, points))
@@ -442,6 +451,49 @@ func _render_demo_gi(path: String) -> void:
 		var p: String = path.get_basename() + str(suffix) + ".png"
 		await StillExport.capture(get_viewport(), p, false, _hide_always(), _hide_for_transparent())
 		print("gi demo saved: ", p)
+	get_tree().quit()
+
+
+## Test hook: Tori in gi and hakama, standing (front, side and back, for the koshi-ita), in
+## hanmi with the knees bent and kneeling in seiza (front and side), and tucked early in a
+## forward roll (side): the pleats, the hem at the ankles, and the two legs of the skirt parting
+## with the legs instead of tearing or letting a knee through.
+func _render_demo_hakama(path: String) -> void:
+	var tori: CharacterRig = posing_scene.get_character("tori")
+	posing_scene.get_character("uke1").visible = false
+	controller.set_root(tori, Vector3.ZERO, deg_to_rad(20))
+	tori.set_gi_visible(true)
+	tori.set_hakama_visible(true)
+	tori.set_show_handles(false)
+	var staging := Staging.new(get_tree(), posing_scene, grip_director, controller)
+	var front := ["_front", Vector3(0.0, 0.15, 1.0)]
+	var side := ["_side", Vector3(1.0, 0.15, 0.0)]
+	var shots := [
+		["", [front, side, ["_back", Vector3(-0.3, 0.25, -1.0)]], func() -> void: pass],
+		["_hanmi", [front, side], func() -> void: await staging.hanmi("tori", "Left", 0.40, 0.14, 0.10)],
+		["_seiza", [front, side], func() -> void:
+			Stance.kneel(controller, tori, Stance.Kneel.SEIZA)
+			await staging.settle(6)
+			Ukemi.ground(tori)],
+		["_roll", [side], func() -> void:
+			controller.set_root(tori, Vector3.ZERO, deg_to_rad(20))
+			Ukemi.shape(tori, Ukemi.Kind.FORWARD, 0.3)
+			await staging.settle(4)
+			Ukemi.ground(tori)],
+	]
+	for shot in shots:
+		await shot[2].call()
+		tori.set_show_handles(false)
+		for i in 4:
+			await get_tree().process_frame
+		var mid := tori.bone_world_transform("Hips").origin * Vector3(1, 0, 1) + Vector3(0, 0.62, 0)
+		for view in shot[1]:
+			camera.look_from(Basis(Vector3.UP, tori.rotation.y) * view[1], mid, 2.6)
+			for i in 3:
+				await get_tree().process_frame
+			var p: String = path.get_basename() + shot[0] + view[0] + ".png"
+			await StillExport.capture(get_viewport(), p, false, _hide_always(), _hide_for_transparent())
+			print("hakama demo saved: ", p)
 	get_tree().quit()
 
 

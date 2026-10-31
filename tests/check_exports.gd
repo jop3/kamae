@@ -26,14 +26,15 @@ func _initialize() -> void:
 			if transparent.get_pixel(x, y).a > 0.0:
 				panel_opaque += 1
 	check(panel_opaque == 0, "transparent still: no UI panel pixels (%d opaque samples)" % panel_opaque)
-	# The gizmo rings are saturated red/green/blue; the mannequins are teal and amber.
+	# The gizmo rings are saturated red/green/blue. The realistic figures have red lips and the
+	# odd saturated skin texel, so a handful of samples can match; a ring is hundreds of them.
 	var gizmo_px := 0
 	for x in range(0, w, 3):
 		for y in range(0, h, 3):
 			var c := transparent.get_pixel(x, y)
 			if c.a > 0.5 and (c.r > 0.8 and c.g < 0.4 and c.b < 0.4) or (c.a > 0.5 and c.b > 0.85 and c.r < 0.4 and c.g < 0.6):
 				gizmo_px += 1
-	check(gizmo_px == 0, "transparent still: no gizmo ring pixels (%d samples)" % gizmo_px)
+	check(gizmo_px < 6, "transparent still: no gizmo ring pixels (%d samples)" % gizmo_px)
 	check(flat.get_pixel(5, 5).a == 1.0, "flat still: background is opaque")
 	check(flat.get_width() == StillExport.OUTPUT_SIZE.x and flat.get_height() == StillExport.OUTPUT_SIZE.y, "still is rendered at the export size %dx%d regardless of the window (%dx%d)" % [StillExport.OUTPUT_SIZE.x, StillExport.OUTPUT_SIZE.y, flat.get_width(), flat.get_height()])
 	print("RESULT %s (%d failures)" % ["OK" if failures == 0 else "FAILED", failures])

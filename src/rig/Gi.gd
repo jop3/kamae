@@ -5,7 +5,8 @@ extends Node
 ## with the body's own weights, so it follows every pose without any extra rigging. The belt is
 ## a ring measured round the waist, with a knot and two hanging ends, in the character's own
 ## colour as a second identification cue. Hems, collar, sleeve ends and the V are straight
-## lines: triangles across an edge are kept with their outside vertices moved onto it.
+## lines: triangles across an edge are kept with their outside vertices moved onto it. The black
+## hakama is built here too, on request and toggled on its own (see the hakama section below).
 
 const WHITE := Color(0.90, 0.89, 0.85)
 ## How far the cloth stands off the skin, metres. The jacket is the loose one.
@@ -44,6 +45,13 @@ var _grid_arrays: Array = []
 var cloth_material: StandardMaterial3D
 var trouser_material: StandardMaterial3D
 var belt_material: StandardMaterial3D
+## The black hakama (both legs, waist band and koshi-ita in one mesh) and the belt's knot shown
+## in front of it; see _build_hakama.
+var hakama: MeshInstance3D
+var hakama_knot: MeshInstance3D
+var hakama_material: StandardMaterial3D
+var _dressed := true
+var _hakama_on := false
 ## Generated once per process and shared: the weave images are the same for every character.
 static var _textures: Dictionary = {}
 
@@ -142,7 +150,9 @@ static func _cloth_material(kind: String, tint: Color) -> StandardMaterial3D:
 	m.albedo_texture = tex[0]
 	m.normal_enabled = true
 	m.normal_texture = tex[1]
-	m.normal_scale = 2.0
+	# Half the depth the first gi had: at full strength every rice grain of the sashiko
+	# caught the light and a close-up read as bubble wrap rather than cloth.
+	m.normal_scale = 0.8 if kind == "sashiko" else 1.2
 	m.roughness = 1.0
 	if kind != "stitched":   # the lapel ribbon carries its own UVs, u along the band
 		m.uv1_triplanar = true
@@ -157,9 +167,34 @@ func set_belt_color(c: Color) -> void:
 
 
 func set_visible(on: bool) -> void:
-	for m in [jacket, trousers, belt, lapel]:
+	_dressed = on
+	_apply_visibility()
+
+
+## The hakama is worn with or without the gi and toggled on its own; built the first time.
+func set_hakama_visible(on: bool) -> void:
+	_hakama_on = on
+	if on and hakama == null:
+		_build_hakama()
+	_apply_visibility()
+
+
+## The belt is under the hakama when both are worn, so it is hidden rather than left to show
+## through the cloth; its knot stays out in front as the colour cue. The trousers stay on: they
+## are what shows through the side openings and under a lifted hem, as on a real figure.
+func _apply_visibility() -> void:
+	for m in [jacket, lapel, trousers]:
 		if m:
-			m.visible = on
+			m.visible = _dressed
+	if belt:
+		belt.visible = _dressed and not _hakama_on
+	if hakama:
+		hakama.visible = _hakama_on
+		hakama_knot.visible = _hakama_on and _dressed
+	# What shows of the trousers under a hakama is seen through its side openings, inside the
+	# cloth, where no light reaches; lit like the jacket it read as a white hole in the hakama.
+	if trouser_material:
+		trouser_material.albedo_color = WHITE * Color(0.38, 0.38, 0.40) if _hakama_on else WHITE
 
 
 # ---------------------------------------------------------------- cut
@@ -739,3 +774,453 @@ static func _strap(st: SurfaceTool, a: Vector3, b: Vector3, width: float, thick:
 	_quad(st, a1, a2, b2, b1)   # side
 	_quad(st, a3, a0, b0, b3)   # side
 	_quad(st, b0, b1, b2, b3)   # end
+
+
+# ---------------------------------------------------------------- hakama
+
+## A hakama is a divided skirt: each leg is a wide pleated tube of its own, and the two only read
+## as one skirt while the legs are together. So it is built as two tubes, each a "D" in section:
+## a flat inner wall on the midline (the two walls lie together there, unseen while standing)
+## and a superellipse round the outside, half the waist at the top and flaring to the hem. It
+## is not cut from the body like the gi, because cloth this wide has nothing to do with the
+## shape of the skin under it; the body is only measured, so the tubes clear it (_hakama_room).
+## Each tube is skinned from the hips down to the thigh and then the shin of its own leg, so a
+## step, bent knees or seiza part the tubes instead of stretching a sheet between the knees.
+const HAKAMA_BLACK := Color(0.055, 0.06, 0.085)
+## Top edge: the front band just over the belt, a little higher behind under the koshi-ita.
+const HAKAMA_TOP_FRONT_Y := BELT_Y + BELT_HEIGHT * 0.5 + 0.012
+const HAKAMA_TOP_BACK_Y := 1.05
+## The hem sits at the ankle bone (the ankle joint is at 0.07), the feet showing below it.
+const HAKAMA_HEM_Y := 0.10
+## Each leg's section at the waist and at the hem: x its reach out from the midline, y the
+## front and z the back (the figure faces +z). Where the body or the gi under it would not
+## clear, the measured shape pushes the cloth out further.
+const HAKAMA_WAIST := Vector3(0.17, 0.172, -0.078)
+const HAKAMA_HEM := Vector3(0.31, 0.23, -0.20)
+## Squareness of the section (2 would be an ellipse): fuller at the sides, as cloth over hips.
+const HAKAMA_ROUND := 2.6
+## How far the cloth stands clear of the body, or of the gi when it is worn under.
+const HAKAMA_CLEAR := 0.012
+## Knife pleats: how far each fold steps out at the hem (less at the waist, where they are
+## pressed flat), and how many on each leg: five in front (three on the character's right,
+## two on the left) and one either side of the centre at the back.
+const PLEAT_DEPTH := 0.02
+const PLEATS_FRONT_RIGHT := 3
+const PLEATS_FRONT_LEFT := 2
+const PLEATS_BACK := 1
+## The front pleats run from the centre round to this angle (90° straight ahead, 0 the side),
+## the back pleat from the centre back to minus PLEAT_BACK_TO; the sides between are plain.
+const PLEAT_FRONT_TO := 22.0
+const PLEAT_BACK_TO := 50.0
+## The side openings (hiwaki) between the front and back panels, where the gi shows: open this
+## many degrees either side of the side seam at the top edge, closing to nothing at SLIT_BOTTOM_Y.
+const SLIT_HALF_DEG := 10.0
+const SLIT_BOTTOM_Y := 0.88
+const HAKAMA_RINGS := 46
+## Where the cloth hands over from the hips to the thigh and from the thigh to the shin, as
+## rest heights: [hips down to, thigh from, thigh down to, shin from]. The front follows the
+## thigh early, or a knee raised in seiza or a roll comes through it; the back hangs from the
+## hips longer, or the seat comes through it when the thighs swing forward; and the front hands
+## over below the knee, so the cloth folded over a bent knee stays outside the kneecap.
+const HAKAMA_WEIGHTS_FRONT := [0.96, 0.80, 0.48, 0.28]
+const HAKAMA_WEIGHTS_SIDE := [0.93, 0.72, 0.52, 0.32]
+const HAKAMA_WEIGHTS_BACK := [0.82, 0.56, 0.54, 0.34]
+## The himo wound over the top edge, and the koshi-ita, the stiff board at the back: half-widths
+## at its foot and top, and how far it rises.
+const HIMO_HEIGHT := 0.035
+const HIMO_THICKNESS := 0.006
+const KOSHI_ITA_BOTTOM := 0.13
+const KOSHI_ITA_TOP := 0.10
+const KOSHI_ITA_HEIGHT := 0.10
+const KOSHI_ITA_THICKNESS := 0.012
+## The character's right panel reaches this far past the midline and lies over the left one,
+## lifted clear of its pleats, front and back: a step that parts the legs slides one panel off
+## the other instead of opening a slit up the middle.
+const HAKAMA_OVERLAP := 0.045
+## Height bins for the room measurement, and angle sectors round each leg.
+const ROOM_BIN := 0.02
+const ROOM_SECTORS := 36
+
+## Where the himo's front face is at the centre, for the knot.
+var _himo_front_z := 0.0
+## The top ring of each leg before pleating, for the himo and the koshi-ita: side (-1 right,
+## +1 left) -> Array of [position, outward, along, the section's middle].
+var _hakama_top: Dictionary = {}
+
+
+func _build_hakama() -> void:
+	hakama_material = _cloth_material("canvas", HAKAMA_BLACK)
+	hakama_material.cull_mode = BaseMaterial3D.CULL_DISABLED   # the inside shows at the hem
+	hakama_material.roughness = 0.75
+	hakama_material.normal_scale = 1.0
+	hakama_material.vertex_color_use_as_albedo = true   # the shade deep in each fold (_hakama_ring)
+	var mesh := ArrayMesh.new()
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, _hakama_tubes())
+	mesh.surface_set_material(0, hakama_material)
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	st.set_color(Color.WHITE)
+	_himo(st)
+	_koshi_ita(st)
+	st.generate_normals()
+	st.set_material(hakama_material)
+	st.commit(mesh)
+	hakama = MeshInstance3D.new()
+	hakama.name = "Hakama"
+	hakama.mesh = mesh
+	# The belt's knot, in front of the himo: the rest of the belt is under the hakama.
+	var ks := SurfaceTool.new()
+	ks.begin(Mesh.PRIMITIVE_TRIANGLES)
+	ks.set_bones(PackedInt32Array([_bind_index("Hips"), _bind_index("Spine"), 0, 0]))
+	ks.set_weights(PackedFloat32Array([0.7, 0.3, 0.0, 0.0]))
+	_box_out(ks, Vector3(0.0, HAKAMA_TOP_FRONT_Y - HIMO_HEIGHT * 0.5, _himo_front_z + 0.012), Vector3(0.075, 0.042, 0.026))
+	ks.generate_normals()
+	ks.set_material(belt_material)
+	hakama_knot = MeshInstance3D.new()
+	hakama_knot.name = "Hakama_knot"
+	hakama_knot.mesh = ks.commit()
+	for m in [hakama, hakama_knot]:
+		m.cast_shadow = rig.body.cast_shadow
+		rig.skeleton.add_child(m)
+		m.skeleton = m.get_path_to(rig.skeleton)   # see build(): a code-made mesh needs the path
+		m.skin = rig.body.skin
+
+
+## The section's size at rest height `y`: x reach from the midline, y front z, z back z.
+static func _hakama_dims(y: float) -> Vector3:
+	var t := clampf((HAKAMA_TOP_FRONT_Y - y) / (HAKAMA_TOP_FRONT_Y - HAKAMA_HEM_Y), 0.0, 1.0)
+	return HAKAMA_WAIST.lerp(HAKAMA_HEM, t)
+
+
+static func _hakama_centre_z(d: Vector3) -> float:
+	return (d.y + d.z) * 0.5
+
+
+## A point on the outside of one leg's section at unit scale, `phi` degrees round from the side
+## (90 straight ahead, -90 straight back), as (lateral reach, z from the section's centre).
+static func _hakama_section(phi: float, d: Vector3) -> Vector2:
+	var c := cos(deg_to_rad(phi)); var s := sin(deg_to_rad(phi))
+	var e := 2.0 / HAKAMA_ROUND
+	return Vector2(d.x * signf(c) * pow(absf(c), e), (d.y - d.z) * 0.5 * signf(s) * pow(absf(s), e))
+
+
+## The outward normal of the section at `phi`, in the figure's frame, for `side`.
+static func _hakama_normal(phi: float, d: Vector3, side: float) -> Vector3:
+	var c := cos(deg_to_rad(phi)); var s := sin(deg_to_rad(phi))
+	var e := 2.0 * (HAKAMA_ROUND - 1.0) / HAKAMA_ROUND   # the gradient of |x/a|^n + |z/b|^n
+	return Vector3(side * pow(absf(c), e) / d.x, 0.0, signf(s) * pow(absf(s), e) / ((d.y - d.z) * 0.5)).normalized()
+
+
+## How much each leg's section must grow, per height bin and angle sector, to clear the body and
+## the gi under it by HAKAMA_CLEAR. Measured on the rest mesh: the torso and that side's leg, and
+## the jacket, its lapel and the trousers, which the hakama is worn over.
+func _hakama_room(side: float, shift: float) -> Array:
+	var bins := int(ceil((HAKAMA_TOP_BACK_Y - HAKAMA_HEM_Y) / ROOM_BIN)) + 1
+	var need: Array = []
+	for b in bins:
+		var row := PackedFloat32Array(); row.resize(ROOM_SECTORS); row.fill(1.0)
+		need.append(row)
+	var points := PackedVector3Array()
+	var body: Array = rig.body.mesh.surface_get_arrays(0)
+	var verts: PackedVector3Array = body[Mesh.ARRAY_VERTEX]
+	var dominant := _dominant_bones(body)
+	var leg := "Left" if side > 0.0 else "Right"
+	for i in verts.size():
+		if dominant[i] in ["Hips", "Spine", leg + "UpperLeg", leg + "LowerLeg"]:
+			points.append(verts[i])
+	for m in [jacket, lapel, trousers]:
+		for s in m.mesh.get_surface_count():
+			points.append_array(m.mesh.surface_get_arrays(s)[Mesh.ARRAY_VERTEX])
+	var n := HAKAMA_ROUND
+	for p in points:
+		if p.y < HAKAMA_HEM_Y or p.y > HAKAMA_TOP_BACK_Y or p.x * side < -shift or absf(p.x) > 0.3:
+			continue
+		var d := _hakama_dims(p.y) + Vector3(shift, 0, 0)
+		var u := (p.x * side + shift) / d.x
+		var t := (p.z - _hakama_centre_z(d)) / ((d.y - d.z) * 0.5)
+		var rho := pow(pow(u, n) + pow(absf(t), n), 1.0 / n)
+		if rho < 1e-4:
+			continue
+		var phi := rad_to_deg(atan2(signf(t) * pow(absf(t) / rho, n * 0.5), pow(u / rho, n * 0.5)))
+		var k := clampi(int((phi + 90.0) / 180.0 * ROOM_SECTORS), 0, ROOM_SECTORS - 1)
+		var b := int((p.y - HAKAMA_HEM_Y) / ROOM_BIN)
+		var r := _hakama_section(phi, d).length()
+		need[b][k] = maxf(need[b][k], rho + HAKAMA_CLEAR / maxf(r, 0.05))
+	# Spread each need to the neighbouring sectors and bins (cloth this stiff does not follow a
+	# lapel's edge or one bin's bump), then let it hang: below a wide place it narrows back to its
+	# own shape only slowly, the way the jacket's skirt does (_drape); then smooth what is left.
+	var spread: Array = []
+	for b in bins:
+		var row := PackedFloat32Array(); row.resize(ROOM_SECTORS)
+		for k in ROOM_SECTORS:
+			var m := 1.0
+			for db in range(-2, 3):
+				for dk in range(-1, 2):
+					m = maxf(m, need[clampi(b + db, 0, bins - 1)][clampi(k + dk, 0, ROOM_SECTORS - 1)])
+			row[k] = m
+		spread.append(row)
+	need = spread
+	for b in range(bins - 2, -1, -1):
+		var d := _hakama_dims(HAKAMA_HEM_Y + b * ROOM_BIN) + Vector3(shift, 0, 0)
+		var d_above := _hakama_dims(HAKAMA_HEM_Y + (b + 1) * ROOM_BIN) + Vector3(shift, 0, 0)
+		for k in ROOM_SECTORS:
+			var phi := -90.0 + (k + 0.5) * 180.0 / ROOM_SECTORS
+			var r := _hakama_section(phi, d).length()
+			var r_above := _hakama_section(phi, d_above).length()
+			need[b][k] = maxf(need[b][k], (need[b + 1][k] * r_above - DRAPE_TAPER * ROOM_BIN) / maxf(r, 0.05))
+	var smooth: Array = []
+	for b in bins:
+		var row := PackedFloat32Array(); row.resize(ROOM_SECTORS)
+		for k in ROOM_SECTORS:
+			row[k] = (need[maxi(b - 1, 0)][k] + need[b][k] * 2.0 + need[mini(b + 1, bins - 1)][k]) * 0.25
+		smooth.append(row)
+	return smooth
+
+
+## Scale for a point of the section at height `y` and angle `phi`, read from the room table
+## between bins so the cloth does not step.
+static func _room_scale(need: Array, y: float, phi: float) -> float:
+	var fb := clampf((y - HAKAMA_HEM_Y) / ROOM_BIN, 0.0, need.size() - 1.001)
+	var b := int(fb)
+	var k := clampi(int((phi + 90.0) / 180.0 * ROOM_SECTORS), 0, ROOM_SECTORS - 1)
+	return lerpf(need[b][k], need[mini(b + 1, need.size() - 1)][k], fb - b)
+
+
+## One ring's samples round a leg, the same at every height so the pleats run straight down:
+## [phi, pleat offset 0..1, along, slit, shade], where along runs +1 at the centre front to -1
+## at the centre back (for the weights and the slope of the top edge), slit marks the front (1)
+## and back (-1) edges of the side opening and shade darkens the cloth deep in a fold. A pleat is a ramp in the offset ending in a step back at
+## the same angle: the fold's edge. Then the inner wall, back to front, with NAN for phi and its
+## fraction of the way in the offset slot.
+static func _hakama_ring(front_pleats: int) -> Array:
+	var out: Array = []
+	var ramp: Array[float] = [0.0, 0.14, 0.28, 0.42, 0.56, 0.70, 0.84, 0.94, 1.0]
+	for i in front_pleats:
+		for u in ramp:
+			var phi := 90.0 - (90.0 - PLEAT_FRONT_TO) * (i + u) / front_pleats
+			out.append([phi, 1.0 - u, sin(deg_to_rad(phi)), 0, _fold_shade(1.0 - u)])
+	# The plain side, with the slit's two edges at the side seam (they open apart toward the top).
+	for phi in [(PLEAT_FRONT_TO + SLIT_HALF_DEG + 1.0) * 0.5, SLIT_HALF_DEG + 1.0]:
+		out.append([phi, 0.0, sin(deg_to_rad(phi)), 0, 1.0])
+	out.append([0.0, 0.0, 0.0, 1, 1.0])
+	out.append([0.0, 0.0, 0.0, -1, 1.0])
+	for i in 4:
+		var phi := lerpf(-SLIT_HALF_DEG - 1.0, -PLEAT_BACK_TO, float(i) / 4)
+		out.append([phi, 0.0, sin(deg_to_rad(phi)), 0, 1.0])
+	for i in PLEATS_BACK:
+		for u in ramp:
+			var phi := -PLEAT_BACK_TO - (90.0 - PLEAT_BACK_TO) * (i + u) / PLEATS_BACK
+			out.append([phi, u, sin(deg_to_rad(phi)), 0, _fold_shade(u)])
+	var wall := 6
+	for i in wall + 1:
+		var f := float(i) / wall
+		out.append([NAN, f, lerpf(-1.0, 1.0, f), 0, 0.7])
+	return out
+
+
+## How much light reaches the cloth at a pleat offset (1 at the fold's edge, 0 deep in it): the
+## geometry alone makes the folds too faint on cloth this dark.
+static func _fold_shade(offset: float) -> float:
+	return 1.0 - 0.45 * pow(1.0 - offset, 3.0)
+
+
+## How far each edge of the side slit stands from the side seam at rest height `y`, degrees.
+static func _slit_half(y: float) -> float:
+	return SLIT_HALF_DEG * clampf((y - SLIT_BOTTOM_Y) / (HAKAMA_TOP_FRONT_Y - SLIT_BOTTOM_Y), 0.0, 1.0)
+
+
+## Bone weights for a point of the cloth at rest height `y`, `along` round its leg.
+func _hakama_weights(y: float, along: float, leg: String) -> Array:
+	var a: Array = HAKAMA_WEIGHTS_SIDE
+	var b: Array = HAKAMA_WEIGHTS_FRONT if along > 0.0 else HAKAMA_WEIGHTS_BACK
+	var w := []
+	for i in 4:
+		w.append(lerpf(a[i], b[i], absf(along)))
+	var to_leg := _ease_down(y, w[0], w[1])
+	var to_shin := _ease_down(y, w[2], w[3])
+	var hips := 1.0 - to_leg
+	# The top follows the waist as the spine bends, like the belt.
+	var spine := hips * 0.35 * clampf((y - 0.95) / 0.08, 0.0, 1.0)
+	return [
+		PackedInt32Array([_bind_index("Hips"), _bind_index("Spine"), _bind_index(leg + "UpperLeg"), _bind_index(leg + "LowerLeg")]),
+		PackedFloat32Array([hips - spine, spine, to_leg * (1.0 - to_shin), to_leg * to_shin]),
+	]
+
+
+## 0 above `top`, 1 below `bottom`, eased between.
+static func _ease_down(y: float, top: float, bottom: float) -> float:
+	var t := clampf((top - y) / maxf(top - bottom, 1e-4), 0.0, 1.0)
+	return t * t * (3.0 - 2.0 * t)
+
+
+static func _hakama_top_y(along: float) -> float:
+	return lerpf(HAKAMA_TOP_BACK_Y, HAKAMA_TOP_FRONT_Y, (along + 1.0) * 0.5)
+
+
+## Both legs' tubes as mesh arrays: rings of the ring samples from the top edge to the hem.
+func _hakama_tubes() -> Array:
+	var nv := PackedVector3Array(); var nn := PackedVector3Array(); var nc := PackedColorArray()
+	var nb := PackedInt32Array(); var nw := PackedFloat32Array(); var ni := PackedInt32Array()
+	for side in [-1.0, 1.0]:
+		var leg := "Left" if side > 0.0 else "Right"
+		var shift := HAKAMA_OVERLAP if side < 0.0 else 0.0
+		var need := _hakama_room(side, shift)
+		var ring := _hakama_ring(PLEATS_FRONT_LEFT if side > 0.0 else PLEATS_FRONT_RIGHT)
+		var k_count := ring.size()
+		var base := nv.size()
+		var grid: Array = []
+		var top: Array = []
+		for j in HAKAMA_RINGS + 1:
+			var v := float(j) / HAKAMA_RINGS
+			var row := PackedVector3Array()
+			var corners := {}
+			for s in ring:
+				var y := lerpf(_hakama_top_y(s[2]), HAKAMA_HEM_Y, v)
+				if is_nan(s[0]):
+					# The wall runs straight between the arc's two corners at this height.
+					var p: Vector3 = (corners[-1] as Vector3).lerp(corners[1], s[1])
+					row.append(Vector3(p.x, y, p.z))
+					continue
+				var phi: float = s[0] + s[3] * _slit_half(y)
+				var d := _hakama_dims(y) + Vector3(shift, 0, 0)
+				var q := _hakama_section(phi, d) * _room_scale(need, y, phi)
+				var p := Vector3(side * (q.x - shift), y, _hakama_centre_z(d) + q.y)
+				var out := _hakama_normal(phi, d, side)
+				var depth := PLEAT_DEPTH * (0.4 + 0.6 * v)
+				if shift > 0.0:
+					# Where it lies over the other panel, clear of that panel's deepest fold.
+					p += out * (depth + 0.004) * clampf((side * -p.x + 0.02) / 0.03, 0.0, 1.0)
+				if absf(phi) > 89.99:
+					corners[int(signf(phi))] = p
+				if j == 0:
+					top.append([p, out, s[2], Vector3(side * (d.x * 0.45 - shift), y, _hakama_centre_z(d))])
+				row.append(p + out * depth * s[1])
+			grid.append(row)
+		_hakama_top[side] = top
+		for j in HAKAMA_RINGS + 1:
+			for k in k_count:
+				var p: Vector3 = grid[j][k]
+				var across: Vector3 = grid[j][(k + 1) % k_count] - grid[j][(k + k_count - 1) % k_count]
+				var down: Vector3 = grid[mini(j + 1, HAKAMA_RINGS)][k] - grid[maxi(j - 1, 0)][k]
+				var normal := across.cross(down).normalized()
+				# Outward is away from the middle of the leg's section at this height.
+				var d := _hakama_dims(p.y) + Vector3(shift, 0, 0)
+				if normal.dot(Vector3(p.x - side * (d.x * 0.45 - shift), 0.0, p.z - _hakama_centre_z(d))) < 0.0:
+					normal = -normal
+				nv.append(p); nn.append(normal)
+				var shade: float = ring[k][4]
+				nc.append(Color(shade, shade, shade))
+				var w := _hakama_weights(p.y, ring[k][2], leg)
+				nb.append_array(w[0]); nw.append_array(w[1])
+		for j in HAKAMA_RINGS:
+			for k in k_count:
+				if ring[k][3] == 1:
+					continue   # the side slit: its two edges share a column below where it opens
+				var a := base + j * k_count + k
+				var b := base + j * k_count + (k + 1) % k_count
+				for tri in [[a, b, b + k_count], [a, b + k_count, a + k_count]]:
+					var face: Vector3 = (nv[tri[1]] - nv[tri[0]]).cross(nv[tri[2]] - nv[tri[0]])
+					if face.dot(nn[tri[0]] + nn[tri[1]] + nn[tri[2]]) > 0.0:
+						ni.append_array(PackedInt32Array([tri[0], tri[2], tri[1]]))
+					else:
+						ni.append_array(PackedInt32Array([tri[0], tri[1], tri[2]]))
+	var a := []
+	a.resize(Mesh.ARRAY_MAX)
+	a[Mesh.ARRAY_VERTEX] = nv
+	a[Mesh.ARRAY_NORMAL] = nn
+	a[Mesh.ARRAY_COLOR] = nc
+	a[Mesh.ARRAY_BONES] = nb
+	a[Mesh.ARRAY_WEIGHTS] = nw
+	a[Mesh.ARRAY_INDEX] = ni
+	return a
+
+
+## The himo: a band wound over the top edge, standing out past the pleats, with a lid from its
+## top edge in to the waist so nothing shows between the cloth and the body from above.
+func _himo(st: SurfaceTool) -> void:
+	for side in _hakama_top:
+		var leg := "Left" if side > 0.0 else "Right"
+		var prev: Array = []
+		for s in _hakama_top[side]:
+			var p: Vector3 = s[0]; var out: Vector3 = s[1]
+			var o := p + out * (PLEAT_DEPTH * 0.4 + HIMO_THICKNESS)
+			var centre: Vector3 = s[3]
+			var cur := [o + Vector3(0, 0.002, 0), o - Vector3(0, HIMO_HEIGHT, 0), centre.lerp(p, 0.8) + Vector3(0, 0.002, 0)]
+			if s[2] > 0.999:
+				_himo_front_z = maxf(_himo_front_z, o.z)
+			if prev.size() > 0 and (prev[0] as Vector3).distance_to(cur[0]) > 1e-4:
+				var w := _hakama_weights(p.y, s[2], leg)
+				st.set_bones(w[0]); st.set_weights(w[1])
+				_quad_out(st, prev[1], cur[1], cur[0], prev[0], out)          # face
+				_quad_out(st, prev[0], cur[0], cur[2], prev[2], Vector3.UP)   # lid
+			prev = cur
+
+
+## A quad wound to face `want`, for SurfaceTool's generated normals: front faces wind the
+## other way from _rq's (b - a) × (c - a), as the belt's quads do.
+static func _quad_out(st: SurfaceTool, a: Vector3, b: Vector3, c: Vector3, d: Vector3, want: Vector3) -> void:
+	if (b - a).cross(d - a).dot(want) <= 0.0:
+		_quad(st, a, b, c, d)
+	else:
+		_quad(st, d, c, b, a)
+
+
+## A box of `size` centred on `c`, every face wound outward.
+static func _box_out(st: SurfaceTool, c: Vector3, size: Vector3) -> void:
+	var h := size * 0.5
+	for axis in 3:
+		for sgn in [-1.0, 1.0]:
+			var n := Vector3.ZERO; n[axis] = sgn
+			var u := Vector3.ZERO; u[(axis + 1) % 3] = 1.0
+			var v := Vector3.ZERO; v[(axis + 2) % 3] = 1.0
+			var f := c + n * h[axis]
+			var du := u * h[(axis + 1) % 3]; var dv := v * h[(axis + 2) % 3]
+			_quad_out(st, f - du - dv, f + du - dv, f + du + dv, f - du + dv, n)
+
+
+## The koshi-ita: a stiff board at the back of the waist, standing from the himo and leaning in
+## to the small of the back, a trapezoid wider at its foot.
+func _koshi_ita(st: SurfaceTool) -> void:
+	var cols := 8
+	var shell := PackedVector3Array(jacket.mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX])
+	var foot_y := HAKAMA_TOP_BACK_Y - HIMO_HEIGHT * 0.6
+	var outer: Array = []; var inner: Array = []
+	for i in cols + 1:
+		var f := float(i) / cols * 2.0 - 1.0
+		var row_o := []; var row_i := []
+		for r in 2:
+			var y := foot_y + KOSHI_ITA_HEIGHT * r
+			var x := f * (KOSHI_ITA_BOTTOM if r == 0 else KOSHI_ITA_TOP)
+			# Lie on whatever is behind there: the himo at the foot, the jacket's back above it.
+			var z := 0.0
+			for v in shell:
+				if absf(v.x - x) < 0.03 and absf(v.y - y) < 0.02:
+					z = minf(z, v.z)
+			if r == 0:
+				z = minf(z, _himo_back_z(x))
+			z -= 0.004
+			row_i.append(Vector3(x, y, z))
+			row_o.append(Vector3(x, y, z - KOSHI_ITA_THICKNESS))
+		outer.append(row_o); inner.append(row_i)
+	st.set_bones(PackedInt32Array([_bind_index("Hips"), _bind_index("Spine"), 0, 0]))
+	st.set_weights(PackedFloat32Array([0.45, 0.55, 0.0, 0.0]))
+	for i in cols:
+		_quad_out(st, outer[i][0], outer[i + 1][0], outer[i + 1][1], outer[i][1], Vector3.FORWARD)   # -z: the back
+		_quad_out(st, inner[i][0], inner[i + 1][0], inner[i + 1][1], inner[i][1], Vector3.BACK)
+		_quad_out(st, outer[i][1], outer[i + 1][1], inner[i + 1][1], inner[i][1], Vector3.UP)
+	for e in [[0, -1.0], [cols, 1.0]]:
+		var i: int = e[0]
+		_quad_out(st, outer[i][0], inner[i][0], inner[i][1], outer[i][1], Vector3(e[1], 0, 0))
+
+
+## The himo's outer face at the back, at `x`.
+func _himo_back_z(x: float) -> float:
+	var best := 0.0
+	var best_dx := INF
+	for side in _hakama_top:
+		for s in _hakama_top[side]:
+			var p: Vector3 = s[0]
+			if p.z < 0.0 and absf(p.x - x) < best_dx:
+				best_dx = absf(p.x - x)
+				best = (p + (s[1] as Vector3) * (PLEAT_DEPTH * 0.4 + HIMO_THICKNESS)).z
+	return best
