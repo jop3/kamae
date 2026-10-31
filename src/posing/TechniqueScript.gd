@@ -523,6 +523,23 @@ func _reset(chars: Array) -> void:
 	attack_origin = Transform3D.IDENTITY
 
 
+## The pose as staged, with its bodies taken out of each other: the contact solve the blends use
+## (ContactSolve), at full strength, a few rounds with the solve settling between them. Limbs go
+## round the partner and out of their own body, the hips give a little, grips hold and feet stay
+## where they stand. The staging places each figure by rules that know where a foot or a hand
+## goes, not where the other body is; without this a pose could have Tori's thigh 7 cm into
+## Uke's, and every frame of the film near it too.
+const RELAX_ROUNDS := 6
+
+
+func _relax() -> void:
+	for _round in RELAX_ROUNDS:
+		ContactSolve.solve(scene, director, {"root": 1.0, "arms": 1.0, "legs": 1.0})
+		await st.settle(2)
+	await st.feet_on_floor()
+	await st.settle(2)
+
+
 ## Feet onto the mat, gripping hands onto their points (the gripper steps in by what it is
 ## short, as a person would; `allow_short` keeps a deliberate reach), then the pose is saved and
 ## what the joints refused is noted for the report.
@@ -531,6 +548,7 @@ func _save_pose(dir: String, pose_name: String, allow_short: bool) -> void:
 	await st.feet_on_floor()
 	if not allow_short:
 		await _step_in_to_grips()
+	await _relax()
 	var before_look := await _look_all()
 	var data: Dictionary = await PoseFile.capture_baked(scene, director, cam, pose_name)
 	var path := PoseFile.pose_path(dir, pose_name)
