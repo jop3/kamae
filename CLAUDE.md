@@ -17,7 +17,11 @@ $GODOT --headless --import >/dev/null 2>&1      # once, before anything else
 
 1. Write `techniques/<slug>.json` — the reference is `docs/technique-scripts.md`, the examples
    are `techniques/*.json`. Start from an attack in `data/attacks.json`; place everything
-   after it relative to Uke; one phase per moment a handout would show.
+   after it relative to Uke; one phase per moment a handout would show. `"approach": "static"`
+   or `"moving"` on the `attack` move has Uke come in (kamae, the step, the hand raised or
+   reaching; walked in from ~2.5 m) before the attack's own pose — `techniques/attack_*.json`
+   are every attack that way, and `docs/attacks.md` ("In motion") is how an attack's stages
+   are written.
 2. `tools/technique.sh techniques/<slug>.json --no-video` (≈40 s). Read
    `techniques/build/<slug>/contact_sheet.png` and the problems printed per phase. Fix, rebuild.
    `motion.txt` and `floor.txt` in the build list the video frames where a body is implausible

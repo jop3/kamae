@@ -1770,3 +1770,51 @@ most 3.1 cm deep (yokomenuchi shihonage 38, ushiro ryotedori kotegaeshi 12, shom
 tenkan kokyunage 1 — was 11). On the committed library `check_motion`, `check_floor`, `test_m5`
 and `check_smooth` pass with nothing added to `OUTSTANDING`. The library page (gallery, with the
 3D view) was regenerated and published; the figures' files did not change.
+
+## Session 2026-11-01 (later): Uke and the attacks
+
+Asked for: "focus on uke, the attacker, and their attacks. They should be able to attack both
+statically and in motion, i.e. moving forward towards nage from further away … all the types of
+attacks so they look realistic: shomenuchi, yokomenuchi, munetsuki, all the grabs, one hand, two
+hands, grip on gi from the front, behind, grabbing hands from behind, etc."
+
+**What the catalogue looked like** (every entry rendered at the start, one still each): the grabs
+had Uke chest to chest with Tori, his gripping forearm horizontal and the elbow out sideways, and
+Tori's offered hand 22 cm from his own shoulder; the wrist grabs took the forearm a quarter of the
+way down from the elbow, because the catalogue said `along: 0.0` (the elbow joint) and the wrap
+clamps to 0.25 of the bone; the gi grabs (katadori, munedori, eridori, sodedori) were a fist
+wrapped round the *bone* under the cloth; shomenuchi and yokomenuchi were the hand raised over the
+head 0.9 m away, the punches 30 cm short of Tori; Tori stood against a strike with his hands
+hanging. And every attack was one pose.
+
+**The attack's moment** (`Attacks.stage`, `data/attacks.json`):
+- Wrist grabs at `along` 0.85 (the wrist), Tori's hand offered forward at belt height, Uke held at
+  about an arm's length by `min_gap` (a cost in the fit for hips closer than that).
+- **Cloth grips** (`"cloth": true`, `Staging.grab_cloth`, `GripDirector.attach_at`): a closed fist
+  with its knuckles on the gi — `along` the bone plus `offset` in Tori's frame, turned by `point`
+  and `palm` — held relative to the bone. Katadori, ryokatadori, munedori, eridori, sodedori,
+  katadori menuchi, ushiro ryokatadori, ushiro eridori, the choke's hand at the far collar, the
+  bear hug.
+- **Strikes arrive** (`"strike"`): Uke is moved along the line to Tori until the striking arm
+  reaches its target (forehead, temple, solar plexus, face) at `reach` of its length, the hand
+  turned as a hand-blade or a fist; it stops a hand's width short. Uke steps through into a deep
+  hanmi (`depth`, `drop`, `weight`, `lean` on the `uke` block), the other fist at the hip for a
+  tsuki. Tori is in kamae (`"hands": "kamae"`).
+- `elbow` on a hand or grip steers the elbow (the bear hug's arms go round Tori, not through him).
+- New: `ushiro_dori` (the bear hug over the arms).
+
+**In motion** (`Attacks.lead_in`, `Attacks.pose_stage`, `"approach"` on the `attack` move): each
+entry's `motion.stages` are the poses before the moment — kamae at ma-ai, the step through with the
+hand reaching (Te), furikaburi, the fist chambered, the way round Tori's right side for an attack
+from behind (Mawari, Ushiro, Ushiro ni, the first wrist taken in front for ushiro ryotedori) —
+written relative to where each foot ends up (or in Tori's frame), one foot moving per stage.
+`"approach": "moving"` adds walking steps in front of them, worked out backwards from the first
+stage's feet so the last lands on it: Uke starts about 2.5 m from Tori. TechniqueScript saves a
+pose per stage before the phase's own (`_save_phase`); the attack is staged once to learn where it
+ends, the stages are posed from that, and the attack is staged again as the phase's pose. Details
+and the stage format: `docs/attacks.md` ("In motion").
+
+**`techniques/attack_<key>.json`**: every attack, walked in (`"approach": "moving"`), filmed, and
+the first section of the gallery (`tools/gallery.py` now groups attacks, ukemi, techniques, and
+lists a build's phases from its sequence, since an attack in motion saves poses the script does not
+name).

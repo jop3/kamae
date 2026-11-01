@@ -1,0 +1,23 @@
+{
+  "name": "Attack Tanto tsuki",
+  "label": "Attack · Tanto tsuki — knife thrust to the belly",
+  "description": "Chudan tsuki with a tanto in the right hand, blade forward, the thrust stopping at Tori's belly. The left hand stays back at the hip. Uke walks in from about two metres, through kamae at ma-ai, into it.",
+  "source": "the attack catalogue (data/attacks.json), approach \"moving\"",
+  "camera": "Side",
+  "view": {
+    "yaw": 30,
+    "height": 1.6,
+    "zoom": 1.0
+  },
+  "phases": [
+    {
+      "name": "Tsuki",
+      "do": [
+        {
+          "attack": "tanto_tsuki",
+          "approach": "moving"
+        }
+      ]
+    }
+  ]
+}

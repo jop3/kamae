@@ -1,0 +1,23 @@
+{
+  "name": "Attack Katatedori",
+  "label": "Attack · Katatedori — single wrist grab, mirror stance",
+  "description": "Uke's left hand takes Tori's right wrist (or right takes left): the two stand in mirrored hanmi at about an arm's length, Tori's hand offered forward at the height of the belt, the gripping arm on the outside of it. The thumb goes over the top, the fingers round the inside, the elbow easy and down. In motion Uke comes in from ai hanmi kamae and steps through with the left foot as the hand reaches. Uke walks in from about two metres into it.",
+  "source": "the attack catalogue (data/attacks.json), approach \"moving\"",
+  "camera": "Side",
+  "view": {
+    "yaw": 30,
+    "height": 1.6,
+    "zoom": 1.0
+  },
+  "phases": [
+    {
+      "name": "Grepp",
+      "do": [
+        {
+          "attack": "katatedori",
+          "approach": "moving"
+        }
+      ]
+    }
+  ]
+}

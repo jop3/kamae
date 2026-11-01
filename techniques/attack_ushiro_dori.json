@@ -1,0 +1,23 @@
+{
+  "name": "Attack Ushiro dori",
+  "label": "Attack · Ushiro dori — bear hug from behind, over the arms",
+  "description": "Uke comes round behind Tori and wraps both arms round him over his upper arms, the hands meeting in front of Tori's chest and holding on, his chest against Tori's back. The approach goes round Tori's right side as the other attacks from behind do. Uke walks in from about two metres, through kamae at ma-ai, into it.",
+  "source": "the attack catalogue (data/attacks.json), approach \"moving\"",
+  "camera": "Side",
+  "view": {
+    "yaw": -45,
+    "height": 1.7,
+    "zoom": 1.0
+  },
+  "phases": [
+    {
+      "name": "Grepp",
+      "do": [
+        {
+          "attack": "ushiro_dori",
+          "approach": "moving"
+        }
+      ]
+    }
+  ]
+}

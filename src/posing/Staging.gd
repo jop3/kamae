@@ -501,3 +501,138 @@ func _within_reach_of_floor(r: CharacterRig) -> void:
 		t.origin.y -= minf(hover, maxf(0.0, PoseBlend.sole_lowest(r, side, t)))
 		leg.target.global_transform = t
 	await settle(3)
+
+
+# ---------------------------------------------------------------- stances by their feet
+
+## How far a rear foot turns out from the way the body faces in a stance placed by its feet,
+## degrees; the same as `hanmi`'s.
+const REAR_TURN := 40.0
+
+## Stands `id` with each foot where `feet` says (`{"Right": Vector3, "Left": Vector3}`, points on
+## the mat in the world), the body facing `yaw` (radians), the hips `weight` of the way from the
+## rear foot to the front one (0.5 between them) and lowered by `drop`, tipped forward by `lean`
+## degrees. The foot further forward points the way the body faces, the other is turned out as
+## in hanmi. This is a stance as a step leaves it: the feet are wherever the steps put them, and
+## a walk or an attack is a list of these, one foot moved at a time.
+func stance_feet(id: String, feet: Dictionary, yaw: float, weight: float = 0.5, drop: float = 0.06, lean: float = 0.0) -> void:
+	var r := rig(id)
+	var facing := Basis(Vector3.UP, yaw) * Vector3(0, 0, 1)
+	var right: Vector3 = feet["Right"]
+	var left: Vector3 = feet["Left"]
+	var front := "Right" if (right - left).dot(facing) >= 0.0 else "Left"
+	var rear := "Left" if front == "Right" else "Right"
+	var f: Vector3 = feet[front]
+	var b: Vector3 = feet[rear]
+	var hips := b.lerp(f, weight)
+	# Sideways the hips are between the feet whatever the weight: a step forward does not put
+	# the body over the stepping foot's line.
+	var mid := (f + b) * 0.5
+	var across := Vector3.UP.cross(facing).normalized()
+	hips += across * (mid - hips).dot(across)
+	ctrl.set_root(r, Vector3(hips.x, 0.0, hips.z), yaw)
+	for side in ["Right", "Left"]:
+		if r.limbs[side + "Leg"].mode != Limb.Mode.IK:
+			await ctrl.set_limb_mode(r, side + "Leg", Limb.Mode.IK)
+	await settle(2)
+	for side in ["Right", "Left"]:
+		var limb: Limb = r.limbs[side + "Leg"]
+		var foot_now: Transform3D = r.bone_world_transform(side + "Foot")
+		var ankle_height: float = foot_now.origin.y - r.global_position.y
+		var turn := 0.0
+		if side == rear:
+			turn = REAR_TURN if side == "Left" else -REAR_TURN
+		var p: Vector3 = feet[side]
+		limb.target.global_transform = Transform3D(foot_now.basis.rotated(Vector3.UP, deg_to_rad(turn)),
+			Vector3(p.x, ankle_height, p.z))
+		limb.set_orient_to_target(true)
+		limb.reset_pole()
+	await settle(2)
+	Stance.drop_hips(ctrl, r, drop)
+	if absf(lean) > 1e-3:
+		ctrl.set_root(r, r.position, r.rotation.y, deg_to_rad(lean), 0.0, Stance.BOTH_LEGS)
+	await settle(3)
+
+
+## Where the hands are held in kamae, from the shoulder in the figure's own frame
+## ([right, up, forward] with the front hand's side): the front hand forward at the height of the
+## chest, the rear hand in front of the belt, both a little toward the middle.
+const KAMAE_FRONT := [-0.10, -0.24, 0.40]
+const KAMAE_REAR := [-0.16, -0.44, 0.24]
+
+## Holds `id`'s hands in kamae with `front` the leading hand: open hands, the fingers easy.
+func kamae_hands(id: String, front: String) -> void:
+	for side in ["Right", "Left"]:
+		var a: Array = KAMAE_FRONT if side == front else KAMAE_REAR
+		var v := Vector3(-float(a[0]), float(a[1]), float(a[2]))   # [right, up, forward] -> engine
+		if side == "Left":
+			v.x = -v.x
+		await hand_at(id, side, v)
+		fingers(id, side, 0.15)
+
+
+# ---------------------------------------------------------------- hands turned
+
+## The world orientation of `side`'s hand for `point` (where the fingers point: from the wrist to
+## the middle knuckle) and `palm` (which way the palm faces), each a direction in the world; a
+## zero vector keeps that one as near as it is now. Worked out from the rest pose, where the
+## fingers run from the wrist to the middle knuckle and the palm faces the body.
+static func hand_basis(r: CharacterRig, side: String, point: Vector3, palm: Vector3) -> Basis:
+	var sk := r.skeleton
+	var g := sk.global_transform
+	var rest := func(bone: String) -> Transform3D: return g * sk.get_bone_global_rest(sk.find_bone(bone))
+	var hand_rest: Transform3D = rest.call(side + "Hand")
+	var f0: Vector3 = (rest.call(side + "MiddleProximal").origin - hand_rest.origin).normalized()
+	var across: Vector3 = rest.call(side + "IndexProximal").origin - rest.call(side + "LittleProximal").origin
+	var p0: Vector3 = f0.cross(across).normalized()
+	# At rest the palm faces the body: toward the figure's left for the right hand.
+	var medial: Vector3 = r.global_transform.basis.x * (1.0 if side == "Right" else -1.0)
+	if p0.dot(medial) < 0.0:
+		p0 = -p0
+	var now: Basis = r.bone_world_transform(side + "Hand").basis.orthonormalized()
+	var rot_now: Basis = now * hand_rest.basis.orthonormalized().inverse()
+	var f: Vector3 = point.normalized() if not point.is_zero_approx() else (rot_now * f0).normalized()
+	var pl: Vector3 = palm.normalized() if not palm.is_zero_approx() else (rot_now * p0).normalized()
+	if point.is_zero_approx():
+		# Keep the fingers as near as they are, square to the palm asked for.
+		f = (f - pl * f.dot(pl)).normalized()
+	pl = (pl - f * pl.dot(f)).normalized()
+	var want := Basis(f, pl, f.cross(pl))
+	var had := Basis(f0, p0, f0.cross(p0))
+	return (want * had.inverse() * hand_rest.basis.orthonormalized()).orthonormalized()
+
+
+## How far the middle knuckle is from the wrist joint (the hand bone's origin), metres: a fist
+## put "at" a place has its knuckles there and its wrist this far back along `point`.
+const KNUCKLE_FROM_WRIST := 0.095
+
+## Puts `id`'s `side` hand with its knuckles at `at` (world), the fingers pointing `point` and
+## the palm facing `palm` (world directions), `curl` closed: a fist on a lapel, a hand-blade at a
+## forehead. The arm goes to IK with the hand's orientation held.
+func hand_to(id: String, side: String, at: Vector3, point: Vector3, palm: Vector3, curl: float = -1.0) -> void:
+	var r := rig(id)
+	if r.limbs[side + "Arm"].mode != Limb.Mode.IK:
+		await ctrl.set_limb_mode(r, side + "Arm", Limb.Mode.IK)
+	var limb: Limb = r.limbs[side + "Arm"]
+	var b := hand_basis(r, side, point, palm)
+	var wrist := at - (point.normalized() if not point.is_zero_approx() else Vector3.ZERO) * KNUCKLE_FROM_WRIST
+	limb.target.global_transform = Transform3D(b, wrist)
+	limb.set_orient_to_target(true)
+	limb.reset_pole()
+	if curl >= 0.0:
+		fingers(id, side, curl)
+	await settle(3)
+
+
+## Takes a fistful of `target`'s gi over `bone`: the hand is closed (`curl`), turned as `point` and
+## `palm` say (world directions), its knuckles at `at` (world, on the cloth), and held there as the
+## bone moves — a lapel, a shoulder, a sleeve, a collar from behind. Unlike `grab` nothing is
+## wrapped round the bone: the cloth is gathered in the fist against the body.
+func grab_cloth(gripper: String, hand: String, target: String, bone: String, at: Vector3, point: Vector3, palm: Vector3, curl: float = 0.85) -> Grip:
+	var g := rig(gripper)
+	await hand_to(gripper, hand, at, point, palm, curl)
+	var wrist := at - point.normalized() * KNUCKLE_FROM_WRIST
+	var hand_world := Transform3D(hand_basis(g, hand, point, palm), wrist)
+	var grip := director.attach_at(g, hand, rig(target), bone, hand_world)
+	await settle(3)
+	return grip

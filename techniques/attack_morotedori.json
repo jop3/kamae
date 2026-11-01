@@ -1,0 +1,23 @@
+{
+  "name": "Attack Morotedori",
+  "label": "Attack · Morotedori — two hands on one wrist",
+  "description": "Both of Uke's hands on Tori's right forearm: the left at the wrist from the outside, the right just above it toward the elbow. Uke stands on the outside of the arm, offset well to Tori's right, so both forearms come across it. Uke walks in from about two metres, through kamae at ma-ai, into it.",
+  "source": "the attack catalogue (data/attacks.json), approach \"moving\"",
+  "camera": "Side",
+  "view": {
+    "yaw": 30,
+    "height": 1.6,
+    "zoom": 1.0
+  },
+  "phases": [
+    {
+      "name": "Grepp",
+      "do": [
+        {
+          "attack": "morotedori",
+          "approach": "moving"
+        }
+      ]
+    }
+  ]
+}

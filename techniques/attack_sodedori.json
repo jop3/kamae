@@ -1,0 +1,23 @@
+{
+  "name": "Attack Sodedori",
+  "label": "Attack · Sodedori — sleeve grab at the elbow",
+  "description": "Uke's left hand takes a fistful of Tori's right sleeve just above the elbow, from the outside, the arm hanging. Uke walks in from about two metres, through kamae at ma-ai, into it.",
+  "source": "the attack catalogue (data/attacks.json), approach \"moving\"",
+  "camera": "Side",
+  "view": {
+    "yaw": 30,
+    "height": 1.6,
+    "zoom": 1.0
+  },
+  "phases": [
+    {
+      "name": "Grepp",
+      "do": [
+        {
+          "attack": "sodedori",
+          "approach": "moving"
+        }
+      ]
+    }
+  ]
+}

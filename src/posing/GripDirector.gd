@@ -180,6 +180,25 @@ func attach_wrapped(gripper: CharacterRig, hand: String, target_rig: CharacterRi
 	return grip
 
 
+## Attaches a hand to a bone of another character at a hand transform chosen by the caller
+## (`hand_world`, where the hand bone should be) rather than wherever the hand happens to be:
+## the hand is sent there and held there relative to the bone, and a hand that cannot reach it
+## is short of its grip by what `error_for` measures. A fist in the cloth of a gi (Staging.grab_cloth).
+func attach_at(gripper: CharacterRig, hand: String, target_rig: CharacterRig, bone: String, hand_world: Transform3D) -> Grip:
+	var target := GripTarget.for_bone(scene, target_rig.character_id, bone)
+	gripper.set_limb_mode(hand + "Arm", Limb.Mode.IK)
+	var limb: Limb = gripper.limbs[hand + "Arm"]
+	limb.target.global_transform = hand_world
+	var grip := Grip.new()
+	grip.gripper_id = gripper.character_id
+	grip.hand = hand
+	grip.target = target
+	grip.target.bind(scene)
+	grip.offset = target.world_transform().affine_inverse() * hand_world
+	_add(grip)
+	return grip
+
+
 ## Where `gripper`'s `hand` should be to wrap around `bone` of `target_rig`, given where the
 ## hand is now (nearest point along the bone, same side of it).
 func wrapped_hand_transform(gripper: CharacterRig, hand: String, target_rig: CharacterRig, bone: String, flip := false, skew_deg := 0.0) -> Transform3D:

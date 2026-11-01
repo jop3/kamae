@@ -92,14 +92,84 @@ No grip: Uke's hand is placed and the arm follows, at ma-ai.
 | `tanto_tsuki` | Tanto tsuki (tantodori) | Tanto tsuki | Tanto tsuki | knife thrust to the belly | knivstöt mot magen | as chudan tsuki with a tanto in the right hand, 1.0 m |
 | `mae_geri` | Mae geri | Mae geri | Mae geri | front kick | framåtspark | left hanmi, 1.0 m, right foot driven forward at belly height, hands up as a guard |
 
+## In motion
+
+An attack is not only its moment. Each entry has a `"motion"` block: the **stages** before the
+moment — the poses a handout would show of Uke coming in — and the moment's own timing (`final`).
+A technique script asks for them with `"approach"` on its `attack` move (`docs/technique-scripts.md`):
+
+- `"none"` (the default): the moment alone, as before.
+- `"static"`: from kamae at ma-ai, through the stages, into the moment.
+- `"moving"`: Uke walks in from further away first — `steps` walking steps (2 by default, a stride
+  of 0.6 m, half a second each), worked out by taking the first stage's feet back a step at a time
+  along the way Uke faces, so the last step lands exactly on it. Uke starts about 2.5 m from Tori.
+
+`techniques/attack_<key>.json` is every attack built this way, filmed in the gallery's first section.
+
+What the stages are, by kind of attack (right side; *mirror* swaps it):
+
+| attack | stages before the moment |
+|---|---|
+| grabs from the front | **Kamae** in the other hanmi, about half a metre further off than the grip; **Te**: one step through with the grabbing side's foot, the hand(s) reaching for the target, open; then the hand closes on it |
+| `katadori_menuchi` | as a grab, then **Katadori** (the shoulder taken), then the right hand raised to strike |
+| `shomenuchi`, `yokomenuchi` | **Kamae** in left hanmi; **Furikaburi**: the right hand raised over the forehead (yokomen: up and out to the right), the hips back; then the step through with the right foot and the cut |
+| `chudan_tsuki`, `jodan_tsuki`, `tanto_tsuki` | **Kamae** in left hanmi with the right fist (or the tanto) chambered at the hip; then the lunge through with the right foot |
+| `mae_geri` | **Kamae** in left hanmi, guard up; then the kick |
+| from behind | **Kamae** in front of Tori; **Te** (ushiro ryotedori: the right wrist taken cross-hand) or **Ayumi**, a step to Tori's right front; **Mawari**, past his right side, keeping hold; **Ushiro**, turning in behind him; **Ushiro ni**, the left foot to its place; then the grip |
+
+One foot moves from one stage to the next, never two (two feet off the mat in one blend is a
+hop): `tests/test_attacks.gd` checks it for every attack, and that a grip taken on the way in
+is on its point.
+
+A stage is written in the catalogue as:
+
+```json
+{"name": "Te", "feet": {"Right": [0, -0.75]}, "turn": 0, "weight": 0.6, "drop": 0.06, "lean": 0,
+ "hands": {"Left": {"to": "RightLowerArm", "along": 0.85, "offset": [0, 0.02, 0.12], "curl": 0.15}},
+ "grips": [0], "lead": "Left", "transition": 0.55, "hold": 0.0}
+```
+
+`feet` gives each foot as `[left, forward]` metres from where *that foot* ends up in the attack, in
+Uke's frame there (a foot left out is where it ends up); with `"frame": "tori"` the feet are places
+in Tori's frame instead (an attack from behind starts in front of him), and `"final"` puts a foot
+where it ends up. `turn` is degrees from the way Uke faces in the attack (or, in Tori's frame, from
+Tori's: 180 is facing him). The hips are `weight` of the way from the rear foot to the front one,
+lowered by `drop`, tipped `lean` degrees forward. `hands` is `"kamae"` (the default; `lead` picks
+the front hand, otherwise the front foot's side) or per side an offset from the shoulder, `"hang"`,
+`"kamae"`, or a block with `at` or `to` (a bone of Tori, `along` it, `offset` in Tori's frame) and
+optionally `point`, `palm` (directions in Uke's frame), `curl` and `elbow` (where the elbow points
+from the shoulder, for arms that go round a body). `grips` takes the attack's own grips by index.
+
+### The moment's own keys
+
+Besides `hanmi`, `distance`, `lateral`, `facing` and `hands`, an attack's `uke` (and `tori`) block
+may give the stance's `depth`, `width`, `drop`, `weight` (how far onto the front foot) and `lean`;
+`"hands": "kamae"` holds both hands in kamae. `min_gap` is how close Uke's hips may come to
+Tori's when the fit moves him (a grab is taken at arm's length; without it the joints alone pulled
+Uke in chest to chest), `fit_in` the distances toward Tori the fit tries.
+
+A grip with `"cloth": true` is a fist in the gi, not a hand wrapped round a bone: its knuckles go
+`along` the bone plus `offset` (Tori's frame), turned by `point` and `palm` (Uke's frame), closed
+`curl`, and held there relative to the bone (`Staging.grab_cloth`, `GripDirector.attach_at`). The
+shoulder, lapel, collar and sleeve grabs are cloth grips.
+
+A `strike` block is a strike arriving: `hand`, `to` (a bone of Tori), `along`, `offset`, and
+`reach`, the share of the arm's full length the arm is extended to. Uke is moved along the line to
+Tori until the striking hand is there at that reach, and the hand is turned by `point` and `palm`.
+The cuts and punches stop a hand's width short of the forehead, temple, solar plexus or face.
+
 ## What is not here yet
 
 - The weapon attacks with bokken and jo, which the weapon poses in `tools/build_fixtures.gd`
   already cover; a `"weapons"` entry under `uke` (as `tanto_tsuki` has) is how one would go here.
 - Grips with the *other* stance relation (a katatedori from ai hanmi on the left side is
   `aihanmi_katatedori` mirrored; a gyaku hanmi grip taken with the near hand is `katatedori`).
-- Uke's second hand in the single grips hangs; a school that keeps it raised as a guard can add
-  it under `"uke": {"hands": …}`.
+- Uke's second hand in the single grips is held low in front of his centre; a school that keeps
+  it raised as a guard can change it under `"uke": {"hands": …}`.
+- The kick has no chambered knee: its approach is kamae and the kick.
+- Tori does not move while Uke comes in. A technique moves him from the attack's moment on; meeting
+  the attack earlier (Tori entering as Uke raises the hand) is a phase of the technique placed
+  between the stages, which the `approach` does not do for it.
 
 ## How a grip is placed, for the record
 

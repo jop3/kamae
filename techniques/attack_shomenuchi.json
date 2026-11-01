@@ -1,0 +1,23 @@
+{
+  "name": "Attack Shomenuchi",
+  "label": "Attack · Shomenuchi — straight strike to the forehead with the hand-blade",
+  "description": "Uke cuts straight down the centre line at Tori's forehead with the right hand-blade, stepping through with the right foot into a deep right hanmi; the cut stops a hand's width short of the forehead, the left hand at his own centre. In motion: left hanmi kamae at ma-ai, the right hand raised over the forehead (furikaburi), then the step and the cut. Uke walks in from about two metres into it.",
+  "source": "the attack catalogue (data/attacks.json), approach \"moving\"",
+  "camera": "Side",
+  "view": {
+    "yaw": 30,
+    "height": 1.6,
+    "zoom": 1.0
+  },
+  "phases": [
+    {
+      "name": "Uchi",
+      "do": [
+        {
+          "attack": "shomenuchi",
+          "approach": "moving"
+        }
+      ]
+    }
+  ]
+}

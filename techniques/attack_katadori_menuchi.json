@@ -1,0 +1,23 @@
+{
+  "name": "Attack Katadori menuchi",
+  "label": "Attack · Katadori menuchi — shoulder grab and a strike to the head",
+  "description": "Uke takes Tori's right shoulder with the left hand as in katadori, then raises the right hand over the head to strike shomen. In motion the grab and the raised hand are two moments. Uke walks in from about two metres into it.",
+  "source": "the attack catalogue (data/attacks.json), approach \"moving\"",
+  "camera": "Side",
+  "view": {
+    "yaw": 30,
+    "height": 1.6,
+    "zoom": 1.0
+  },
+  "phases": [
+    {
+      "name": "Grepp",
+      "do": [
+        {
+          "attack": "katadori_menuchi",
+          "approach": "moving"
+        }
+      ]
+    }
+  ]
+}

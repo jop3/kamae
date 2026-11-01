@@ -26,6 +26,14 @@ var st: Staging
 var attack_origin := Transform3D.IDENTITY
 ## What happened, phase by phase: pose names, what the joints refused, unknown moves.
 var report := {"phases": [], "errors": []}
+## The sequence being built, where its poses go and the technique's name: an attack in motion
+## saves its lead-in poses from inside its move.
+var _seq: Sequence = null
+var _poses_dir := ""
+var _tech_name := ""
+## Timing a move gives the phase it is in when the script does not (an attack in motion: the
+## strike is quicker than the default blend).
+var _phase_timing := {}
 
 ## Every move do_move knows, by its verb (the key that names it).
 const VERBS := ["attack", "from_pose", "place", "move", "pivot", "turn_foot", "step", "hanmi", "drop_hips",
@@ -90,6 +98,9 @@ func run(script: Dictionary, out_dir: String) -> Dictionary:
 			looks[c["id"]] = c["look"]
 	var seq := Sequence.new()
 	seq.name = name
+	_seq = seq
+	_poses_dir = poses_dir
+	_tech_name = name
 	seq.camera = script.get("camera", "Side")
 	if script.get("view") is Dictionary:
 		seq.view = script["view"]
@@ -98,6 +109,7 @@ func run(script: Dictionary, out_dir: String) -> Dictionary:
 		# A figure is in a fall in a phase that says so (an "ukemi" move), and in no other.
 		for r in scene.characters:
 			r.fall = {}
+		_phase_timing = {}
 		for move in phase.get("do", []):
 			await do_move(move)
 		if not phase.get("save", true):
@@ -105,8 +117,8 @@ func run(script: Dictionary, out_dir: String) -> Dictionary:
 		var pose_name := "%s %s" % [name, phase_name]
 		await _save_pose(poses_dir, pose_name, phase.get("allow_short", false))
 		seq.steps.append({"pose": PoseFile.slugify(pose_name),
-			"transition": 0.0 if seq.steps.is_empty() else float(phase.get("transition", 0.7)),
-			"hold": float(phase.get("hold", 0.3))})
+			"transition": 0.0 if seq.steps.is_empty() else float(phase.get("transition", _phase_timing.get("transition", 0.7))),
+			"hold": float(phase.get("hold", _phase_timing.get("hold", 0.3)))})
 	var err := seq.save(Sequence.sequence_path(seq_dir, name))
 	if err != OK:
 		report["errors"].append("could not write the sequence: %s" % error_string(err))
@@ -120,7 +132,18 @@ func run(script: Dictionary, out_dir: String) -> Dictionary:
 ## Runs one move. A move is a dictionary whose first recognised key is its verb.
 func do_move(m: Dictionary) -> void:
 	if m.has("attack"):
-		var res: Dictionary = await Attacks.stage(st, m["attack"], {"mirror": m.get("mirror", false)})
+		var opts := {"mirror": m.get("mirror", false)}
+		var res: Dictionary = await Attacks.stage(st, m["attack"], opts)
+		var approach: String = m.get("approach", "none")
+		if approach != "none" and _seq != null:
+			# The attack in motion: the stages before its moment, each a pose of its own saved
+			# ahead of this phase's, then the attack set again as the moment itself.
+			var stages: Array = Attacks.lead_in(st, m["attack"], approach, int(m.get("steps", 2)), opts)
+			for s: Dictionary in stages:
+				await Attacks.pose_stage(st, m["attack"], s, opts)
+				await _save_phase(s["name"], s["transition"], s["hold"])
+			res = await Attacks.stage(st, m["attack"], opts)
+			_phase_timing = Attacks.entry(m["attack"]).get("motion", {}).get("final", {})
 		var uke := _rig(m.get("uke", "uke1"))
 		if uke:
 			attack_origin = uke.global_transform
@@ -429,32 +452,12 @@ func _refit(m: Dictionary) -> void:
 
 ## The hand's world orientation for "point" (where the fingers point) and "palm" (which way the
 ## palm faces), each [right, up, forward] in the figure's frame; either may be left out, and the
-## other is then kept as near as it can be to where it is now. Worked out from the rest pose,
-## where the fingers run from the wrist to the middle knuckle and the palm faces the body.
+## other is then kept as near as it can be to where it is now (Staging.hand_basis).
 func _hand_basis(r: CharacterRig, side: String, m: Dictionary) -> Basis:
-	var sk := r.skeleton
-	var g := sk.global_transform
-	var rest := func(bone: String) -> Transform3D: return g * sk.get_bone_global_rest(sk.find_bone(bone))
-	var hand_rest: Transform3D = rest.call(side + "Hand")
-	var f0: Vector3 = (rest.call(side + "MiddleProximal").origin - hand_rest.origin).normalized()
-	var across: Vector3 = rest.call(side + "IndexProximal").origin - rest.call(side + "LittleProximal").origin
-	var p0: Vector3 = f0.cross(across).normalized()
-	# At rest the palm faces the body: toward the figure's left for the right hand.
-	var medial: Vector3 = r.global_transform.basis.x * (1.0 if side == "Right" else -1.0)
-	if p0.dot(medial) < 0.0:
-		p0 = -p0
-	var now: Basis = r.bone_world_transform(side + "Hand").basis.orthonormalized()
-	var rot_now: Basis = now * hand_rest.basis.orthonormalized().inverse()
 	var b := _flat_basis(r)
-	var f: Vector3 = (b * _local3(m["point"])).normalized() if m.has("point") else (rot_now * f0).normalized()
-	var pl: Vector3 = (b * _local3(m["palm"])).normalized() if m.has("palm") else (rot_now * p0).normalized()
-	if not m.has("point"):
-		# Keep the fingers as near as they are, square to the palm asked for.
-		f = (f - pl * f.dot(pl)).normalized()
-	pl = (pl - f * pl.dot(f)).normalized()
-	var want := Basis(f, pl, f.cross(pl))
-	var had := Basis(f0, p0, f0.cross(p0))
-	return (want * had.inverse() * hand_rest.basis.orthonormalized()).orthonormalized()
+	var f: Vector3 = b * _local3(m["point"]) if m.has("point") else Vector3.ZERO
+	var pl: Vector3 = b * _local3(m["palm"]) if m.has("palm") else Vector3.ZERO
+	return Staging.hand_basis(r, side, f, pl)
 
 
 ## "weapon": a bokken, jo or tanto. "hold": "uke1.Right" puts it in one hand; "kamae": "uke1"
@@ -560,6 +563,15 @@ func _save_pose(dir: String, pose_name: String, allow_short: bool) -> void:
 		"grip_error": director.worst_error()})
 	print("pose %s: grips %d, worst grip error %.3f m%s" % [pose_name, director.grips.size(), director.worst_error(),
 		"" if probs.is_empty() else "\n    " + "\n    ".join(probs)])
+
+
+## A pose saved in the middle of a phase's moves (an attack's lead-in), as its own step of the
+## sequence, before the phase's own.
+func _save_phase(phase_name: String, transition: float, hold: float) -> void:
+	var pose_name := "%s %s" % [_tech_name, phase_name]
+	await _save_pose(_poses_dir, pose_name, true)
+	_seq.steps.append({"pose": PoseFile.slugify(pose_name),
+		"transition": 0.0 if _seq.steps.is_empty() else transition, "hold": hold})
 
 
 func _step_in_to_grips() -> void:

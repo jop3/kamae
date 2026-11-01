@@ -1,0 +1,23 @@
+{
+  "name": "Attack Ryotedori",
+  "label": "Attack · Ryotedori — both wrists grabbed from the front",
+  "description": "Uke takes both of Tori's wrists, each hand from the outside with the thumb on top. Tori offers both hands forward at hip-to-waist height; the two stand an arm's length apart, square-ish. In motion both hands reach as Uke steps in. Uke walks in from about two metres into it.",
+  "source": "the attack catalogue (data/attacks.json), approach \"moving\"",
+  "camera": "Side",
+  "view": {
+    "yaw": 30,
+    "height": 1.6,
+    "zoom": 1.0
+  },
+  "phases": [
+    {
+      "name": "Grepp",
+      "do": [
+        {
+          "attack": "ryotedori",
+          "approach": "moving"
+        }
+      ]
+    }
+  ]
+}

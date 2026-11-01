@@ -1,0 +1,23 @@
+{
+  "name": "Attack Chudan tsuki",
+  "label": "Attack · Chudan tsuki — straight punch to the solar plexus",
+  "description": "Mune tsuki: Uke steps through with the right foot into a long, low right hanmi and drives the right fist straight at Tori's solar plexus, the arm straight, the left fist pulled back to the hip. In motion: left hanmi kamae with the right fist at the hip, then the lunge. Uke walks in from about two metres into it.",
+  "source": "the attack catalogue (data/attacks.json), approach \"moving\"",
+  "camera": "Side",
+  "view": {
+    "yaw": 30,
+    "height": 1.6,
+    "zoom": 1.0
+  },
+  "phases": [
+    {
+      "name": "Tsuki",
+      "do": [
+        {
+          "attack": "chudan_tsuki",
+          "approach": "moving"
+        }
+      ]
+    }
+  ]
+}

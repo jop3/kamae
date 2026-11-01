@@ -1,0 +1,23 @@
+{
+  "name": "Attack Munedori",
+  "label": "Attack · Munedori — chest (lapel) grab with one hand",
+  "description": "Uke's left hand takes a fistful of Tori's lapel at the chest, thumb up, knuckles toward the sternum, the arm nearly straight. In motion the hand reaches out as Uke steps in. Uke walks in from about two metres into it.",
+  "source": "the attack catalogue (data/attacks.json), approach \"moving\"",
+  "camera": "Side",
+  "view": {
+    "yaw": 30,
+    "height": 1.6,
+    "zoom": 1.0
+  },
+  "phases": [
+    {
+      "name": "Grepp",
+      "do": [
+        {
+          "attack": "munedori",
+          "approach": "moving"
+        }
+      ]
+    }
+  ]
+}

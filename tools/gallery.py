@@ -72,25 +72,44 @@ def collect():
             print("skipped (not built with video):", name, file=sys.stderr)
             continue
         seq = json.load(open(seq_path))
-        saved = [p for p in script["phases"] if p.get("save", True)]
         starts = phase_starts(seq)
         stills = os.path.join(build, "stills")
-        view = "view" if os.path.exists(os.path.join(stills, f"{s}_{slug(saved[0]['name'])}_view.png")) else "side"
-        # The poster is the phase where the technique happens: the kake if there is one.
-        key = next((p for p in saved if p["name"].lower() in ("kake", "osae")), saved[len(saved) // 2])
+        # The phases are the sequence's steps, not the script's: an attack in motion saves the
+        # poses of its approach (kamae, the steps, the reach) from inside one phase of the script.
+        phases = []
+        for i, step in enumerate(seq["steps"]):
+            pose_file = os.path.join(build, "poses", step["pose"] + ".json")
+            title = json.load(open(pose_file)).get("name", step["pose"]) if os.path.exists(pose_file) else step["pose"]
+            prefix = script.get("name", "") + " "
+            title = title[len(prefix):] if title.startswith(prefix) else title
+            phase_slug = step["pose"][len(s) + 1:] if step["pose"].startswith(s + "_") else step["pose"]
+            phases.append({"name": title, "slug": phase_slug, "t": starts[i]})
+        view = "view" if os.path.exists(os.path.join(stills, f"{s}_{phases[0]['slug']}_view.png")) else "side"
+        # The poster is the phase where the technique happens: the kake if there is one, the
+        # attack itself (the last phase) for an attack, else the middle.
+        kind = "attack" if name.startswith("attack_") else "ukemi" if name.startswith("ukemi_") else "technique"
+        key = next((p for p in phases if p["name"].lower() in ("kake", "osae")),
+                   phases[-1] if kind == "attack" else phases[len(phases) // 2])
         items.append({
             "slug": s, "script": script, "file": name, "build": build, "video": video,
-            "phases": [(p["name"], starts[i] if i < len(starts) else 0.0) for i, p in enumerate(saved)],
+            "phases": [(p["name"], p["t"]) for p in phases],
             "duration": starts[-1] + float(seq["steps"][-1].get("hold", 0.0)),
-            "poster": os.path.join(stills, f"{s}_{slug(key['name'])}_{view}.png"),
+            "poster": os.path.join(stills, f"{s}_{key['slug']}_{view}.png"),
             "sheet": os.path.join(build, "contact_sheet.png"),
             "compare": os.path.join(build, "compare_with_video.png"),
             "attack": (script["label"], "") if script.get("label") else attack_of(script),
-            "ukemi": name.startswith("ukemi_"),
+            "kind": kind,
+            "ukemi": kind == "ukemi",
             "viewer": os.path.join(build, "viewer"),
         })
-    # The falls first (Uke on his own, every kind the techniques use), then the techniques.
-    return [it for it in items if it["ukemi"]] + [it for it in items if not it["ukemi"]]
+    # The attacks first (Uke walking in and attacking, every attack the techniques start from),
+    # then the falls (Uke on his own), then the techniques.
+    order = {"attack": 0, "ukemi": 1, "technique": 2}
+    return sorted(items, key=lambda it: order[it["kind"]])
+
+
+SECTIONS = {"attack": ("attacks", "Attacks — Uke comes in"), "ukemi": ("ukemi", "Ukemi — falling and rolling"),
+            "technique": ("techniques", "Techniques")}
 
 
 def build_media(items):
@@ -161,9 +180,9 @@ def page(items):
                       f'alt="Each phase of {e(sc["name"])} beside the matching frame of the source video">'
                       f'<figcaption>Left: the source clip at each phase\'s time. Right: the render.</figcaption></figure>')
         known = f'<p class="known"><span>Known</span> {e(sc["known"])}</p>' if sc.get("known") else ""
-        if n == 0 or it["ukemi"] != items[n - 1]["ukemi"]:
-            cards.append(f'<h2 class="section" id="{"ukemi" if it["ukemi"] else "techniques"}">'
-                         f'{"Ukemi — falling and rolling" if it["ukemi"] else "Techniques"}</h2>')
+        if n == 0 or it["kind"] != items[n - 1]["kind"]:
+            anchor, title = SECTIONS[it["kind"]]
+            cards.append(f'<h2 class="section" id="{anchor}">{title}</h2>')
         cards.append(f'''
 <article class="tech" id="{s}">
   <div class="media" data-slug="{s}"{(" data-figures='" + e(json.dumps(it["figures"])) + "'") if it.get("figures") else ""}>
@@ -185,8 +204,10 @@ def page(items):
   </div>
 </article>''')
     index = "".join(f'<li><a href="#{it["slug"]}">{e(it["script"]["name"])}</a></li>' for it in items)
-    falls = sum(1 for it in items if it["ukemi"])
-    count = f"{len(items) - falls} techniques" + (f" · {falls} ukemi" if falls else "")
+    falls = sum(1 for it in items if it["kind"] == "ukemi")
+    attacks = sum(1 for it in items if it["kind"] == "attack")
+    count = f"{len(items) - falls - attacks} techniques" + (f" · {falls} ukemi" if falls else "") \
+        + (f" · {attacks} attacks" if attacks else "")
     viewer = open(os.path.join(ROOT, "tools", "viewer.js")).read()
     return (TEMPLATE.replace("{{COUNT}}", count).replace("{{INDEX}}", index).replace("{{CARDS}}", "".join(cards))
             .replace("{{VIEWER_JS}}", viewer))
@@ -282,7 +303,7 @@ footer { padding-top: 24px; font-size: 13px; color: var(--muted); max-width: 70c
   <header>
     <p class="kicker">Kamae · {{COUNT}}</p>
     <h1>Technique library</h1>
-    <p>Each technique is a short script of moves, built into poses and filmed by the Kamae posing engine. Tori wears the hakama, Uke the gi with the coloured belt. The falls come first: every kind of ukemi the techniques use, Uke on his own. Click a phase to jump the video to it. Switch a technique to 3D to walk round it: drag to turn the view, scroll or pinch to zoom, right-drag or two fingers to move it, and play it as slowly as you like or a frame at a time, forward and back.</p>
+    <p>Each technique is a short script of moves, built into poses and filmed by the Kamae posing engine. Tori wears the hakama, Uke the gi with the coloured belt. The attacks come first: Uke walking in from a distance into every attack the techniques start from. Then the falls: every kind of ukemi the techniques use, Uke on his own. Click a phase to jump the video to it. Switch a technique to 3D to walk round it: drag to turn the view, scroll or pinch to zoom, right-drag or two fingers to move it, and play it as slowly as you like or a frame at a time, forward and back.</p>
     <nav aria-label="Techniques"><ul>{{INDEX}}</ul></nav>
   </header>
   {{CARDS}}

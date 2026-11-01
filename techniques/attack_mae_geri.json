@@ -1,0 +1,23 @@
+{
+  "name": "Attack Mae geri",
+  "label": "Attack · Mae geri — front kick",
+  "description": "Uke in left hanmi at ma-ai, the right foot driven forward at Tori's belly, the knee high, the hands up as a guard. Rare in aikido; here for the techniques that answer it. Uke walks in from about two metres, through kamae at ma-ai, into it.",
+  "source": "the attack catalogue (data/attacks.json), approach \"moving\"",
+  "camera": "Side",
+  "view": {
+    "yaw": 30,
+    "height": 1.6,
+    "zoom": 1.0
+  },
+  "phases": [
+    {
+      "name": "Geri",
+      "do": [
+        {
+          "attack": "mae_geri",
+          "approach": "moving"
+        }
+      ]
+    }
+  ]
+}

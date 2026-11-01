@@ -1,0 +1,23 @@
+{
+  "name": "Attack Aihanmi katatedori",
+  "label": "Attack · Aihanmi katatedori — cross-hand wrist grab, same stance",
+  "description": "Uke's right hand takes Tori's right wrist: both in right hanmi, the arms cross. Uke's thumb is on top and his palm faces down over the wrist, so the forearm comes at the wrist from Uke's own side. In motion Uke steps through with the right foot as the hand reaches across. Uke walks in from about two metres into it.",
+  "source": "the attack catalogue (data/attacks.json), approach \"moving\"",
+  "camera": "Side",
+  "view": {
+    "yaw": 30,
+    "height": 1.6,
+    "zoom": 1.0
+  },
+  "phases": [
+    {
+      "name": "Grepp",
+      "do": [
+        {
+          "attack": "aihanmi_katatedori",
+          "approach": "moving"
+        }
+      ]
+    }
+  ]
+}

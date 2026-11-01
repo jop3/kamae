@@ -1,0 +1,23 @@
+{
+  "name": "Attack Ushiro ryotedori",
+  "label": "Attack · Ushiro ryotedori — both wrists grabbed from behind",
+  "description": "Uke behind Tori, facing the same way, each hand on the wrist of the same side, thumbs on top, Tori's arms hanging. In motion Uke comes in from the front, takes Tori's right wrist with his right hand, walks round Tori's right side keeping hold, and takes the left wrist from behind. Uke walks in from about two metres into it.",
+  "source": "the attack catalogue (data/attacks.json), approach \"moving\"",
+  "camera": "Side",
+  "view": {
+    "yaw": -45,
+    "height": 1.7,
+    "zoom": 1.0
+  },
+  "phases": [
+    {
+      "name": "Grepp",
+      "do": [
+        {
+          "attack": "ushiro_ryotedori",
+          "approach": "moving"
+        }
+      ]
+    }
+  ]
+}

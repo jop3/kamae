@@ -85,6 +85,43 @@ func _initialize() -> void:
 					if y < -0.02 or y > 0.08:
 						feet_ok = false
 				check(feet_ok, "%s: %s stands on the mat" % [label, r.character_id])
+			# The attack in motion: walked in from further away and through its own stages, one
+			# foot moving at a time (two feet leaving the mat in one blend is a hop), the last stage
+			# a step from the attack itself, and every stage's own grips on their points.
+			if e.has("motion"):
+				var final_feet := {}
+				for side in ["Right", "Left"]:
+					var p: Vector3 = uke.limbs[side + "Leg"].target.global_position
+					final_feet[side] = Vector3(p.x, 0.0, p.z)
+				var stages: Array = Attacks.lead_in(st, key, "moving", 2, {"mirror": mirror})
+				check(stages.size() == e["motion"]["stages"].size() + 2, "%s: walks in over two steps and %d stages" % [label, e["motion"]["stages"].size()])
+				var hops := PackedStringArray()
+				var prev: Dictionary = {}
+				for s: Dictionary in stages + [{"name": "the attack", "feet": final_feet}]:
+					if not prev.is_empty():
+						var moved := 0
+						for side in ["Right", "Left"]:
+							if (s["feet"][side] - prev["feet"][side]).length() > 0.05:
+								moved += 1
+						if moved > 1:
+							hops.append("%s → %s" % [prev["name"], s["name"]])
+					prev = s
+				check(hops.is_empty(), "%s: one foot at a time on the way in (%s)" % [label, ", ".join(hops)])
+				var start: Dictionary = stages[0]
+				var start_gap := INF
+				for side in ["Right", "Left"]:
+					start_gap = minf(start_gap, Vector2(start["feet"][side].x, start["feet"][side].z).length())
+				check(start_gap > 1.0, "%s: the walk starts well away from Tori (nearest foot %.2f m)" % [label, start_gap])
+				var short := 0.0
+				var posed := false
+				for s: Dictionary in stages:
+					if not s.get("spec", {}).get("grips", []).is_empty():
+						await Attacks.pose_stage(st, key, s, {"mirror": mirror})
+						short = maxf(short, director.worst_error())
+						posed = true
+				check(short < 0.03, "%s: a grip taken on the way in is on its point (worst %.3f m)" % [label, short])
+				if posed:
+					await Attacks.stage(st, key, {"mirror": mirror})
 			if verbose:
 				var d: float = uke.global_position.distance_to(tori.global_position)
 				print("  %s: Uke at (%.2f, %.2f), %.2f m from Tori, moved %.2f m; grips %d, worst %.3f; refused %s"

@@ -1,0 +1,23 @@
+{
+  "name": "Attack Ushiro eridori",
+  "label": "Attack · Ushiro eridori — collar grabbed from behind",
+  "description": "Uke behind Tori, the right hand in the collar at the back of the neck. In motion Uke comes in from the front and walks round Tori's right side to take hold. Uke walks in from about two metres into it.",
+  "source": "the attack catalogue (data/attacks.json), approach \"moving\"",
+  "camera": "Side",
+  "view": {
+    "yaw": -45,
+    "height": 1.7,
+    "zoom": 1.0
+  },
+  "phases": [
+    {
+      "name": "Grepp",
+      "do": [
+        {
+          "attack": "ushiro_eridori",
+          "approach": "moving"
+        }
+      ]
+    }
+  ]
+}

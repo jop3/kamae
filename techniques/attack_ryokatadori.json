@@ -1,0 +1,23 @@
+{
+  "name": "Attack Ryokatadori",
+  "label": "Attack · Ryokatadori — both shoulders grabbed from the front",
+  "description": "Both of Uke's hands take the gi at the front of Tori's shoulders, thumbs up, square on, the arms a little bent. Uke walks in from about two metres, through kamae at ma-ai, into it.",
+  "source": "the attack catalogue (data/attacks.json), approach \"moving\"",
+  "camera": "Side",
+  "view": {
+    "yaw": 30,
+    "height": 1.6,
+    "zoom": 1.0
+  },
+  "phases": [
+    {
+      "name": "Grepp",
+      "do": [
+        {
+          "attack": "ryokatadori",
+          "approach": "moving"
+        }
+      ]
+    }
+  ]
+}

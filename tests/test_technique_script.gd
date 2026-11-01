@@ -142,6 +142,39 @@ func _initialize() -> void:
 	check(tori.appearance.get("look") == "realistic" and tori.appearance.get("hair") == "bob02", "the look is saved with the pose and restored")
 	check(tori.hair_meshes["bob02"].visible, "restored hair style shown")
 
+	# An attack in motion: Uke walks in from further away, through the catalogue's stages, and
+	# the phase's own pose is the attack; the phases after it carry on from there.
+	var moving := {
+		"name": "Test Shomen",
+		"phases": [
+			{"name": "Uchi", "do": [{"attack": "shomenuchi", "approach": "moving", "steps": 2}]},
+			{"name": "Irimi", "do": [{"step": "tori.Right", "by": [0.0, 0.2]}]},
+		],
+	}
+	var stages: int = Attacks.entry("shomenuchi")["motion"]["stages"].size()
+	var rep2: Dictionary = await ts.run(moving, OUT)
+	check(rep2["errors"].is_empty(), "attack in motion: built without errors %s" % [rep2["errors"]])
+	var seq2 := Sequence.load(rep2["sequence"])
+	check(seq2 != null and seq2.steps.size() == 2 + stages + 2, "attack in motion: two walking poses, %d stages, the cut, the next phase (%d steps)" % [stages, seq2.steps.size() if seq2 else -1])
+	if seq2 != null and seq2.steps.size() >= 4:
+		check(seq2.steps[0]["transition"] == 0.0 and seq2.steps[seq2.steps.size() - 2]["pose"] == "test_shomen_uchi", "attack in motion: the walk first, the cut as the phase's own pose")
+		# The run made the figures afresh.
+		tori = scene.get_character("tori")
+		uke = scene.get_character("uke1")
+		var p2 := {}
+		for ph in rep2["phases"]:
+			p2[ph["pose"]] = PoseFile.load(ph["path"])
+		PoseFile.apply(p2["Test Shomen Kamae (far)"], scene, director, ctrl)
+		await settle(4)
+		var far := Vector2(uke.position.x - tori.position.x, uke.position.z - tori.position.z).length()
+		PoseFile.apply(p2["Test Shomen Uchi"], scene, director, ctrl)
+		await settle(4)
+		var near := Vector2(uke.position.x - tori.position.x, uke.position.z - tori.position.z).length()
+		check(far > near + 1.2, "attack in motion: Uke starts well back (%.2f m) and comes in (%.2f m)" % [far, near])
+		var hand: Vector3 = uke.bone_world_transform("RightHand").origin
+		var head: Vector3 = tori.bone_world_transform("Head").origin
+		check(hand.distance_to(head) < 0.4 and hand.y > head.y - 0.1, "attack in motion: the cut arrives at Tori's head (%.2f m from it)" % hand.distance_to(head))
+
 	print("RESULT %s (%d failures)" % ["OK" if failures == 0 else "FAILED", failures])
 	quit(1 if failures > 0 else 0)
 

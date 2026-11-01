@@ -1,0 +1,23 @@
+{
+  "name": "Attack Ushiro kubishime",
+  "label": "Attack · Ushiro kubishime — choke from behind with one wrist held",
+  "description": "Uke behind Tori, right up against his back: the right forearm across Tori's throat, the hand holding the gi at Tori's left collar, the left hand holding Tori's left wrist down. In motion Uke walks round Tori's right side to take hold. Uke walks in from about two metres into it.",
+  "source": "the attack catalogue (data/attacks.json), approach \"moving\"",
+  "camera": "Side",
+  "view": {
+    "yaw": -45,
+    "height": 1.7,
+    "zoom": 1.0
+  },
+  "phases": [
+    {
+      "name": "Grepp",
+      "do": [
+        {
+          "attack": "ushiro_kubishime",
+          "approach": "moving"
+        }
+      ]
+    }
+  ]
+}

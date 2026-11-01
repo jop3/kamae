@@ -1,0 +1,23 @@
+{
+  "name": "Attack Katadori",
+  "label": "Attack · Katadori — shoulder (lapel at the shoulder) grab",
+  "description": "Uke's left hand takes a fistful of the gi at the front of Tori's right shoulder, thumb up, the arm nearly straight: the grip pins the shoulder at arm's length. In motion the hand reaches out as Uke steps in. Uke walks in from about two metres into it.",
+  "source": "the attack catalogue (data/attacks.json), approach \"moving\"",
+  "camera": "Side",
+  "view": {
+    "yaw": 30,
+    "height": 1.6,
+    "zoom": 1.0
+  },
+  "phases": [
+    {
+      "name": "Grepp",
+      "do": [
+        {
+          "attack": "katadori",
+          "approach": "moving"
+        }
+      ]
+    }
+  ]
+}

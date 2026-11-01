@@ -1,0 +1,23 @@
+{
+  "name": "Attack Yokomenuchi",
+  "label": "Attack · Yokomenuchi — diagonal strike to the side of the head",
+  "description": "Uke cuts diagonally at the left side of Tori's head with the right hand-blade, stepping through with the right foot, a little out to his right; the cut stops short of the temple. In motion: kamae, the hand raised up and out to his own right (furikaburi), then the step and the cut. Uke walks in from about two metres into it.",
+  "source": "the attack catalogue (data/attacks.json), approach \"moving\"",
+  "camera": "Side",
+  "view": {
+    "yaw": 30,
+    "height": 1.6,
+    "zoom": 1.0
+  },
+  "phases": [
+    {
+      "name": "Uchi",
+      "do": [
+        {
+          "attack": "yokomenuchi",
+          "approach": "moving"
+        }
+      ]
+    }
+  ]
+}
