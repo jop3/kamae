@@ -51,17 +51,17 @@ How each is situated (Tori in right hanmi, offering the right side; *mirror* swa
 
 | key | Tori offers | Uke stands | Uke's hands | measured: Uke ended up |
 |---|---|---|---|---|
-| `katatedori` | right hand forward, hip height | left hanmi, in front, offset to Tori's right | left hand round the right wrist from the outside, thumb up | 0.57 m away, 0.31 m to Tori's right — 16 cm closer than the old fixture, elbow out |
-| `aihanmi_katatedori` | right hand forward, a little higher | right hanmi, straight in front | right hand over the right wrist, fingers skewed across it (45°) | 0.59 m away, centred |
-| `ryotedori` | both hands forward and apart, a little high | left hanmi, in front | each hand on the same-side wrist from the outside, fingers skewed a little | 0.56 m away |
-| `morotedori` | right hand forward | left hanmi, well out on Tori's right | left hand at the wrist, right hand a third of the way up the forearm, held a little looser, fingers skewed | 0.58 m away, 0.45 m to Tori's right: further round the arm than the catalogue guessed, both forearms across it |
-| `katadori` | nothing (hands at the sides) | left hanmi, close, a little to the right | left hand on the top of the right shoulder | 0.51 m, where the catalogue put him |
-| `ryokatadori` | nothing | left hanmi, close, square | both hands on the shoulders | 0.49 m, shifted 12 cm to Tori's right |
-| `munedori` | nothing | left hanmi, close | left hand on the chest at the lapel | 0.46 m |
-| `eridori` | nothing | left hanmi, close | left hand in the collar at the side of the neck, forearm over the shoulder | 0.44 m |
-| `sodedori` | right arm half offered, low | left hanmi, to the right | left hand on the upper arm above the elbow | 0.46 m |
-| `hijidori` | right arm half offered | left hanmi, to the right | left hand on the forearm below the elbow | 0.51 m |
-| `katadori_menuchi` | nothing | left hanmi, close | left on the shoulder, right raised over the head | 0.53 m |
+| `katatedori` | right hand forward at the belt, 40 cm out | left hanmi, an arm's length off, a little to Tori's right | left hand round the right wrist from the outside, thumb up; the right low in front of his centre | 0.87 m away, 0.19 m to Tori's right |
+| `aihanmi_katatedori` | right hand forward | right hanmi, in front | right hand over the right wrist, fingers across it | 0.83 m away |
+| `ryotedori` | both hands forward and apart | left hanmi, in front | each hand on the same-side wrist from the outside | 0.80 m away |
+| `morotedori` | right hand forward | left hanmi, out on Tori's right | left hand at the wrist, right hand a little below the elbow | 0.78 m away, 0.30 m to Tori's right |
+| `katadori` | nothing (hands at the sides) | left hanmi, the arm nearly straight | a fistful of gi at the front of the right shoulder, thumb up | 0.71 m |
+| `ryokatadori` | nothing | left hanmi, square | a fist on the front of each shoulder | 0.67 m |
+| `munedori` | nothing | left hanmi | a fistful of lapel at the chest, thumb up | 0.70 m |
+| `eridori` | nothing | left hanmi | a fist in the collar at the side of the neck | 0.67 m |
+| `sodedori` | right arm hanging | left hanmi, to the right | a fistful of sleeve above the elbow, from the outside | 0.64 m |
+| `hijidori` | right arm half offered | left hanmi | left hand round the forearm just below the elbow | 0.70 m |
+| `katadori_menuchi` | nothing | as katadori | left on the shoulder, right raised over the forehead | 0.71 m |
 
 ## Grips and holds from behind
 
@@ -71,25 +71,28 @@ How each is situated (Tori in right hanmi, offering the right side; *mirror* swa
 | `ushiro_ryokatadori` | Ushiro ryokatadori | Ushiro ryokatadori | Ushiro ryokata mochi | Ushiro ryokatadori | Ushiro ryokata dori | both shoulders from behind | båda axlarna bakifrån |
 | `ushiro_eridori` | Ushiro eridori | Ushiro eridori | Ushiro eri mochi | Ushiro eridori | Ushiro eri dori | collar from behind | kraggrepp bakifrån |
 | `ushiro_kubishime` | Ushiro katatedori kubishime | Ushiro kubishime | Ushiro kubi shime *check* | Ushiro katatedori kubishime | — | choke from behind, one wrist held | strypgrepp bakifrån |
+| `ushiro_dori` | Ushiro dori (ushiro hagai jime) *check* | Ushiro kakae dori *check* | Ushiro kakae *check* | Ushiro dori *check* | Ushiro dori *check* | bear hug from behind, over the arms | omfamning bakifrån över armarna |
 
 | key | Tori | Uke stands | Uke's hands | measured |
 |---|---|---|---|---|
-| `ushiro_ryotedori` | arms hanging, hands a little out | behind, facing the same way, right hanmi | each hand on the same-side wrist from behind, fingers skewed a little | 0.36 m behind, where the catalogue put him |
-| `ushiro_ryokatadori` | arms hanging | behind | hands on the shoulders from above and behind | 0.40 m |
-| `ushiro_eridori` | arms hanging | behind, a touch right | right hand in the collar at the nape | 0.42 m |
-| `ushiro_kubishime` | left arm hanging back | behind, right up against Tori | right forearm across the throat (the hand lands on the far side of the neck), left hand on Tori's left wrist | 0.35 m; the forearm lies across the throat and shoulder by design |
+| `ushiro_ryotedori` | arms hanging, hands a little forward | behind, facing the same way, right hanmi | each hand on the same-side wrist from behind | 0.36 m behind |
+| `ushiro_ryokatadori` | arms hanging | behind | a fist in the gi at the back of each shoulder, thumbs up | 0.45 m |
+| `ushiro_eridori` | arms hanging | behind, a touch right | right fist in the collar at the nape | 0.48 m |
+| `ushiro_kubishime` | left arm hanging back | behind, right up against Tori | right forearm across the throat, the fist at Tori's left collar; left hand on Tori's left wrist | 0.30 m; the forearm lies across the throat and shoulder by design |
+| `ushiro_dori` | arms hanging | behind, chest to his back | both arms round Tori over his upper arms, the hands holding on in front of his chest, elbows out | 0.31 m; Uke's arms press into Tori's sides (4 cm) by design |
 
 ## Strikes
 
-No grip: Uke's hand is placed and the arm follows, at ma-ai.
+No grip: the strike arrives (the `strike` block, below) and stops a hand's width short of its
+target; Tori stands in kamae.
 
 | key | Aikikai | Yoshinkan | Ki Society | English | Swedish | Uke |
 |---|---|---|---|---|---|---|
-| `shomenuchi` | Shomenuchi | Shomen uchi | Shomenuchi | straight cut to the forehead | hugg mot huvudet | right hanmi, 0.90 m, right hand raised over the head |
-| `yokomenuchi` | Yokomenuchi | Yokomen uchi | Yokomenuchi | diagonal cut to the side of the head | sidohugg | right hanmi, 0.90 m, right hand up and out to his right |
-| `chudan_tsuki` | Chudan tsuki / mune tsuki | Shomen tsuki | Mune tsuki | punch to the solar plexus | stöt mot magen | right hanmi, 0.95 m, right fist forward, left at the hip |
-| `jodan_tsuki` | Jodan tsuki | Jodan tsuki | Jodan tsuki | punch to the face | stöt mot ansiktet | as chudan, fist at face height |
-| `tanto_tsuki` | Tanto tsuki (tantodori) | Tanto tsuki | Tanto tsuki | knife thrust to the belly | knivstöt mot magen | as chudan tsuki with a tanto in the right hand, 1.0 m |
+| `shomenuchi` | Shomenuchi | Shomen uchi | Shomenuchi | straight cut to the forehead | hugg mot huvudet | stepped through into a deep right hanmi, the right hand-blade at the forehead; 0.83 m |
+| `yokomenuchi` | Yokomenuchi | Yokomen uchi | Yokomenuchi | diagonal cut to the side of the head | sidohugg | right hanmi a little out to his right, the hand-blade at Tori's left temple; 0.67 m |
+| `chudan_tsuki` | Chudan tsuki / mune tsuki | Shomen tsuki | Mune tsuki | punch to the solar plexus | stöt mot magen | a long, low right lunge, the arm straight, the left fist at the hip; 0.93 m |
+| `jodan_tsuki` | Jodan tsuki | Jodan tsuki | Jodan tsuki | punch to the face | stöt mot ansiktet | as chudan, the fist at the face; 0.79 m |
+| `tanto_tsuki` | Tanto tsuki (tantodori) | Tanto tsuki | Tanto tsuki | knife thrust to the belly | knivstöt mot magen | as chudan tsuki with a tanto in the right hand; 1.01 m |
 | `mae_geri` | Mae geri | Mae geri | Mae geri | front kick | framåtspark | left hanmi, 1.0 m, right foot driven forward at belly height, hands up as a guard |
 
 ## In motion
@@ -134,7 +137,7 @@ Uke's frame there (a foot left out is where it ends up); with `"frame": "tori"` 
 in Tori's frame instead (an attack from behind starts in front of him), and `"final"` puts a foot
 where it ends up. `turn` is degrees from the way Uke faces in the attack (or, in Tori's frame, from
 Tori's: 180 is facing him). The hips are `weight` of the way from the rear foot to the front one,
-lowered by `drop`, tipped `lean` degrees forward. `hands` is `"kamae"` (the default; `lead` picks
+lowered by `drop`, the trunk leaned `lean` degrees forward (the spine bent, the feet where they are). `hands` is `"kamae"` (the default; `lead` picks
 the front hand, otherwise the front foot's side) or per side an offset from the shoulder, `"hang"`,
 `"kamae"`, or a block with `at` or `to` (a bone of Tori, `along` it, `offset` in Tori's frame) and
 optionally `point`, `palm` (directions in Uke's frame), `curl` and `elbow` (where the elbow points

@@ -158,7 +158,7 @@ static func stage(st: Staging, key: String, opts: Dictionary = {}) -> Dictionary
 
 ## A figure's stance from its catalogue block: hanmi with the block's "hanmi" (front foot),
 ## "depth", "width" and "drop", then the hips "weight" of the way onto the front foot (0.5 is
-## between the feet) and the body tipped "lean" degrees forward.
+## between the feet) and the trunk leaned "lean" degrees forward (the spine bent; the feet stay).
 static func _hanmi(st: Staging, id: String, b: Dictionary, mirror: bool) -> void:
 	var depth: float = float(b.get("depth", 0.32))
 	await st.hanmi(id, _side(b.get("hanmi", "Right"), mirror), depth, float(b.get("width", 0.16)), float(b.get("drop", 0.06)))
@@ -170,7 +170,7 @@ static func _hanmi(st: Staging, id: String, b: Dictionary, mirror: bool) -> void
 		st.ctrl.set_root(r, r.position + fwd.normalized() * (w - 0.5) * depth, r.rotation.y, r.rotation.x, r.rotation.z, Stance.BOTH_LEGS)
 		await st.settle(2)
 	if b.has("lean"):
-		st.ctrl.set_root(r, r.position, r.rotation.y, deg_to_rad(float(b["lean"])), 0.0, Stance.BOTH_LEGS)
+		st.lean_trunk(id, float(b["lean"]))
 		await st.settle(2)
 
 

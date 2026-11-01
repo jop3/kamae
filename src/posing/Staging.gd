@@ -549,9 +549,29 @@ func stance_feet(id: String, feet: Dictionary, yaw: float, weight: float = 0.5, 
 		limb.reset_pole()
 	await settle(2)
 	Stance.drop_hips(ctrl, r, drop)
-	if absf(lean) > 1e-3:
-		ctrl.set_root(r, r.position, r.rotation.y, deg_to_rad(lean), 0.0, Stance.BOTH_LEGS)
+	lean_trunk(id, lean)
 	await settle(3)
+
+
+## Leans the trunk `forward` degrees (negative back) by bending the spine and the chest, two
+## thirds and one third, from their rest: a lunge or a reach leans the body over the front foot
+## with the feet where they are. (Tipping the whole figure about its feet — the root's pitch —
+## leans it too, but a blend that later stands it up while the feet move swings a foot through
+## the mat.)
+func lean_trunk(id: String, forward: float) -> void:
+	if absf(forward) < 1e-3:
+		return
+	var r := rig(id)
+	var sk := r.skeleton
+	var axis: Vector3 = r.global_transform.basis.x.normalized()
+	for part in [["Spine", 0.67], ["Chest", 0.33]]:
+		var i := sk.find_bone(part[0])
+		var parent := sk.get_bone_parent(i)
+		var frame := sk.global_transform.basis
+		if parent >= 0:
+			frame = frame * sk.get_bone_global_rest(parent).basis
+		var turn := Basis(axis, deg_to_rad(forward * float(part[1])))
+		sk.set_bone_pose_rotation(i, ((frame.inverse() * turn * frame) * sk.get_bone_rest(i).basis).get_rotation_quaternion().normalized())
 
 
 ## Where the hands are held in kamae, from the shoulder in the figure's own frame

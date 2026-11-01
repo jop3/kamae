@@ -92,6 +92,14 @@
           ]
         },
         {
+          "elbow": "uke1.Left",
+          "toward": [
+            -0.5,
+            0.0,
+            -0.1
+          ]
+        },
+        {
           "grab": "tori.Right",
           "target": "uke1.LeftLowerArm",
           "along": 0.9

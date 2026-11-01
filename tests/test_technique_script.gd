@@ -112,7 +112,10 @@ func _initialize() -> void:
 	PoseFile.apply(poses["Test Tenkan Ukemi"], scene, director, ctrl)
 	await settle(4)
 	check(director.grips.is_empty(), "Ukemi: the grip is released")
-	var lowest := INF
+	# The lowest of the body as Ukemi.ground rests it (fingertips, toes, heel and skull as well as
+	# the capsules): after a fall from a wrist grip the hand that let go can touch with its fingers
+	# while its palm is a few centimetres up.
+	var lowest: float = Ukemi.lowest_point(uke)
 	for seg: Array in Anatomy.segments(uke).values():
 		lowest = minf(lowest, minf(seg[0].y, seg[1].y) - seg[2])
 	check(absf(lowest) < 0.03, "Ukemi: Uke rests on the mat (lowest %.3f m)" % lowest)
