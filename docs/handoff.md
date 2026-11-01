@@ -1681,3 +1681,83 @@ views, Follow (keeps the figures centred), full screen, and the keys space, ←/
    round the partner's capsules before the blend), not pushes.
 4. **The jolt count** in check_smooth counts honest starts of quick moves too; a threshold scaled to
    each move's own size would make it a cleaner number.
+
+### Bodies kept out of each other (same session, after the user's review)
+
+The review of the re-filmed library: "All the techniques are bad. Clipping through bodies, arms
+bending in a way arms do not bend, moving through arms, falling very unnaturally. Somewhat smooth
+at least." Four fixes were proposed — solve the bodies together every frame, route moves round the
+partner, fix the saved poses, falls driven by the throw — and asked for in that order. The first
+and third are in; the second and fourth were tried and are not (below).
+
+**Measuring it.** check_motion run over every build (`MOTION_SEQS_DIR`/`MOTION_POSES_DIR` per
+build, `MOTION_REPORT=1 MOTION_VERBOSE=1`), the frames counted once each and split into a partner
+overlap, an own-body overlap or a joint past its range; summed: centimetres of overlap, overlaps
+deeper than 8 cm, degrees past the joint limits. Start of the session's code on the same poses →
+now:
+
+| | bad frames | overlap cm | > 8 cm deep | joint excess ° |
+|---|---|---|---|---|
+| code at the start of the session | 592 | 9239 | 346 | 14372 |
+| + ContactSolve every frame | 538 | 5966 | 172 | 12334 |
+| + poses relaxed before saving | 466 | 6303 | 266 | 10545 |
+
+The last row's rise in overlap is one technique: katatedori kaitennage (937 → 2084 cm). Its
+Kuzushi puts Tori's left hand on the back of Uke's neck with a plain `hand … to` (not a grip), and
+the relax leaves the forearm 11 cm into Uke's bent-over upper back instead of 7. Without
+kaitennage the overlap went 5029 → 4219 cm. A placed hand on a partner's bone wants treating as
+contact by design, like a grip (ContactSolve `_held`).
+
+**ContactSolve** (`src/posing/ContactSolve.gd`, called at the end of `PoseBlend.apply` while
+anything moves, faded with `clearance_strength`): a position-based-dynamics step per frame. Each
+figure that is not falling is points — the hips (trunk rigid on them), each limb's elbow/knee and
+hand/foot — and 20 rounds of constraints: bone lengths, a pull back to where the blend put each
+point (hips hardest, a foot standing on the mat nearly fixed), a gripping hand kept on its place
+on the gripped bone (taken from the grip's own offset on the bone as the solve has it now),
+capsules out of the partner's capsules and out of the figure's own parts not joined by design, with
+a 1 cm soft zone so contacts come on gradually. The answer goes back to the IK: the root moved,
+targets for free hands and feet, poles from the solved elbows and knees; a limb moved less than
+1.5 cm is left as the blend set it. Corrections are eased from frame to frame when frames follow
+each other (a film, a check), solved fresh when scrubbed — taken raw, contacts switching on and off
+made the bodies shake (tenkan jerk 1138 m/s³ before the easing, about 540 after).
+MotionClearance now only keeps trunks apart and stepping feet out of legs; limbs against bodies
+are ContactSolve's.
+
+Tried and taken out: `ArmSolve`, choosing a gripping arm's elbow by search: it made committed
+checks worse and was removed.
+
+**Relaxed poses** (`TechniqueScript._relax`, `RELAX_ROUNDS` 6): before a staged pose is saved, the
+same solve runs over it at full strength six times (settling in between), then the feet are put
+back on the mat. Tenkan's irimi no longer has the thighs through each other; tenkan's bad frames
+18 → 8. Builds take longer (about a minute more each).
+
+**Routing round the partner — tried, not kept.** Tenkan's turn passes Tori's chest up to 10 cm
+through Uke's held arm. That is the poses' geometry, not the blend: in the irimi pose Tori's hips
+are *inside* Uke's arm (x −0.32 against the arm's line from Uke's left shoulder to the held hand),
+in the tenkan pose outside it, so any path between them crosses the line. Leading the held hand out
+to 92 % of the arm's length mid-turn (`held_arms`, `HELD_LEAD` in a trial `arm_with_body`) changed
+nothing measurable; a wider irimi step (offset −0.32, weight 0.85) made it worse (Uke's elbow
+pronation 160°). What would fix it: an irimi that puts Tori outside Uke's arm (the step goes
+further out *and* the hips with it, which `step` cannot do now: `weight` moves the hips toward the
+foot, not past Uke's arm), or a turn that lifts the held arm over Tori's head (the arm over, not
+the body under).
+
+**Falls driven by the throw — tried, not kept.** In kotegaeshi Tori lets go before Uke falls
+(`ukemi` asks for grips to be released), so Uke drops straight down on the spot and rolls away on his
+own. A trial kept Tori's grip into the first fall phase and, after `Ukemi.shape`, set the held arm
+to reach up to the holding hand (`_held_by_partner`, `_reach_to_holders`), pulling the fallen body
+in by what the arms could not span. With the whole pull Uke landed with his legs in Tori's hakama;
+leaving 40 cm for Tori's arm to come down left the hands 40 cm apart, because Tori's arm cannot come
+down 0.9 m without Tori bending into the throw. A thrown fall needs (1) the thrower bending and
+reaching with the throw, (2) the fall's direction and landing place from the throw (out to the
+side for kotegaeshi, not straight back from where Uke stood), and (3) the held arm kept up through
+the fall's course in the blend — that is a fall model, not a tweak.
+
+**Next, in order of what the films show:**
+1. Uke's gripping wrist and elbow past their range in several staged poses (tenkan, kaitennage:
+   wrist extension up to 85°, pronation 160°) — the grip orientation the catalogue picks forces
+   the forearm's roll. The relax solves positions only; it does not turn a forearm.
+2. Stepping legs through the partner's legs mid-step (tenkan 0.90 s: thigh 11.5 cm) — the step
+   wants a path round, with the lifted foot routed outside the partner's leg.
+3. Thrown falls, as above.
+4. Placed hands (`hand … to` a partner's bone) treated as contact by design in ContactSolve.
