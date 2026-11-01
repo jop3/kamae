@@ -1729,7 +1729,8 @@ checks worse and was removed.
 **Relaxed poses** (`TechniqueScript._relax`, `RELAX_ROUNDS` 6): before a staged pose is saved, the
 same solve runs over it at full strength six times (settling in between), then the feet are put
 back on the mat. Tenkan's irimi no longer has the thighs through each other; tenkan's bad frames
-18 → 8. Builds take longer (about a minute more each).
+18 → 8. Builds take longer: the full re-render with video took 89 minutes for 19 scripts
+(about 4½ minutes each, with the library checks running beside it).
 
 **Routing round the partner — tried, not kept.** Tenkan's turn passes Tori's chest up to 10 cm
 through Uke's held arm. That is the poses' geometry, not the blend: in the irimi pose Tori's hips
@@ -1761,3 +1762,11 @@ the fall's course in the blend — that is a fall model, not a tweak.
    wants a path round, with the lifted foot routed outside the partner's leg.
 3. Thrown falls, as above.
 4. Placed hands (`hand … to` a partner's bone) treated as contact by design in ContactSolve.
+
+**Re-render after all of the above** (`tools/build_all.sh`, video): all 19 scripts built, no script
+errors. Implausible frames over the 18 scripts of the previous re-render 537 → 427 (chudan tsuki
+iriminage is new: 39). Frames below the mat 67 → 56, all in the same four scripts as before and at
+most 3.1 cm deep (yokomenuchi shihonage 38, ushiro ryotedori kotegaeshi 12, shomenuchi ikkyo 5,
+tenkan kokyunage 1 — was 11). On the committed library `check_motion`, `check_floor`, `test_m5`
+and `check_smooth` pass with nothing added to `OUTSTANDING`. The library page (gallery, with the
+3D view) was regenerated and published; the figures' files did not change.
