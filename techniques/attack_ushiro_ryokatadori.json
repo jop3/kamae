@@ -5,7 +5,7 @@
   "source": "the attack catalogue (data/attacks.json), approach \"moving\"",
   "camera": "Side",
   "view": {
-    "yaw": -45,
+    "yaw": -120,
     "height": 1.7,
     "zoom": 1.0
   },
