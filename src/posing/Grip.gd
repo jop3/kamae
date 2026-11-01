@@ -13,6 +13,12 @@ var offset := Transform3D()          ## target_world⁻¹ × hand_world at attac
 var hold_known := false
 var roll_deg := 0.0
 var skew_deg := 0.0
+## Sequence playback only: how far the hand is on the grip (1) rather than on its own way between
+## two poses (0), and that way's target this frame (`free`). A grip taken or let go between two
+## poses hands the hand over gradually instead of switching the arm between its solve and its
+## saved rotations, which are a few centimetres apart.
+var weight := 1.0
+var free := Transform3D()
 
 
 func limb_key() -> String:

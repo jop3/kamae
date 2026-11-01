@@ -27,6 +27,8 @@ const MIN_FLEXION_DEG := 5.0
 
 ## The rig whose joint ranges bound the root; without one the twist is unbounded.
 var rig: CharacterRig
+## Mid-blend: the nearest local minimum, not the global one (see HandOrient.local_search).
+var local_search := false
 var _r := -1
 var _m := -1
 var _e := -1
@@ -90,7 +92,7 @@ func _keep_root_in_range(sk: Skeleton3D) -> void:
 		var turned := (Basis(line, deg_to_rad(phi_deg)) * r0).orthonormalized()
 		return LimbTurn.excess(spec, LimbTurn.angles_of(spec, parent_basis, turned)) \
 			+ LimbTurn.TURN_COST_PER_DEG * absf(phi_deg)
-	var phi := LimbTurn.search(cost)
+	var phi := LimbTurn.descend(cost) if local_search else LimbTurn.search(cost)
 	if absf(phi) < 1e-3:
 		return
 	last_turn_deg = phi

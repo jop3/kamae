@@ -29,6 +29,9 @@ var mode: int = Mode.FK
 ## the wrist far enough to shear the skinned mesh. Grips (M3) turn it on with a captured offset,
 ## which stays close to the natural orientation and therefore looks right.
 var orient_to_target := false
+## Sequence playback: this foot is stepping across the mat between two poses (PoseBlend), as
+## opposed to standing where it is. MotionClearance only moves a foot that steps.
+var stepping := false
 
 
 func _init(limb_key: String, root_b: String, middle_b: String, end_b: String, arm: bool) -> void:
@@ -121,6 +124,22 @@ func set_influence(x: float) -> void:
 		twist.influence = v
 	if not is_equal_approx(hand_orient.influence, v):
 		hand_orient.influence = v
+
+
+## Between two poses of a sequence the limb's remaining freedom (the turn about its root-to-end
+## line) is spent locally, so the elbow or knee moves on from where it was instead of jumping to
+## another equally good place (LimbTurn.descend). Off on a keyframe and while editing.
+func set_blending(on: bool) -> void:
+	twist.local_search = on
+	hand_orient.local_search = on
+
+
+## Sequence playback: the hand takes the target's orientation this much (0..1), so a hand that is
+## taking or letting go of a grip turns to it gradually rather than in one frame.
+func set_orient_weight(w: float) -> void:
+	set_orient_to_target(w > 0.0)
+	if hand_orient.enabled and not is_equal_approx(hand_orient.influence, clampf(w, 0.0, 1.0)):
+		hand_orient.influence = clampf(w, 0.0, 1.0)
 
 
 func set_orient_to_target(enabled: bool) -> void:

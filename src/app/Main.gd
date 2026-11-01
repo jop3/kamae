@@ -193,6 +193,16 @@ func _render_sequence(args: PackedStringArray) -> void:
 	await get_tree().process_frame
 	await get_tree().process_frame
 	_apply_sequence_camera(seq)
+	# Where every limb really is on each pose, so the blends can steer elbows and knees between them.
+	# A movie records every frame drawn, these too: say which, so the film can start after them.
+	var drawn_before := Engine.get_frames_drawn()
+	await player.prepare()
+	var movie_path := Engine.get_write_movie_path()
+	if movie_path != "":
+		var f := FileAccess.open(movie_path.get_base_dir().path_join(MovieExport.PREPARE_FRAMES_FILE), FileAccess.WRITE)
+		if f:
+			f.store_line("%d %d" % [drawn_before, Engine.get_frames_drawn()])
+			f.close()
 	player.seek(0.0)
 	await get_tree().process_frame
 	var phases := _phase_names(seq)

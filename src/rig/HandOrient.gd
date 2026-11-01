@@ -40,6 +40,9 @@ const ROOT_WEIGHT := 4.0
 const LEG_TURN_COST_PER_DEG := 0.15
 
 var rig: CharacterRig
+## Mid-blend (set by PoseBlend for a limb between two poses): turn to the nearest local minimum
+## rather than the best one anywhere round the arm (LimbTurn.descend), so the elbow does not jump.
+var local_search := false
 var _bone := -1
 var _root := -1
 var _middle := -1
@@ -138,7 +141,8 @@ func _through_the_limb(sk: Skeleton3D, wanted: Basis, joints: Joints) -> void:
 		return {"cost": cost, "roll": roll}
 	var phi := 0.0
 	if _root >= 0 and not root_spec.is_empty() and sk.get_bone_parent(_middle) == _root:
-		phi = LimbTurn.search(func(p: float) -> float: return outcome.call(p)["cost"])
+		var turn_cost := func(p: float) -> float: return outcome.call(p)["cost"]
+		phi = LimbTurn.descend(turn_cost) if local_search else LimbTurn.search(turn_cost)
 	if absf(phi) > 1e-3:
 		last_turn_deg = phi
 		LimbTurn.set_world_basis(sk, _root, Basis(line, deg_to_rad(phi)) * root0)

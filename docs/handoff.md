@@ -1556,3 +1556,217 @@ record says); and "no fall" after a fall always meant "over the top", so rocking
 have rolled the whole way round (from less than half a fall it now goes back the way it came).
 Not modelled: the high breakfall (tobi ukemi), where Uke is in the air — every fall here keeps a
 part of the body on the mat.
+
+## Session 2026-11-01: the figures move like people
+
+Asked for: "make the figures MOVE better. The poses are fine; the motion between them reads
+robotic." Measure first, fix in PoseBlend/SequencePlayer so every technique gains, keep keyframes
+exact, grips on, nothing under the mat; compare films before and after.
+
+**The measurement.** `tests/check_smooth.gd` plays a sequence the way the film does (one apply per
+frame at 30 fps), reads every joint after the solve and scores the motion: RMS jerk of the joint
+positions (m/s³) and of each joint's own rotation (rad/s³), *jolts* (frames where some joint's jerk
+is over 400 m/s³ or 250 rad/s³), *still* (share of frames where nothing moves), *spread* and *lead*
+(when the parts pass the middle of their travel, and how far the hips are ahead of the hands) and
+*arc* (how far a hand's path bows from the straight line). It also checks every keyframe is shown
+exactly as saved (every joint within 1 mm). `SMOOTH_SEQ`, `SMOOTH_SEQS_DIR`/`SMOOTH_POSES_DIR` for a
+build, `SMOOTH_VERBOSE=1` for the jolts frame by frame, `SMOOTH_CSV=<path with {slug}>` for the tracks.
+It reports; it does not judge against a record (the jolt threshold also counts the honest starts of
+fast moves). Read the jerk and the tracks, not the jolt count alone.
+
+**What the numbers showed** was not mainly stiffness. Joints *flipped*: angular speeds of 40–90 rad/s
+for a single frame, an elbow or knee jumping round the limb and back. Five causes, in order of size:
+1. **Poles lerped across the room.** A figure turning round (tenkan) kept its knee poles where they
+   were; half-way the pole passed through the hip–ankle line and the knee flipped.
+2. **The elbow search picked a different "least bad" turn every frame** (HandOrient / TwistFollow
+   use `LimbTurn.search`, a global search; for a wrist that cannot be satisfied several turns are
+   nearly as good).
+3. **Grips taken or let go switched the arm between its IK solve and its saved rotations** (the IK
+   influence ramp), which are 3–5 cm apart; two figures taking and letting go of each other at once
+   (ikkyo's kake) followed each other a frame late and shook at 5–11 m/s.
+4. **MotionClearance's pushes switched on and off**: Tori's stepping foot shoved 15 cm aside for two
+   frames, then snapping back at the keyframe, where the clearance never runs; feet on the mat
+   pushed sideways (skating).
+5. **A step's own time was a rounding error short of it**, so the stills of a zero-hold pose were
+   taken mid-blend (zenponage's ukemi, the roll's kiza: 1.5–3.8 cm off the saved pose).
+
+Then the timing: smoothstep starts and stops with a step in acceleration, everything began and ended
+together, each segment its own slerp (velocity jumps at waypoints), hands on straight lines through
+the room, holds frozen solid.
+
+**What changed** (spec §5.6 has the summary):
+- `SequencePlayer.prepare()` shows every pose once and records where each limb's elbow/knee and
+  hand/foot really are after the solve. The blends steer each limb's pole from one solved shape to
+  the other, carried with the body (`PoseBlend.steered_pole`, `body_pole`), and the limb's turn is
+  searched locally, within 45° (`LimbTurn.descend`, `Limb.set_blending`) — whenever any part of
+  the body is moving, in falls too. Main, the app's Play, and the checks call `prepare`. It draws a
+  few frames, which the movie writer records: the render notes them (`prepare_frames.txt`) and
+  `tools/drop_prepare_frames.py` drops them (technique.sh, run.sh, MovieExport).
+  (`Skeleton3D.advance()` does not run the solve the way a frame does; tried.)
+- **Grips by weight** (`Grip.weight`, `Grip.free`, `PoseBlend.grip_weight`): the arm stays in IK and
+  its target blends from its own way to the grip; the hand's orientation ramps with it
+  (`Limb.set_orient_weight`). Grips that take hold of each other while letting go hand over in turn.
+- **Paths**: free hands blended round the shoulder in the body's frame (`arm_with_body`); a foot
+  carried round a turn of 45° or more travels on the circle the turn implies (`turn_with_body`) —
+  under 45° it is a step and bending it only bent the ankle.
+- **Timing** (`SequencePlayer.timing`, `CHANNEL_TIMING`): the hips start first (up to 0.12 s into the
+  hold before), spine and head with them, the feet step later and land before the body settles,
+  arms and fingers follow and arrive last; minimum-jerk easing (`Sequence.ease_motion`); every bone
+  on a time-aware cubic through waypoints, root position and yaw too; neighbours only across
+  waypoints. A figure with a weapon in hand moves its arms on its trunk's clock (kumijo's forearm
+  went through the spine otherwise). Falls keep one clock, their old easing and their own course.
+- **Holds** (`SequencePlayer._alive`): the hips arrive still moving (`SETTLE`, a third of the even
+  speed), carry on and come back (s·e^(−s/0.12 s)); figures joined by a grip settle together; the
+  chest breathes. Both are zero at every pose's own time and at the end of the film. While a pose
+  breathes its limbs keep their solved shape (the same steering), and MotionClearance runs, faded in.
+- **MotionClearance** fades its corrections in and out with each move (`clearance_strength`), never
+  moves a foot standing on the mat, and never more than 8 cm.
+- **Kiza toes**: the toes extend to 85° (Joints, was 60°) and `Stance.toes_flat` lays them flat; the
+  roll's kiza is out of the mat (0 frames, was 9–10).
+
+Tried and taken out: blending free arms through their solved joint rotations instead of IK
+(arcs for free, but mid-way joints left their range and MotionClearance's IK hand-off made it worse);
+interpolating joints in their anatomical angles did not save it.
+
+**Numbers** (check_smooth; jerk m/s³ / still share): committed library before → after — jo_dori
+489/54% → 251/16%, katatedori_ikkyo 1267/60% → 428/13%, shihonage irimi 1309/55% → 747/4%, kumijo
+74 → 52, kumitachi 23 → 10, ryotemochi 77 → 43, tachi_dori 669 → 323, zenponage 1319/36% → 959/15%.
+check_motion records lowered: jo_dori 11 → 7, ikkyo 15 → 13, shihonage irimi 20 → 14, kumijo 4 → 0,
+ryotemochi 6 → 4, tachi_dori 30 → 25; zenponage and kumitachi unchanged. check_floor clean; every
+golden still unchanged.
+
+The four technique builds measured at the start, rebuilt (jerk m/s³, before → after): katatedori
+kaitennage 2138 → 1432, katatedori kotegaeshi 1247 → 713, katatedori tenkan 1449 → 307, ushiro
+ukemi roll 938 → 958 (a fall: unchanged by design). Frozen frames 33–54 % → 5–23 %. All 19 scripts
+were re-filmed (`tools/build_all.sh`); against the start-of-session code on the same poses, frames
+under the mat went down in most (tenkan kokyunage 40 → 11, shomenuchi ikkyo 37 → 5, morotedori
+kokyunage 33 → 0, the rolls' kiza 9 → 0) and up in two (yokomenuchi shihonage 36 → 39 but 4.9 →
+3.5 cm deep, ushiro ryotedori kotegaeshi 8 → 12, a planted foot at 2.2 cm). Plausibility per build is
+within a few frames either way; tenkan kokyunage (19 → 29) and shomenuchi ikkyo (22 → 29) are
+worse: a stepping leg passing through the partner's leg by more than the 8 cm MotionClearance may
+push, which wants routing, not pushing (below). Before/after films side by side were made for
+tenkan, kaitennage, kotegaeshi and the roll (from a worktree at the session's start; not committed).
+
+### The 3D view (same session, asked for while the films rendered)
+
+"It should be possible for the human watching a technique to zoom in, move the camera around, go
+forward slowly, backwards." The gallery page now has, per technique, **Film** or **3D**: three.js
+(r160 from jsdelivr) with orbit controls (drag to turn, scroll/pinch to zoom, right-drag to move),
+speeds 1×–⅒×, a frame back or on, previous/next phase, a scrubber, Side / Other side / End-on / Above
+views, Follow (keeps the figures centred), full screen, and the keys space, ←/→, shift-←/→, −/+, F.
+- `tools/export_viewer.gd` plays the sequence as the film does and writes every frame's solved pose
+  — per figure the skeleton's transform and every bone's rotation in its parent, read after the
+  solve — to `viewer/<slug>.motion.bin` (+ `.json` with names, frame rate, phases); with
+  `--characters` it also writes each figure as glTF (a clean skeleton and its visible meshes, not
+  the live rig with its IK and picking nodes). `tools/technique.sh` runs it (`VIEWER=0` skips).
+- `tools/slim_glb.py` re-encodes opaque textures as JPEG and drops what glTF cannot carry (the
+  cloth's triplanar weave and normal maps): 7.5 → 4 MB a figure. Both figures are the same in every
+  technique, so the gallery ships each once; a technique's motion is about 160 KB.
+- `tools/viewer.js` is inlined into the page by `tools/gallery.py` (`GALLERY_OUT`, `GALLERY_ONLY`
+  for a trial page). Between frames the bones are slerped, so slow motion is smooth. Not in 3D: the
+  cloth weave, and the hakama hem laid on the mat when kneeling (a Godot shader).
+
+**Still rough** (what the films and check_smooth show next):
+1. **An arm bending out of straight**: TwistFollow does nothing below 5° of flexion and the full twist
+   above, so a nearly straight arm that starts to bend gets its whole twist (up to ~75°) in one frame
+   (Uke's arms in zenponage's fall, Tori's right arm in kaitennage's kaiten). Fading the twist in with
+   the flexion (5°–15°) is the fix, but it changes how every nearly straight arm looks on its
+   keyframes, so it wants the stills looked at and the goldens refreshed.
+2. **Hands rolling on a weapon** between two holds (tachi_dori's 25 frames): the grip offsets are
+   interpolated the short way round the shaft, which for two holds half a turn apart is the wrong
+   way. Interpolate the roll about the shaft as an angle.
+3. **MotionClearance is still the largest source of jerk** where it acts (tenkan 306 m/s³ with it,
+   about 200 without): a push is a hinge at the penetration limit and gives up when it would push
+   into another body. The real answer is paths that go round (waypoints, or routing a hand or foot
+   round the partner's capsules before the blend), not pushes.
+4. **The jolt count** in check_smooth counts honest starts of quick moves too; a threshold scaled to
+   each move's own size would make it a cleaner number.
+
+### Bodies kept out of each other (same session, after the user's review)
+
+The review of the re-filmed library: "All the techniques are bad. Clipping through bodies, arms
+bending in a way arms do not bend, moving through arms, falling very unnaturally. Somewhat smooth
+at least." Four fixes were proposed — solve the bodies together every frame, route moves round the
+partner, fix the saved poses, falls driven by the throw — and asked for in that order. The first
+and third are in; the second and fourth were tried and are not (below).
+
+**Measuring it.** check_motion run over every build (`MOTION_SEQS_DIR`/`MOTION_POSES_DIR` per
+build, `MOTION_REPORT=1 MOTION_VERBOSE=1`), the frames counted once each and split into a partner
+overlap, an own-body overlap or a joint past its range; summed: centimetres of overlap, overlaps
+deeper than 8 cm, degrees past the joint limits. Start of the session's code on the same poses →
+now:
+
+| | bad frames | overlap cm | > 8 cm deep | joint excess ° |
+|---|---|---|---|---|
+| code at the start of the session | 592 | 9239 | 346 | 14372 |
+| + ContactSolve every frame | 538 | 5966 | 172 | 12334 |
+| + poses relaxed before saving | 466 | 6303 | 266 | 10545 |
+
+The last row's rise in overlap is one technique: katatedori kaitennage (937 → 2084 cm). Its
+Kuzushi puts Tori's left hand on the back of Uke's neck with a plain `hand … to` (not a grip), and
+the relax leaves the forearm 11 cm into Uke's bent-over upper back instead of 7. Without
+kaitennage the overlap went 5029 → 4219 cm. A placed hand on a partner's bone wants treating as
+contact by design, like a grip (ContactSolve `_held`).
+
+**ContactSolve** (`src/posing/ContactSolve.gd`, called at the end of `PoseBlend.apply` while
+anything moves, faded with `clearance_strength`): a position-based-dynamics step per frame. Each
+figure that is not falling is points — the hips (trunk rigid on them), each limb's elbow/knee and
+hand/foot — and 20 rounds of constraints: bone lengths, a pull back to where the blend put each
+point (hips hardest, a foot standing on the mat nearly fixed), a gripping hand kept on its place
+on the gripped bone (taken from the grip's own offset on the bone as the solve has it now),
+capsules out of the partner's capsules and out of the figure's own parts not joined by design, with
+a 1 cm soft zone so contacts come on gradually. The answer goes back to the IK: the root moved,
+targets for free hands and feet, poles from the solved elbows and knees; a limb moved less than
+1.5 cm is left as the blend set it. Corrections are eased from frame to frame when frames follow
+each other (a film, a check), solved fresh when scrubbed — taken raw, contacts switching on and off
+made the bodies shake (tenkan jerk 1138 m/s³ before the easing, about 540 after).
+MotionClearance now only keeps trunks apart and stepping feet out of legs; limbs against bodies
+are ContactSolve's.
+
+Tried and taken out: `ArmSolve`, choosing a gripping arm's elbow by search: it made committed
+checks worse and was removed.
+
+**Relaxed poses** (`TechniqueScript._relax`, `RELAX_ROUNDS` 6): before a staged pose is saved, the
+same solve runs over it at full strength six times (settling in between), then the feet are put
+back on the mat. Tenkan's irimi no longer has the thighs through each other; tenkan's bad frames
+18 → 8. Builds take longer: the full re-render with video took 89 minutes for 19 scripts
+(about 4½ minutes each, with the library checks running beside it).
+
+**Routing round the partner — tried, not kept.** Tenkan's turn passes Tori's chest up to 10 cm
+through Uke's held arm. That is the poses' geometry, not the blend: in the irimi pose Tori's hips
+are *inside* Uke's arm (x −0.32 against the arm's line from Uke's left shoulder to the held hand),
+in the tenkan pose outside it, so any path between them crosses the line. Leading the held hand out
+to 92 % of the arm's length mid-turn (`held_arms`, `HELD_LEAD` in a trial `arm_with_body`) changed
+nothing measurable; a wider irimi step (offset −0.32, weight 0.85) made it worse (Uke's elbow
+pronation 160°). What would fix it: an irimi that puts Tori outside Uke's arm (the step goes
+further out *and* the hips with it, which `step` cannot do now: `weight` moves the hips toward the
+foot, not past Uke's arm), or a turn that lifts the held arm over Tori's head (the arm over, not
+the body under).
+
+**Falls driven by the throw — tried, not kept.** In kotegaeshi Tori lets go before Uke falls
+(`ukemi` asks for grips to be released), so Uke drops straight down on the spot and rolls away on his
+own. A trial kept Tori's grip into the first fall phase and, after `Ukemi.shape`, set the held arm
+to reach up to the holding hand (`_held_by_partner`, `_reach_to_holders`), pulling the fallen body
+in by what the arms could not span. With the whole pull Uke landed with his legs in Tori's hakama;
+leaving 40 cm for Tori's arm to come down left the hands 40 cm apart, because Tori's arm cannot come
+down 0.9 m without Tori bending into the throw. A thrown fall needs (1) the thrower bending and
+reaching with the throw, (2) the fall's direction and landing place from the throw (out to the
+side for kotegaeshi, not straight back from where Uke stood), and (3) the held arm kept up through
+the fall's course in the blend — that is a fall model, not a tweak.
+
+**Next, in order of what the films show:**
+1. Uke's gripping wrist and elbow past their range in several staged poses (tenkan, kaitennage:
+   wrist extension up to 85°, pronation 160°) — the grip orientation the catalogue picks forces
+   the forearm's roll. The relax solves positions only; it does not turn a forearm.
+2. Stepping legs through the partner's legs mid-step (tenkan 0.90 s: thigh 11.5 cm) — the step
+   wants a path round, with the lifted foot routed outside the partner's leg.
+3. Thrown falls, as above.
+4. Placed hands (`hand … to` a partner's bone) treated as contact by design in ContactSolve.
+
+**Re-render after all of the above** (`tools/build_all.sh`, video): all 19 scripts built, no script
+errors. Implausible frames over the 18 scripts of the previous re-render 537 → 427 (chudan tsuki
+iriminage is new: 39). Frames below the mat 67 → 56, all in the same four scripts as before and at
+most 3.1 cm deep (yokomenuchi shihonage 38, ushiro ryotedori kotegaeshi 12, shomenuchi ikkyo 5,
+tenkan kokyunage 1 — was 11). On the committed library `check_motion`, `check_floor`, `test_m5`
+and `check_smooth` pass with nothing added to `OUTSTANDING`. The library page (gallery, with the
+3D view) was regenerated and published; the figures' files did not change.

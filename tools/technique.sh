@@ -4,7 +4,8 @@
 #   GODOT=/path/to/godot tools/technique.sh techniques/katatedori_tenkan.json [--no-video]
 # SKIP_BUILD=1 re-renders the last build; REF_VIDEO=clip.mp4 adds a video-vs-render comparison
 # for phases that carry a "ref" time. MOTION=0 skips the frame-by-frame check of the blends,
-# FLOOR=0 the frame-by-frame check that nothing goes under the mat (floor.txt).
+# FLOOR=0 the frame-by-frame check that nothing goes under the mat (floor.txt), SMOOTH=0 the score of
+# how smoothly it moves (smooth.txt).
 set -euo pipefail
 cd "$(dirname "$0")/.."
 GODOT="${GODOT:-godot}"
@@ -53,9 +54,22 @@ if [ "${FLOOR:-1}" = 1 ]; then
     timeout 900 "$GODOT" --headless -s tests/check_floor.gd 2>&1 | grep -E '^ *(FLOOR|t=)' | sed 's/^      /    /' > "$dir/floor.txt" || true
   grep '^FLOOR' "$dir/floor.txt" || true
 fi
+# How smoothly it moves (tests/check_smooth.gd): jerk, frozen frames, timing, and that every pose is
+# shown as saved at its own time.
+if [ "${SMOOTH:-1}" = 1 ]; then
+  SMOOTH_SEQS_DIR="$(dirname "$out")" SMOOTH_POSES_DIR="$dir/poses" \
+    timeout 900 "$GODOT" --headless -s tests/check_smooth.gd 2>&1 | grep -E '^(SMOOTH|FAIL)|^    t=' > "$dir/smooth.txt" || true
+  grep -E '^(SMOOTH|FAIL)' "$dir/smooth.txt" || true
+fi
+# The 3D view in the gallery (tools/export_viewer.gd): the motion and the figures, under viewer/.
+if [ "${VIEWER:-1}" = 1 ]; then
+  timeout 900 "$GODOT" --headless -s tools/export_viewer.gd -- "$out" "$dir/poses" "$dir/viewer" --characters 2>&1 | grep -E "^motion:|SCRIPT ERROR" || true
+fi
 if [ "$video" = 1 ]; then
   rm -rf "$dir/frames"; mkdir -p "$dir/frames"
   timeout 900 $RUN --path . --write-movie "$dir/frames/f.png" --fixed-fps 30 -- --render-sequence "$out" --poses-dir "$dir/poses" 2>&1 | grep -E "SCRIPT ERROR|sequence rendered" || true
+  # The frames drawn while the player looked at each pose before filming (prepare) are not film.
+  python3 tools/drop_prepare_frames.py "$dir/frames"
   if command -v ffmpeg >/dev/null; then
     ffmpeg -v error -y -framerate 30 -i "$dir/frames/f%08d.png" -c:v libx264 -pix_fmt yuv420p -crf 20 "$dir/$slug.mp4"
     rm -rf "$dir/frames"
