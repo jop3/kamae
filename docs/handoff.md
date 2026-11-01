@@ -1818,3 +1818,53 @@ and the stage format: `docs/attacks.md` ("In motion").
 the first section of the gallery (`tools/gallery.py` now groups attacks, ukemi, techniques, and
 lists a build's phases from its sequence, since an attack in motion saves poses the script does not
 name).
+
+**What the films measure** (`tools/technique.sh`, motion and floor checks). The 22 attack films:
+nothing under the mat in any; the grabs and strikes 2–7 frames not plausible each, all of them the
+rear ankle bending 3–10° past its 35° of dorsiflexion mid-step (the walk keeps a planted foot flat
+while the hips pass over it; a real heel lifts — a heel-lift in the step blend is the fix); the
+attacks from behind 16–35 of 138 (the walk round Tori's side: the same ankles, a shin brushing the
+other in the turn, and for `ushiro_dori` Uke's arm pressed 4 cm into Tori's side for the whole
+hold, which is the hold).
+
+**The technique scripts follow the new attacks.** All 14 start from an attack that changed, so all
+were rebuilt and re-filmed. Where the new geometry broke a script it was fixed in the script:
+kaitennage's Kaiten (the wrist grip left Uke's arm to flip in the relax, Tori's grip 51 cm short:
+Uke's elbow is steered now, 6 cm), shomenuchi ikkyo's Kuzushi (Tori further out for the deeper
+lunge, 8.5 → 1.9 cm). The tsuki techniques put Uke's rear foot 2.9 cm through the mat as the next
+phase stood him up from the lunge, because `lean` tipped the whole body about its feet; `lean` now
+bends the spine (`Staging.lean_trunk`) and those frames are gone. Not plausible frames per technique
+(previous build → now, where the previous report was kept): shihonage 80 → 63, tenkan 8 → 14,
+tenkan kokyunage 16 → 22, morotedori kokyunage 51 → 61, tenchinage 15 → 7, shomenuchi ikkyo 12 → 13,
+shomenuchi iriminage 40 → 43, suwari kokyudosa 17 → 17, ushiro ryotedori kotegaeshi 35 → 29,
+yokomenuchi shihonage 48 → 42 (322 → 311 over these ten); tsuki iriminage 39 → 42, katatedori
+kotegaeshi 20 → 21, tsuki kotegaeshi 32, kaitennage 61. Frames under the mat are what they were (the
+same four scripts, at most 3.1 cm). Tenkan's rise is Uke's gripping wrist: holding the wrist itself
+it bends 112° through the turn (75° holding mid-forearm, which is what the old `along: 0.0` gave);
+a `refit` after the pivot was tried and made it 52, so it is left for the gripping-wrist work below.
+
+**Tests.** `tests/test_attacks.gd` (every attack staged, mirrored katatedori, and now each attack's
+way in: one foot per stage, the walk's start well back, grips taken on the way on their points) and
+`tests/test_technique_script.gd` (now also an attack in motion inside a technique) pass. The second
+needed one change: after the tenkan test's backward fall from a wrist grip the released hand
+touches the mat with its fingertips while its palm is 4 cm up, so "rests on the mat" is measured by
+`Ukemi.lowest_point` (fingertips, toes, heel, skull — what `Ukemi.ground` rests the body by) as
+well as the capsules. The committed library (`poses/`, `sequences/`) does not stage attacks, so
+its checks and goldens are untouched; `tools/build_fixtures.gd` stages from the catalogue and
+would rebuild katatedori ikkyo and shihonage closer to the new katatedori if run.
+
+**Next, for Uke.**
+1. The heel in the walk and the lunge: lift the rear heel as the hips pass over a planted foot
+   (the ankle flags in every attack film).
+2. Uke's gripping wrist through a turn (tenkan, kaitennage): the grip should slide and turn on
+   Tori's wrist as Tori's forearm rotates, rather than be refit or bent past range.
+3. Tori meeting the attack: `approach` moves only Uke, and Tori waits in the attack's pose. Entering
+   on the furikaburi (shomenuchi ikkyo, iriminage) wants a technique phase between the stages —
+   e.g. `"until": "Furikaburi"` on the attack move to stop the lead-in there.
+4. The kick has no chambered knee; jo and bokken attacks (shomen with a bokken, jo tsuki) are not in
+   the catalogue.
+5. Names marked *check* in the catalogue (now including `ushiro_dori`) are still for the instructor.
+
+**Published.** The library page (`tools/gallery.py`, the attacks as its first section in the
+catalogue's order, then the falls and the techniques) was regenerated and published to the same
+link as before: 22 attacks, 5 ukemi and 14 techniques, each a film and a 3D view.

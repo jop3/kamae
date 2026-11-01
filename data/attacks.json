@@ -1918,6 +1918,199 @@
         }
       }
     },
+    "ushiro_dori": {
+      "names": {
+        "short": "Ushiro dori",
+        "aikikai": "Ushiro dori (ushiro hagai jime) — check",
+        "iwama": "Ushiro kakae dori — check",
+        "yoshinkan": "Ushiro kakae — check",
+        "ki": "Ushiro dori — check",
+        "tomiki": "Ushiro dori — check",
+        "english": "bear hug from behind, over the arms",
+        "swedish": "omfamning bakifrån över armarna"
+      },
+      "kind": "grip",
+      "relation": "behind",
+      "from": "behind",
+      "description": "Uke comes round behind Tori and wraps both arms round him over his upper arms, the hands meeting in front of Tori's chest and holding on, his chest against Tori's back. The approach goes round Tori's right side as the other attacks from behind do.",
+      "tori": {
+        "hanmi": "Right",
+        "hands": {
+          "Right": [
+            -0.1,
+            -0.44,
+            0.06
+          ],
+          "Left": [
+            0.1,
+            -0.44,
+            0.06
+          ]
+        }
+      },
+      "uke": {
+        "hanmi": "Right",
+        "distance": 0.3,
+        "lateral": 0.0,
+        "facing": "same"
+      },
+      "grips": [
+        {
+          "hand": "Right",
+          "bone": "Chest",
+          "cloth": true,
+          "along": 0.6,
+          "offset": [
+            0.05,
+            0.0,
+            0.17
+          ],
+          "point": [
+            1,
+            0,
+            0.2
+          ],
+          "palm": [
+            0,
+            0,
+            -1
+          ],
+          "curl": 0.5,
+          "elbow": [
+            -0.8,
+            -0.1,
+            0.5
+          ]
+        },
+        {
+          "hand": "Left",
+          "bone": "Chest",
+          "cloth": true,
+          "along": 0.6,
+          "offset": [
+            -0.05,
+            0.0,
+            0.19
+          ],
+          "point": [
+            -1,
+            0,
+            0.2
+          ],
+          "palm": [
+            0,
+            0,
+            -1
+          ],
+          "curl": 0.5,
+          "elbow": [
+            0.8,
+            -0.1,
+            0.5
+          ]
+        }
+      ],
+      "motion": {
+        "stages": [
+          {
+            "name": "Kamae",
+            "frame": "tori",
+            "turn": 180,
+            "feet": {
+              "Left": [
+                -0.1,
+                1.05
+              ],
+              "Right": [
+                0.12,
+                1.38
+              ]
+            },
+            "hands": "kamae",
+            "transition": 0.6,
+            "hold": 0.4
+          },
+          {
+            "name": "Ayumi",
+            "frame": "tori",
+            "turn": 200,
+            "weight": 0.62,
+            "lean": 0,
+            "feet": {
+              "Left": [
+                -0.1,
+                1.05
+              ],
+              "Right": [
+                -0.36,
+                0.5
+              ]
+            },
+            "transition": 0.55,
+            "hold": 0.05,
+            "hands": "kamae"
+          },
+          {
+            "name": "Mawari",
+            "frame": "tori",
+            "turn": 190,
+            "feet": {
+              "Left": [
+                -0.88,
+                0.05
+              ],
+              "Right": [
+                -0.36,
+                0.5
+              ]
+            },
+            "grips": [],
+            "hands": "kamae",
+            "transition": 0.5,
+            "hold": 0.0
+          },
+          {
+            "name": "Ushiro",
+            "frame": "tori",
+            "turn": 100,
+            "feet": {
+              "Left": [
+                -0.88,
+                0.05
+              ],
+              "Right": [
+                -0.62,
+                -0.58
+              ]
+            },
+            "grips": [],
+            "hands": "kamae",
+            "transition": 0.5,
+            "hold": 0.0
+          },
+          {
+            "name": "Ushiro ni",
+            "frame": "tori",
+            "turn": 30,
+            "feet": {
+              "Left": "final",
+              "Right": [
+                -0.62,
+                -0.58
+              ]
+            },
+            "grips": [],
+            "hands": "kamae",
+            "transition": 0.5,
+            "hold": 0.0
+          }
+        ],
+        "final": {
+          "transition": 0.45,
+          "hold": 0.6
+        }
+      }
+    },
     "shomenuchi": {
       "names": {
         "short": "Shomenuchi",
@@ -2515,199 +2708,6 @@
             },
             "transition": 0.6,
             "hold": 0.4
-          }
-        ],
-        "final": {
-          "transition": 0.45,
-          "hold": 0.6
-        }
-      }
-    },
-    "ushiro_dori": {
-      "names": {
-        "short": "Ushiro dori",
-        "aikikai": "Ushiro dori (ushiro hagai jime) — check",
-        "iwama": "Ushiro kakae dori — check",
-        "yoshinkan": "Ushiro kakae — check",
-        "ki": "Ushiro dori — check",
-        "tomiki": "Ushiro dori — check",
-        "english": "bear hug from behind, over the arms",
-        "swedish": "omfamning bakifrån över armarna"
-      },
-      "kind": "grip",
-      "relation": "behind",
-      "from": "behind",
-      "description": "Uke comes round behind Tori and wraps both arms round him over his upper arms, the hands meeting in front of Tori's chest and holding on, his chest against Tori's back. The approach goes round Tori's right side as the other attacks from behind do.",
-      "tori": {
-        "hanmi": "Right",
-        "hands": {
-          "Right": [
-            -0.1,
-            -0.44,
-            0.06
-          ],
-          "Left": [
-            0.1,
-            -0.44,
-            0.06
-          ]
-        }
-      },
-      "uke": {
-        "hanmi": "Right",
-        "distance": 0.3,
-        "lateral": 0.0,
-        "facing": "same"
-      },
-      "grips": [
-        {
-          "hand": "Right",
-          "bone": "Chest",
-          "cloth": true,
-          "along": 0.6,
-          "offset": [
-            0.05,
-            0.0,
-            0.17
-          ],
-          "point": [
-            1,
-            0,
-            0.2
-          ],
-          "palm": [
-            0,
-            0,
-            -1
-          ],
-          "curl": 0.5,
-          "elbow": [
-            -0.8,
-            -0.1,
-            0.5
-          ]
-        },
-        {
-          "hand": "Left",
-          "bone": "Chest",
-          "cloth": true,
-          "along": 0.6,
-          "offset": [
-            -0.05,
-            0.0,
-            0.19
-          ],
-          "point": [
-            -1,
-            0,
-            0.2
-          ],
-          "palm": [
-            0,
-            0,
-            -1
-          ],
-          "curl": 0.5,
-          "elbow": [
-            0.8,
-            -0.1,
-            0.5
-          ]
-        }
-      ],
-      "motion": {
-        "stages": [
-          {
-            "name": "Kamae",
-            "frame": "tori",
-            "turn": 180,
-            "feet": {
-              "Left": [
-                -0.1,
-                1.05
-              ],
-              "Right": [
-                0.12,
-                1.38
-              ]
-            },
-            "hands": "kamae",
-            "transition": 0.6,
-            "hold": 0.4
-          },
-          {
-            "name": "Ayumi",
-            "frame": "tori",
-            "turn": 200,
-            "weight": 0.62,
-            "lean": 0,
-            "feet": {
-              "Left": [
-                -0.1,
-                1.05
-              ],
-              "Right": [
-                -0.36,
-                0.5
-              ]
-            },
-            "transition": 0.55,
-            "hold": 0.05,
-            "hands": "kamae"
-          },
-          {
-            "name": "Mawari",
-            "frame": "tori",
-            "turn": 190,
-            "feet": {
-              "Left": [
-                -0.88,
-                0.05
-              ],
-              "Right": [
-                -0.36,
-                0.5
-              ]
-            },
-            "grips": [],
-            "hands": "kamae",
-            "transition": 0.5,
-            "hold": 0.0
-          },
-          {
-            "name": "Ushiro",
-            "frame": "tori",
-            "turn": 100,
-            "feet": {
-              "Left": [
-                -0.88,
-                0.05
-              ],
-              "Right": [
-                -0.62,
-                -0.58
-              ]
-            },
-            "grips": [],
-            "hands": "kamae",
-            "transition": 0.5,
-            "hold": 0.0
-          },
-          {
-            "name": "Ushiro ni",
-            "frame": "tori",
-            "turn": 30,
-            "feet": {
-              "Left": "final",
-              "Right": [
-                -0.62,
-                -0.58
-              ]
-            },
-            "grips": [],
-            "hands": "kamae",
-            "transition": 0.5,
-            "hold": 0.0
           }
         ],
         "final": {

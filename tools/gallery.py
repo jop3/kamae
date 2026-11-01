@@ -104,8 +104,13 @@ def collect():
         })
     # The attacks first (Uke walking in and attacking, every attack the techniques start from),
     # then the falls (Uke on his own), then the techniques.
+    # Attacks in the catalogue's order: grips from the front, from behind, then the strikes.
     order = {"attack": 0, "ukemi": 1, "technique": 2}
-    return sorted(items, key=lambda it: order[it["kind"]])
+    keys = list(ATTACKS)
+    def place(it):
+        k = it["file"][len("attack_"):-len(".json")]
+        return (order[it["kind"]], keys.index(k) if it["kind"] == "attack" and k in keys else 0)
+    return sorted(items, key=place)
 
 
 SECTIONS = {"attack": ("attacks", "Attacks — Uke comes in"), "ukemi": ("ukemi", "Ukemi — falling and rolling"),
