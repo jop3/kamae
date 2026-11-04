@@ -5,6 +5,8 @@ extends SceneTree
 ## where the numbers in docs/attacks.md come from.
 
 var failures := 0
+## How deep, metres, two staged bodies may touch before it counts as one through the other.
+const STAGED_PRESS := 0.045
 func check(cond: bool, msg: String) -> void:
 	if cond: print("PASS ", msg)
 	else: failures += 1; print("FAIL ", msg)
@@ -73,7 +75,12 @@ func _initialize() -> void:
 				# A choke's forearm lies across the throat and the shoulder by design, and a hand in
 				# the collar has its forearm on the shoulder.
 				var by_design: bool = key in ["ushiro_kubishime", "eridori", "ushiro_eridori"] and ("Neck" in p or "Shoulder" in p)
-				if "passes through" in p and not by_design:
+				# Staged by rule, two bodies may touch a little deeper than a saved pose lets them
+				# (Anatomy.PRESS): a technique relaxes every pose before saving it (Staging.relax),
+				# which settles toes against toes and an arm round a chest to that. What this
+				# catches is staging that puts a body through a body.
+				var depth := p.get_slice("(", p.get_slice_count("(") - 1).to_float() / 100.0
+				if "passes through" in p and not by_design and depth > STAGED_PRESS:
 					through.append(p)
 			check(through.is_empty(), "%s: nobody passes through anybody (%s)" % [label, ", ".join(through)])
 			for r in [tori, uke]:

@@ -153,6 +153,12 @@ partner is more than 100° off the way the body faces, when the figure looks ahe
 beside you is watched out of the corner of the eye). Falling figures are left as the fall shapes
 them. The look is not carried into the next phase's moves.
 
+What each figure watches is saved with the pose (`look` on the character), and the film keeps
+to it: between two poses the neck and head take up whatever the blend has left between the face
+and what it watches, and on every frame the eyes turn in their sockets for the rest (25° to the
+side, 15° up, 20° down; src/rig/Gaze.gd). So two figures keep eye contact through a turn, not
+only on the keyframes, and a figure that looks past its partner still has its eyes on them.
+
 | Move | Does |
 |---|---|
 | `{"look": "tori", "at": "uke1.RightHand"}` | From this phase on, looks at that bone. |

@@ -23,12 +23,13 @@ static func closest_on_segment(p: Vector3, a: Vector3, b: Vector3) -> Vector3:
 	return a + ab * clampf((p - a).dot(ab) / l2, 0.0, 1.0)
 
 
-## Moves a sphere (centre `point`, radius `r`) out of `rig`'s capsules, ignoring the bones named
+## Moves a sphere (centre `point`, radius `r`) out of `rig`'s body — its surface as
+## Anatomy.SHAPES has it, which is where a hand meets someone — ignoring the bones named
 ## in `exempt` (a gripped bone and its neighbours, where the hand overlaps by design). Only
 ## penetrations deeper than `slack` count, so a hand resting on the skin does not jitter.
 ## Returns the corrected centre; two passes settle a point caught between two capsules.
 static func push_out(point: Vector3, r: float, rig: CharacterRig, exempt: Array = [], slack: float = 0.005) -> Vector3:
-	var segs := Anatomy.segments(rig)
+	var segs := Anatomy.shapes(rig)
 	var p := point
 	for _round in 2:
 		for name: String in segs:
@@ -50,7 +51,7 @@ static func push_out(point: Vector3, r: float, rig: CharacterRig, exempt: Array 
 
 ## Deepest penetration of a sphere into `rig` (metres, 0 when clear), for tests and indicators.
 static func penetration(point: Vector3, r: float, rig: CharacterRig, exempt: Array = []) -> float:
-	var segs := Anatomy.segments(rig)
+	var segs := Anatomy.shapes(rig)
 	var worst := 0.0
 	for name: String in segs:
 		if name in exempt:

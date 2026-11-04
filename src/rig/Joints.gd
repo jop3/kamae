@@ -286,11 +286,19 @@ static func rotation(spec: Dictionary, flex: float, abd: float, twist: float) ->
 	return (S * T * spec["rest_q"]).normalized()
 
 
+## The upper arm's roll overhead (see limits, "shoulder"): from this elevation, degrees, the
+## range narrows to these at 180°.
+const SHOULDER_ROLL_FROM := 90.0
+const SHOULDER_ROLL_IN_OVERHEAD := 35.0
+const SHOULDER_ROLL_OUT_OVERHEAD := 50.0
+
+
 ## The range in force for a joint at these angles. Most ranges are fixed; a few depend on the
 ## joint's own position, which is what makes them joints rather than three sliders:
 ##   knee — rotation is locked with the knee straight and opens up as it bends (about 35° at 90°);
 ##   mcp  — a finger spreads while it is open and the spread closes as it curls;
-##   shoulder — the arm crosses the body (adduction) only when it is also raised forward;
+##   shoulder — the arm crosses the body (adduction) only when it is also raised forward, and it
+##     rolls less the higher it is raised;
 ##   wrist — a closed fist bends the wrist less than an open hand (the finger tendons run over
 ##     the wrist: with the fingers curled, flexion drops from 80° toward 50° and extension from
 ##     70° toward 45°). This one reads the fingers, which `context["curl"]` carries: the mean
@@ -313,6 +321,17 @@ static func limits(spec: Dictionary, a: Dictionary, context: Dictionary = {}) ->
 		"shoulder":
 			var raised: float = clampf(a["flex"] / 60.0, 0.0, 1.0)
 			abd = [-(10.0 + (-abd[0] - 10.0) * raised), abd[1]]
+			# The upper arm rolls about 90° either way while it is below the shoulder, and less
+			# and less as it is raised past it: overhead the capsule and the cuff are wound up and
+			# what is left is about 35° inward and 50° outward. With the full range overhead an
+			# arm raised to take a wrist sat at 88° of internal rotation, its elbow out to the
+			# side and its hand folded behind the head, and blending to the next pose rolled it
+			# half a turn to 89° outward on the way (shihonage's irimi and tenkan).
+			var elevation := rad_to_deg(acos(clampf(cos(deg_to_rad(a["flex"])) * cos(deg_to_rad(a["abd"])), -1.0, 1.0)))
+			var over := clampf((elevation - SHOULDER_ROLL_FROM) / (180.0 - SHOULDER_ROLL_FROM), 0.0, 1.0)
+			var inward := lerpf(twist[1] if spec["names"]["twist"][1] == "internal rotation" else -twist[0], SHOULDER_ROLL_IN_OVERHEAD, over)
+			var outward := lerpf(twist[1] if spec["names"]["twist"][1] == "external rotation" else -twist[0], SHOULDER_ROLL_OUT_OVERHEAD, over)
+			twist = [-inward, outward] if spec["names"]["twist"][0] == "internal rotation" else [-outward, inward]
 	return {"flex": flex, "abd": abd, "twist": twist}
 
 

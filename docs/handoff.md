@@ -14,7 +14,7 @@ where the work stands, how to run it, and what the next session should pick up.
 | … | one branch per session since; each session's section below names what it did | merged |
 | `claude/continuing-work-g2k02k` | the fist rule in every search, every weapon hold clear (2026-09-16 below) | PR #10 merged |
 | `claude/handoff-check-wxx58t` | the fit keeps a hand's hold, fists close on the shaft (2026-09-16, afternoon and evening) | merged into the next branch on 2026-10-31 |
-| `claude/aikido-technique-animation-ttq5iv` | realistic people, the hakama, technique scripts, techniques from video, falls on the mat (2026-10-31 below) | this branch |
+| `claude/aikido-technique-animation-ttq5iv` | realistic people, the hakama, technique scripts, techniques from video, falls on the mat (2026-10-31 below); then the attacks (2026-11-01) and the body's basics (2026-11-04) | PRs #13, #14 merged; the rest on the branch |
 
 Milestones done: **M0** project and character, **M1** click-to-select FK posing with a gizmo and PNG
 export, **M2** IK arms and legs with finger curls, **M3** grip attachments. Next up is **M3W**
@@ -1868,3 +1868,88 @@ would rebuild katatedori ikkyo and shihonage closer to the new katatedori if run
 **Published.** The library page (`tools/gallery.py`, the attacks as its first section in the
 catalogue's order, then the falls and the techniques) was regenerated and published to the same
 link as before: 22 attacks, 5 ukemi and 14 techniques, each a film and a 3D view.
+
+## Session 2026-11-04: the body's basics — contact, the shoulder, eye contact, the gi
+
+Asked for: "really nail the whole arms bending strangely behind the nage's back, eye contact,
+clipping of the uke and nage bodies, that kind of thing, before we continue with more
+techniques. I.e. basic anatomy and range of movements." Mid-session: "A gi jacket is never tucked
+into the gi pants. It's always on the outside."
+
+**Looking first.** The films are shot too wide to judge an elbow or a face, so
+`tools/review_frames.sh <slug> [every | --at t1,t2]` (Main `--review-frames`) renders any moment
+of a built sequence close up from four sides (`FOCUS=uke1.Head` for a face). Shihonage at 1.5 s
+and 2.5 s showed all three complaints at once: Tori's raised arm folded behind his own head, the
+gi torn open at the back of a raised shoulder (skin showing), and Uke's face and arm inside
+Tori's arm and back.
+
+**The bodies were measured wrong.** Contact used one capsule per bone round the bone (Anatomy.RADII):
+the spine bones run down the *back*, so a 10 cm capsule round them ends 5 cm short of the chest's
+front and sides, and a partner's forearm could lie 10 cm inside a chest (gi included, plus the
+3.5 cm allowance) before anything noticed. `tools/fit_body_shapes.gd` fits the surface to the mesh
+— `Anatomy.SHAPES`: the trunk as a capsule *across* the body per trunk bone (as wide and as deep as
+the mesh, in front of the spine), each limb's capsule moved onto the middle of its flesh and as
+thick as it (a thigh is 9–10 cm, not 7.5) — plus 1 cm of gi where it covers, and two people may
+press 2 cm (`PRESS`) into each other. `body_overlaps` (the checks), ContactSolve's partner contact,
+and `BodyCapsules.push_out` (grips, placed hands) use it; RADII stay for a figure against itself
+and against the mat, where they were tuned. Measured with the new surface on the builds as they
+were (14 techniques): 734 of 1910 frames implausible, 567 with one body pressed more than 2 cm
+into the other, 9941 cm of overlap summed over frames — the old check had seen a fraction of it.
+
+**What changed**, each measured:
+- *ContactSolve*: partner contact on the fitted surface. Tried and taken out: last rounds without
+  the pull back toward the blend (contact as a limit rather than a wish) — it changed the films
+  little and let the arms drift until Uke's forearms turned over half a turn in ushiro ryotedori.
+  Kept from that: a push never re-aims an elbow or knee to the far side of its limb's line.
+- *Placed hands* (`hand … to` a partner's bone) land on the partner's surface, not inside it.
+- *The shoulder rolls less as the arm rises* (Joints.limits "shoulder"): ±90° below the shoulder,
+  narrowing to 35° in / 50° out at 180°. Shihonage's raised arm sat at 88° internal rotation in
+  Irimi and 89° external in Tenkan, so the blend rolled the upper arm half a turn and the forearm
+  swept round behind the head.
+- *An elbow's swivel keeps the forearm out of the figure's own head* (TwistFollow: what the turn
+  costs includes forearm inside the head, 3° of joint range per cm).
+- *A hand behind the back is reached by turning the trunk* (TechniqueScript `_reach_with_trunk`,
+  before the relax): a shoulder asked for more than its 60° of extension turns the spine, chest
+  and upper chest toward that side within their ranges; what still cannot be reached is printed
+  ("…hand is behind the shoulder: 99° of extension asked…"). This was the "arms behind nage's
+  back": kaitennage placed Tori at Uke's side *facing 120°* — turned away from Uke — with his hand
+  on Uke's neck, asking 93–99° of shoulder extension in Kuzushi, Kaiten and Kake. The script now
+  places him facing −45° (toward Uke's flank, at [-0.62, 0.10]): Kuzushi is clean. *Check with the
+  instructor* that this is soto kaiten as taught.
+- *Heels lift* (PoseBlend.lift_heel): a foot flat on the mat while the hips pass over it rolls
+  onto its ball once the shin leans more than 30° over it. Every walk-in attack had its rear ankle
+  3–10° past its range mid-step; now none does (shomenuchi 7 → 0 frames, the bear hug 35 → 4).
+- *Eye contact* (src/rig/Gaze.gd): what each figure watches is saved with the pose (`look`);
+  between poses the neck and head take up what the blend leaves between the face and it (faded
+  to nothing at the poses, inside the joints' ranges, not for someone behind the figure), and
+  every frame the eyes turn in their sockets for the rest (a vertex shader on the eye mesh, 25°
+  sideways, 15° up, 20° down). Poses written before this carry no `look` and are left alone.
+- *The gi*: the skin a jacket or trousers covers is not drawn (7 cm back from every opening and
+  hem), so a raised shoulder can no longer show skin through the jacket; and the jacket's skirt
+  is a tube of its own (`Gi._skirt`) from under the belt to the top of the thighs, outside the
+  trousers — the shell cut from the body stopped at the hip joint, because the seat belongs to
+  the thigh bones, and the trousers covered the hips over it. Hidden under a hakama.
+
+**Numbers** (check_motion on the fitted surface, the 14 technique scripts rebuilt; before → after):
+implausible frames 734 → 646, frames with a body pressed > 2 cm into the other 567 → 447,
+overlap summed over frames 9941 → 5586 cm, a figure's limb inside its own body 318 → 255. The 22
+attacks: no ankle faults left; what remains (159 frames) is mostly a gripping hand 2–4 cm into
+the gi it holds (eridori, hijidori, munedori), which a cloth grip does. The committed library's
+records went up only because the measure did: run with the old code under the new measure it
+is the same or worse (shihonage irimi 38, zenponage 14), and `OUTSTANDING` in check_motion and
+check_anatomy say so.
+
+**Still wrong, in order of what the films show:**
+1. *Thigh against thigh, upper arm against upper arm* standing side by side (shihonage, tenkan,
+   iriminage): ContactSolve only moves hips and limb points; it cannot turn a body, and two held
+   arms side by side need one. A yaw for the trunk in the solve is the next step.
+2. *Overhead arms over the head*: shihonage's Irimi and Tenkan hold Uke's wrist 20–30 cm above
+   Tori's head, too low for the forearms to clear it whatever the elbow does (6–9 cm). The
+   script's held hand wants to be higher and further forward (it is Uke's `hand … at`).
+3. *Kaitennage* Kaiten and Kake: the wrist that holds Uke's arm bends 150–160°, and Uke's held
+   arm is wound past its rotation; Uke wants to bend further forward as the arm goes up.
+4. *Suwari kokyudosa*'s Osae: Tori's hands do not reach Uke's arm after the fall (shoulder
+   rotation 129–179°, the hands up by his own head); moving Tori in did not fix it — the hand
+   placement on a fallen Uke needs looking at (`where`).
+5. Library: ryotemochi's two Ukes stand shoulder into shoulder (7.4 cm), shihonage's kuzushi has
+   Tori's upper arm in Uke's (6.6 cm); `tools/relax_pose.gd` could not part them (both arms held).

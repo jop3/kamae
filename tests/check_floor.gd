@@ -111,6 +111,7 @@ func lowest(rig: CharacterRig) -> Dictionary:
 	if rig.gi and rig.gi_visible:
 		meshes.append([rig.gi.jacket, "gi"])
 		meshes.append([rig.gi.trousers, "trousers"])
+		meshes.append([rig.gi.skirt, "gi skirt"])
 	for m in meshes:
 		var mi: MeshInstance3D = m[0]
 		if mi == null or not mi.visible or mi.mesh == null or mi.skin == null:

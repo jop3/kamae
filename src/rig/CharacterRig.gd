@@ -62,6 +62,10 @@ var keep_on_mat := false
 ## "t": 0..1}, empty when it is not falling. Saved with the pose; a blend between two poses
 ## of one fall follows the fall's own course between them (PoseBlend, Ukemi.blend_fall).
 var fall := {}
+## What the figure watches (Gaze): "partner", "none", "<id>.<Bone>", or [right, up, forward] in
+## its own frame; null when the pose says nothing (written before looks were saved), and then the
+## head and eyes are left as they are.
+var look = null
 
 ## The four IK-able chains, in the order their nodes are added to the skeleton.
 const LIMB_CHAINS := [
@@ -253,7 +257,7 @@ func set_appearance(a: Dictionary) -> void:
 			mi.material_override = _part_material(String(mi.name))
 	var eyes := _find_part("Eyes")
 	if eyes:
-		eyes.material_override.albedo_texture = _texture("eye_%s.png" % appearance.get("eyes", "brown"))
+		(eyes.material_override as ShaderMaterial).set_shader_parameter("albedo_texture", _texture("eye_%s.png" % appearance.get("eyes", "brown")))
 	var style: String = appearance.get("hair", "none")
 	for h in hair_meshes:
 		var mi: MeshInstance3D = hair_meshes[h]
@@ -271,17 +275,13 @@ func _find_part(part: String) -> MeshInstance3D:
 	return null
 
 
-func _part_material(part: String) -> StandardMaterial3D:
+func _part_material(part: String) -> Material:
 	match part:
 		"Eyes":
 			# The eye mesh has the eyeball and, in front of it, a cornea whose part of the image
 			# is fully transparent: cut out, it shows the iris; drawn opaque, the eyes are black.
-			var m := StandardMaterial3D.new()
-			m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
-			m.alpha_scissor_threshold = 0.5
-			m.roughness = 0.2
-			m.metallic_specular = 0.7
-			return m
+			# A shader rather than a plain material, so each eyeball can turn (Gaze.aim_eyes).
+			return Gaze.eye_material()
 		"Eyebrows":
 			return _cutout_material("eyebrow001.png")
 		"Eyelashes":
@@ -503,6 +503,15 @@ func _cache_solved_poses() -> void:
 		_solved_poses[i] = skeleton.get_bone_global_pose(i)
 	if keep_on_mat:
 		Ukemi.keep_on_mat(self)
+	var eyes := _find_part("Eyes")
+	if eyes and eyes.visible and eyes.material_override is ShaderMaterial and get_parent() is PosingScene:
+		Gaze.aim_eyes(get_parent(), self, eyes.material_override)
+
+
+## World space to the space the face meshes are skinned in (their own, under the skeleton).
+func face_mesh_inverse() -> Transform3D:
+	var eyes := _find_part("Eyes")
+	return eyes.global_transform.affine_inverse() if eyes else skeleton.global_transform.affine_inverse()
 
 
 ## Where a bone actually is on screen, in world space, as of the last completed pose evaluation.

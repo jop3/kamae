@@ -27,10 +27,10 @@
           "place": "tori",
           "of": "uke1",
           "at": [
-            -0.52,
-            0.22
+            -0.62,
+            0.1
           ],
-          "facing": 120
+          "facing": -45
         },
         {
           "hanmi": "tori",

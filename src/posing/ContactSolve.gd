@@ -23,7 +23,7 @@ extends RefCounted
 
 const ITERATIONS := 20
 ## How much overlap is left alone, metres: a little under what the checks allow.
-const ALLOW_PARTNER := 0.005
+const ALLOW_PARTNER := 0.01
 ## Width of the soft zone either side of each limit, metres.
 const SOFT := 0.01
 const ALLOW_OWN_TRUNK := 0.05
@@ -92,6 +92,16 @@ static func _figure(rig: CharacterRig, director: GripDirector) -> Dictionary:
 	for name: String in ["Hips", "Spine", "Chest", "UpperChest", "Neck", "Head", "RightShoulder", "LeftShoulder"]:
 		if segs.has(name):
 			trunk.append([name, segs[name][0] - hips, segs[name][1] - hips, segs[name][2]])
+	# Against a partner the trunk is the body's surface (Anatomy.SHAPES), not capsules round its
+	# bones: the chest is in front of the spine and wider than a bone's capsule.
+	var surface := Anatomy.shapes(rig, true)
+	var outer := []
+	for name: String in ["Hips", "Spine", "Chest", "UpperChest", "Neck", "Head"]:
+		if surface.has(name):
+			outer.append([name, surface[name][0] - hips, surface[name][1] - hips, surface[name][2]])
+	var limb_r := {}
+	for name: String in surface:
+		limb_r[name] = surface[name][2]
 	var limbs := {}
 	for key: String in rig.limbs:
 		var limb: Limb = rig.limbs[key]
@@ -112,7 +122,7 @@ static func _figure(rig: CharacterRig, director: GripDirector) -> Dictionary:
 			"mid0": mid, "end0": end, "down": down, "gripping": gripping, "ik": limb.mode == Limb.Mode.IK,
 			"names": [limb.root_bone, limb.middle_bone, limb.end_bone]}
 	return {"rig": rig, "hips": {"p": hips, "w": W_HIPS}, "hips0": hips, "trunk": trunk, "limbs": limbs,
-		"parents": Anatomy.parents_of(rig)}
+		"outer": outer, "limb_r": limb_r, "parents": Anatomy.parents_of(rig)}
 
 
 ## Where a two-bone IK puts the middle joint for root, end and pole.
@@ -245,19 +255,22 @@ static func _grip(g: Dictionary) -> void:
 
 
 ## Every capsule of a figure as [end a (point or fixed), end b, radius, name], for contact.
-static func _capsules(f: Dictionary) -> Array:
+## `outer`: the body's surface as a partner meets it (Anatomy.SHAPES) rather than the capsules
+## round its bones that its own limbs are kept out of.
+static func _capsules(f: Dictionary, outer := false) -> Array:
 	var out := []
 	var hips: Dictionary = f["hips"]
-	for t: Array in f["trunk"]:
+	for t: Array in (f["outer"] if outer else f["trunk"]):
 		out.append([{"hips": hips, "local": t[1]}, {"hips": hips, "local": t[2]}, t[3], t[0]])
+	var radii: Dictionary = f["limb_r"] if outer else Anatomy.RADII
 	for key: String in f["limbs"]:
 		var lb: Dictionary = f["limbs"][key]
 		var names: Array = lb["names"]
-		out.append([{"hips": hips, "local": lb["root_local"]}, lb["mid"], Anatomy.RADII.get(names[0], 0.05), names[0]])
-		out.append([lb["mid"], lb["end"], Anatomy.RADII.get(names[1], 0.04), names[1]])
+		out.append([{"hips": hips, "local": lb["root_local"]}, lb["mid"], radii.get(names[0], 0.05), names[0]])
+		out.append([lb["mid"], lb["end"], radii.get(names[1], 0.04), names[1]])
 		# The hand or foot as a short stub on past the end, along the forearm or shin.
 		out.append([lb["end"], {"stub": lb["end"], "from": lb["mid"], "len": 0.08 if lb["arm"] else 0.12},
-			Anatomy.RADII.get(names[2], 0.03), names[2]])
+			radii.get(names[2], 0.03), names[2]])
 	return out
 
 
@@ -308,8 +321,8 @@ static func _along(a: Vector3, b: Vector3, p: Vector3) -> float:
 ## Two figures: every capsule of one out of every capsule of the other, bar a gripping hand and
 ## forearm on the bone they hold and its neighbours.
 static func _contact(f1: Dictionary, f2: Dictionary) -> void:
-	var c1 := _capsules(f1)
-	var c2 := _capsules(f2)
+	var c1 := _capsules(f1, true)
+	var c2 := _capsules(f2, true)
 	for x: Array in c1:
 		for y: Array in c2:
 			if _held(f1, x[3], f2, y[3]) or _held(f2, y[3], f1, x[3]):
@@ -394,6 +407,11 @@ static func _write(f: Dictionary, k: float) -> void:
 		var root := (f["hips0"] as Vector3) + moved * k + (lb["root_local"] as Vector3)
 		var line := end - root
 		var off := mid - (root + line.normalized() * (mid - root).dot(line.normalized())) if line.length() > 1e-5 else Vector3.ZERO
-		if off.length() > 0.005:
+		# A push that takes the elbow (or knee) across the line from shoulder to hand to the far
+		# side would turn the forearm over half a turn: the joint stays on its own side, and only
+		# the hand or foot is moved.
+		var mid0: Vector3 = lb["mid0"]
+		var off0 := mid0 - (root + line.normalized() * (mid0 - root).dot(line.normalized())) if line.length() > 1e-5 else Vector3.ZERO
+		if off.length() > 0.005 and off.normalized().dot(off0.normalized()) > 0.0:
 			limb.pole.global_position = mid + off.normalized() * POLE_OUT
 	_last[rig.get_instance_id()]["frame"] = Engine.get_process_frames()

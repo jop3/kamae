@@ -404,6 +404,10 @@ func _hand(m: Dictionary) -> void:
 		if along > 0.0 and kids.size() > 0:
 			goal = goal.lerp(tr.bone_world_transform(tr.skeleton.get_bone_name(kids[0])).origin, along)
 		goal += _flat_basis(tr) * _local3(m.get("offset", [0.0, 0.0, 0.0]))
+		# On them, not in them: a hand put on the back of a neck that a bent-over Uke has
+		# lowered into his shoulders lands on the skin, and the forearm follows it out.
+		if tr != r:
+			goal = BodyCapsules.push_out(goal, GripDirector.HAND_RADIUS, tr)
 	else:
 		var shoulder: Vector3 = r.bone_world_transform(p[1] + "UpperArm").origin
 		goal = shoulder + _flat_basis(r) * _local3(m.get("at", [0.0, -0.5, 0.1]))
@@ -532,15 +536,11 @@ func _reset(chars: Array) -> void:
 ## where they stand. The staging places each figure by rules that know where a foot or a hand
 ## goes, not where the other body is; without this a pose could have Tori's thigh 7 cm into
 ## Uke's, and every frame of the film near it too.
-const RELAX_ROUNDS := 6
+const RELAX_ROUNDS := Staging.RELAX_ROUNDS
 
 
 func _relax() -> void:
-	for _round in RELAX_ROUNDS:
-		ContactSolve.solve(scene, director, {"root": 1.0, "arms": 1.0, "legs": 1.0})
-		await st.settle(2)
-	await st.feet_on_floor()
-	await st.settle(2)
+	await st.relax()
 
 
 ## Feet onto the mat, gripping hands onto their points (the gripper steps in by what it is
@@ -551,8 +551,14 @@ func _save_pose(dir: String, pose_name: String, allow_short: bool) -> void:
 	await st.feet_on_floor()
 	if not allow_short:
 		await _step_in_to_grips()
+	await _reach_with_trunk()
 	await _relax()
 	var before_look := await _look_all()
+	# What each figure watches goes with the pose, so the head and eyes keep watching it between
+	# this pose and the next (Gaze).
+	for r: CharacterRig in scene.characters:
+		var at = looks.get(r.character_id, "")
+		r.look = "partner" if (at is String and at == "") else at
 	var data: Dictionary = await PoseFile.capture_baked(scene, director, cam, pose_name)
 	var path := PoseFile.pose_path(dir, pose_name)
 	PoseFile.save(path, data)
@@ -614,6 +620,72 @@ func _step_in_to_grips() -> void:
 		if director.error_for(grip) > 0.02:
 			_note("%s's %s hand is %.0f cm short of its grip: move the figure or the grip" % [grip.gripper_id, grip.hand, director.error_for(grip) * 100.0])
 	_stopped.clear()
+
+
+## A hand that a pose puts behind its shoulder further than the shoulder goes back (60° of
+## extension) is reached by turning the trunk toward it, as a person does, rather than left to
+## the joint limit — which holds the shoulder at its edge and lets the elbow take up the rest, so
+## the arm came out twisted behind the back (kaitennage's hand on Uke's neck asked Tori's
+## shoulder for 99°). The spine, chest and upper chest turn together within their own ranges.
+const REACH_TURN_SHARE := {"Spine": 0.25, "Chest": 0.45, "UpperChest": 0.30}
+
+
+func _reach_with_trunk() -> void:
+	for _attempt in 5:
+		var turned := false
+		for r: CharacterRig in scene.characters:
+			if not r.visible or r.joint_limits == null or not r.fall.is_empty() \
+					or absf(r.rotation.x) > 0.5 or absf(r.rotation.z) > 0.5:
+				continue
+			for side: String in ["Right", "Left"]:
+				var bone := side + "UpperArm"
+				if not r.joint_limits.refused.has(bone):
+					continue
+				var spec := r.joints.spec(bone)
+				var wanted: Dictionary = r.joint_limits.refused[bone]["wanted"]
+				var lim := Joints.limits(spec, wanted)
+				var over: float = lim["flex"][0] - Joints._nearest_turn(wanted["flex"], lim["flex"][0], lim["flex"][1])
+				if over < 2.0:
+					continue
+				# Turning toward the reaching arm's side takes its shoulder back toward the hand.
+				if _turn_trunk(r, (1.0 if side == "Left" else -1.0) * minf(over, 30.0) * 0.8):
+					turned = true
+		if not turned:
+			break
+		await st.settle(3)
+	# What turning could not reach is the pose's: say so where the problems are read.
+	for r: CharacterRig in scene.characters:
+		if not r.visible or r.joint_limits == null or not r.fall.is_empty():
+			continue
+		for side: String in ["Right", "Left"]:
+			var bone := side + "UpperArm"
+			if not r.joint_limits.refused.has(bone):
+				continue
+			var wanted: Dictionary = r.joint_limits.refused[bone]["wanted"]
+			var lim := Joints.limits(r.joints.spec(bone), wanted)
+			var asked := Joints._nearest_turn(wanted["flex"], lim["flex"][0], lim["flex"][1])
+			if lim["flex"][0] - asked > 10.0:
+				_note("%s's %s hand is behind the shoulder: %.0f° of extension asked, %.0f° is all a shoulder has — face the figure toward the hand" % [r.character_id, side, -asked, -lim["flex"][0]])
+
+
+## Turns the trunk by `deg` (toward the figure's left when positive) over its three bones, each
+## held inside its range; false when it had no turn left to give.
+func _turn_trunk(r: CharacterRig, deg: float) -> bool:
+	var sk := r.skeleton
+	var any := false
+	for bone: String in REACH_TURN_SHARE:
+		var i := sk.find_bone(bone)
+		var spec := r.joints.spec(bone)
+		if i < 0 or spec.is_empty():
+			continue
+		var a := Joints.angles(spec, sk.get_bone_pose_rotation(i))
+		var lim := Joints.limits(spec, a)
+		var to := clampf(a["twist"] + deg * float(REACH_TURN_SHARE[bone]), lim["twist"][0], lim["twist"][1])
+		if absf(to - a["twist"]) < 0.1:
+			continue
+		sk.set_bone_pose_rotation(i, Joints.rotation(spec, a["flex"], a["abd"], to))
+		any = true
+	return any
 
 
 ## How close two standing trunks may come, hip to hip on the mat.

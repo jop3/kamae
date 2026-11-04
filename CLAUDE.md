@@ -27,6 +27,8 @@ $GODOT --headless --import >/dev/null 2>&1      # once, before anything else
    `motion.txt` and `floor.txt` in the build list the video frames where a body is implausible
    or anything of it is under the mat; `smooth.txt` scores how smoothly it moves
    (`tests/check_smooth.gd`: jerk, frozen frames, joints that flip, keyframes shown as saved).
+   The film is shot too wide to judge an elbow or a face: `tools/review_frames.sh <slug> --at 1.2,2.0`
+   renders those moments close up from four sides (`FOCUS=uke1.Head` for one part).
 3. When it reads right, build without `--no-video` for `techniques/build/<slug>/<slug>.mp4`
    (≈2–4 min). Send the user the contact sheet, the stills they want and the MP4.
 4. Commit the script (the build directory is not committed). To make it part of the tool's
@@ -42,6 +44,9 @@ from a camera; give a script a `view` that shows the key moment; `refit` a grip 
 arm turns; pins rest the hands (`hand` … `to`), never `grab`; for a backward fall Uke faces the
 way he falls from. A fall is phases of `ukemi` with rising `t` (0.35, then 0.7–0.75); the pose
 remembers the fall, and the video between its phases follows the fall's own course on the mat.
+A hand is never placed behind its own shoulder: face the figure toward what it reaches (the build
+says "…hand is behind the shoulder" when one is). Two bodies are measured by their surface
+(`Anatomy.SHAPES`), not by their bones.
 
 Conventions that are easy to get wrong: directions are `[right, up, forward]` in the figure's
 own frame; turns are positive toward the figure's **left** (counter-clockwise from above);

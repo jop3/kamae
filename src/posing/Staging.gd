@@ -449,6 +449,21 @@ const MAX_HIP_DROP := 0.04
 
 ## Anyone still on their feet stands on the floor: bending the knees tilts the shins, and arm
 ## work can pull a figure about, either of which lifts a foot a centimetre or two.
+## The bodies solved together at full strength a few times (ContactSolve), then the feet back
+## on the mat: what a pose is given before it is kept, so two figures staged by rules that know
+## where a foot or a hand goes, not where the other body is, end up touching rather than inside
+## each other (a thigh 7 cm into a thigh, toes on toes in a grab).
+const RELAX_ROUNDS := 6
+
+
+func relax() -> void:
+	for _round in RELAX_ROUNDS:
+		ContactSolve.solve(scene, director, {"root": 1.0, "arms": 1.0, "legs": 1.0})
+		await settle(2)
+	await feet_on_floor()
+	await settle(2)
+
+
 func feet_on_floor() -> void:
 	for r in scene.characters:
 		if not r.visible or absf(r.rotation.x) > 0.6 or absf(r.rotation.z) > 0.6:

@@ -38,3 +38,16 @@ a GLB with skins. Body proportions can be changed through `macro_detail_dict` in
   poses, a sequence, stills, a contact sheet and an MP4; see `docs/technique-scripts.md`.
 - `video_frames.sh` — a video as time-stamped contact sheets to read; see
   `docs/video-to-technique.md`.
+- `review_frames.sh <slug> [every | --at t1,t2]` — close-ups of a built technique *between* its
+  keyframes, from four sides, framed tight on the two figures (`FOCUS=uke1.Head` for one part):
+  the film's wide shot is too far away to show an elbow, a face or two bodies in contact.
+  `techniques/build/<slug>/review/sheet_t<time>.png`.
+- `relax_pose.gd` — runs the contact solve over saved poses and saves them again, as a technique
+  script does before saving a pose.
+
+## fit_body_shapes.gd
+
+Prints `Anatomy.SHAPES`, the body's surface as capsules fitted to the mannequin's rest mesh (the
+trunk as a capsule across the body per trunk bone, each limb's capsule on the middle of its
+flesh). Run it after the body mesh changes and paste the table over the old one; `FIT_BANDS=1`
+also prints how each limb tapers.

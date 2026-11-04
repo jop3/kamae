@@ -45,7 +45,17 @@ const OUTSTANDING := {
 	## staff asks the wrist for 59° of extension where a fist has 58.
 	"kumijo_tsuki": ["tori: LeftHand: wrist extension"],
 	"katatedori_shihonage_kake": ["tori: LeftHand: wrist radial deviation", "tori: RightHand: wrist flexion", "uke1: LeftUpperArm: shoulder adduction"],
-	"katatedori_shihonage_kuzushi": ["uke1: LeftHand: wrist flexion"],
+	"katatedori_shihonage_kuzushi": ["uke1: LeftHand: wrist flexion",
+		## Not new, newly measured: two people are now checked against each other's surface
+		## (Anatomy.SHAPES, fitted to the mesh) instead of thin capsules round their bones, and
+		## Tori's raised upper arm lies 6.6 cm into Uke's held one. The contact solve cannot part
+		## them (tools/relax_pose.gd made it 11 cm: both hands are held, and it only moves hips);
+		## the pose wants Tori's arm over Uke's rather than beside it (docs/handoff.md).
+		"tori RightUpperArm passes through uke1 LeftUpperArm"],
+	## The same: two Ukes holding one arm stand shoulder into shoulder, 7.4 cm deep at the upper
+	## arms, which the bones' capsules did not show. They want to stand further apart.
+	"ryotemochi_grepp": ["uke1 RightUpperArm passes through uke2 LeftUpperArm",
+		"uke1 RightUpperArm passes through uke2 LeftLowerArm", "uke1 RightLowerArm passes through uke2 LeftUpperArm"],
 	## Both of Uke's gripping wrists came free when the hands were re-seated where a hand holds a
 	## forearm (tools/refit_grips.gd): they were bent that far by a palm that had the arm across
 	## its middle. The Tenkan and Kake poses are still the old seat — re-seating them put a hand

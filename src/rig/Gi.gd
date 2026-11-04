@@ -36,6 +36,8 @@ var rig: CharacterRig
 var jacket: MeshInstance3D
 var trousers: MeshInstance3D
 var belt: MeshInstance3D
+## The jacket below the belt, worn outside the trousers (see _skirt).
+var skirt: MeshInstance3D
 var lapel: MeshInstance3D
 var lapel_material: StandardMaterial3D
 var collar_material: StandardMaterial3D
@@ -70,11 +72,16 @@ func build(for_rig: CharacterRig) -> void:
 	var arrays: Array = body.mesh.surface_get_arrays(0)
 	var dominant := _dominant_bones(arrays)
 	_build_grid(arrays)
+	_covered = PackedByteArray()
+	_covered.resize((arrays[Mesh.ARRAY_VERTEX] as PackedVector3Array).size())
 	jacket = _shell(arrays, dominant, "jacket", cloth_material)
 	trousers = _shell(arrays, dominant, "trousers", trouser_material)
+	_bare_mesh = body.mesh
+	_covered_mesh = _without_covered_skin(arrays, body.mesh)
+	skirt = _skirt(arrays, dominant)
 	belt = _belt(arrays, dominant)
 	lapel = _lapel(arrays, dominant)
-	for m in [jacket, trousers, belt, lapel]:
+	for m in [jacket, trousers, skirt, belt, lapel]:
 		m.cast_shadow = body.cast_shadow
 		rig.skeleton.add_child(m)
 		# A MeshInstance3D made in code has an empty skeleton path, not the ".." the importer
@@ -258,8 +265,12 @@ func _apply_visibility() -> void:
 	for m in [jacket, lapel, trousers]:
 		if m:
 			m.visible = _dressed
+	if rig and _covered_mesh:
+		rig.body.mesh = _covered_mesh if _dressed else _bare_mesh
 	if belt:
 		belt.visible = _dressed and not _hakama_on
+	if skirt:   # under a hakama the jacket is tucked in, and the hakama hides it
+		skirt.visible = _dressed and not _hakama_on
 	if hakama:
 		hakama.visible = _hakama_on
 		hakama_knot.visible = _hakama_on and _dressed
@@ -456,6 +467,69 @@ func _offset_for(piece: String, bone: String) -> float:
 	return SLEEVE_OFFSET if bone.ends_with("Arm") else JACKET_OFFSET
 
 
+# ---------------------------------------------------------------- the skin under the cloth
+
+## Body vertices inside the jacket or the trousers (set while the shells are cut).
+var _covered := PackedByteArray()
+## The body as imported, and the same body without the skin the gi hides (see below).
+var _bare_mesh: Mesh
+var _covered_mesh: ArrayMesh
+## How far back from the cloth's edges, metres, the skin is still drawn: what shows through a
+## sleeve end, the V, past the lapels or under a hem is skin, not the inside of the cloth.
+const COVER_MARGIN := 0.07
+
+
+## The body mesh without the triangles the gi covers, worn while the gi is. A shell skinned with
+## the body's own weights keeps its distance from the skin only while the bones it blends turn
+## together: at a raised shoulder the upper arm turns 150° from the chest, the blend of the two
+## pulls the offset in, and the skin came out through the jacket at the back of the shoulder and
+## in the armpit. A person in a gi has no skin to show there, and now neither has the figure.
+## Only the index list changes: the vertices, and everything that reads them (the checks, the
+## skin radii, the shells themselves), are the imported body's.
+func _without_covered_skin(arrays: Array, source: Mesh) -> ArrayMesh:
+	var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+	var indices: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
+	# Hidden: covered skin further than COVER_MARGIN from any skin the cloth leaves bare.
+	var bare := {}
+	for v in verts.size():
+		if _covered[v] == 0:
+			var key := Vector3i((verts[v] / COVER_MARGIN).floor())
+			if not bare.has(key):
+				bare[key] = PackedVector3Array()
+			(bare[key] as PackedVector3Array).append(verts[v])
+	var keep := PackedByteArray()
+	keep.resize(verts.size())
+	for v in verts.size():
+		if _covered[v] == 0:
+			continue
+		var cell := Vector3i((verts[v] / COVER_MARGIN).floor())
+		var near := false
+		for dx in range(-1, 2):
+			for dy in range(-1, 2):
+				for dz in range(-1, 2):
+					for p: Vector3 in bare.get(cell + Vector3i(dx, dy, dz), PackedVector3Array()):
+						if p.distance_squared_to(verts[v]) < COVER_MARGIN * COVER_MARGIN:
+							near = true
+							break
+					if near: break
+				if near: break
+			if near: break
+		keep[v] = 0 if near else 1
+	var kept := PackedInt32Array()
+	for t in indices.size() / 3:
+		var a := indices[t * 3]; var b := indices[t * 3 + 1]; var c := indices[t * 3 + 2]
+		if keep[a] == 1 and keep[b] == 1 and keep[c] == 1:
+			continue
+		kept.append(a); kept.append(b); kept.append(c)
+	var out_arrays := arrays.duplicate()
+	out_arrays[Mesh.ARRAY_INDEX] = kept
+	var mesh := ArrayMesh.new()
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, out_arrays)
+	mesh.surface_set_material(0, source.surface_get_material(0))
+	mesh.resource_name = String(source.resource_name) + "_under_gi"
+	return mesh
+
+
 # ---------------------------------------------------------------- shells
 
 func _shell(arrays: Array, dominant: PackedStringArray, piece: String, material: Material) -> MeshInstance3D:
@@ -472,6 +546,8 @@ func _shell(arrays: Array, dominant: PackedStringArray, piece: String, material:
 		var c := _clamp_to(piece, verts[v], dominant[v])
 		clamped[v] = c
 		inside[v] = 1 if (not is_nan(c.x) and c.distance_squared_to(verts[v]) < 1e-10) else 0
+		if inside[v] == 1:
+			_covered[v] = 1
 	# Loose cloth hangs from the widest point above it: the shell's radius at any height on the
 	# torso and hips is at least the body's widest radius above, so the front falls straight
 	# from the chest and the hips hide the crotch instead of the cloth tracing every curve.
@@ -536,6 +612,112 @@ func _shell(arrays: Array, dominant: PackedStringArray, piece: String, material:
 			mesh.surface_set_material(mesh.get_surface_count() - 1, material if surface == 0 else collar_material)
 	var mi := MeshInstance3D.new()
 	mi.name = "Gi_" + piece
+	mi.mesh = mesh
+	return mi
+
+
+# ---------------------------------------------------------------- skirt
+
+## The jacket's skirt: from under the belt to JACKET_HEM_Y, outside the trousers. A gi jacket is
+## never tucked into the trousers; it hangs over them to the top of the thighs. The shell cut
+## from the body could not do that: the seat and the tops of the thighs are the legs' vertices,
+## so the jacket stopped at the hip joint and the trousers, cut from those vertices, covered the
+## hips over it. This is a tube of its own, as wide all round as the body there (trunk and
+## thighs) plus the trousers and SKIRT_GAP, falling straight from the belt and hanging rather
+## than narrowing, and it hands over from the hips to each thigh going down, the front sooner
+## than the back, so a thigh raised in a step or in seiza carries the cloth over it.
+const SKIRT_SECTORS := 48
+const SKIRT_RINGS := 14
+const SKIRT_GAP := 0.012
+## Where it starts, under the belt.
+const SKIRT_TOP_Y := BELT_Y + 0.012
+## How fast the skirt may narrow going down, metres of radius per metre (it hangs).
+const SKIRT_TAPER := 0.25
+## How much of a vertex follows its thigh at the hem: front, side, back.
+const SKIRT_TO_LEG := [0.85, 0.6, 0.45]
+
+
+func _skirt(arrays: Array, dominant: PackedStringArray) -> MeshInstance3D:
+	var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+	var n := SKIRT_SECTORS
+	var centre_z := 0.02
+	# The body's radius per sector and ring: trunk and thighs, never the arms hanging beside.
+	var ys := PackedFloat32Array()
+	for j in SKIRT_RINGS + 1:
+		ys.append(lerpf(SKIRT_TOP_Y, JACKET_HEM_Y, float(j) / SKIRT_RINGS))
+	var radius: Array = []
+	for j in ys.size():
+		var row := PackedFloat32Array(); row.resize(n); row.fill(0.0)
+		radius.append(row)
+	for i in verts.size():
+		var d: String = dominant[i]
+		if not (d in TORSO or d.ends_with("UpperLeg")):
+			continue
+		var v := verts[i]
+		if v.y > SKIRT_TOP_Y + 0.03 or v.y < JACKET_HEM_Y - 0.03:
+			continue
+		var flat := Vector2(v.x, v.z - centre_z)
+		var k := int(floor(wrapf(flat.angle(), 0.0, TAU) / TAU * n)) % n
+		for j in ys.size():
+			if absf(v.y - ys[j]) < 0.03:
+				radius[j][k] = maxf(radius[j][k], flat.length())
+	for j in ys.size():
+		var row: PackedFloat32Array = radius[j]
+		# A sector no vertex fell into (between the thighs, low down) takes its neighbours'.
+		for _pass in 4:
+			for k in n:
+				if row[k] <= 0.0:
+					row[k] = maxf(row[(k + n - 1) % n], row[(k + 1) % n])
+		var smooth := PackedFloat32Array(); smooth.resize(n)
+		for k in n:
+			smooth[k] = (row[(k + n - 2) % n] + row[(k + n - 1) % n] * 2.0 + row[k] * 3.0 + row[(k + 1) % n] * 2.0 + row[(k + 2) % n]) / 9.0
+			# Close over the trousers at the waist, where the belt holds it, and the full gap
+			# from a hand's breadth down.
+			smooth[k] = maxf(smooth[k], row[k]) + TROUSER_OFFSET + lerpf(0.004, SKIRT_GAP, clampf((SKIRT_TOP_Y - ys[j]) / 0.06, 0.0, 1.0))
+		if j > 0:   # cloth hangs: it narrows slowly below a wide point
+			for k in n:
+				smooth[k] = maxf(smooth[k], (radius[j - 1] as PackedFloat32Array)[k] - SKIRT_TAPER * (ys[j - 1] - ys[j]))
+		radius[j] = smooth
+	var nv := PackedVector3Array(); var nn := PackedVector3Array()
+	var nb := PackedInt32Array(); var nw := PackedFloat32Array(); var ni := PackedInt32Array()
+	var hips := _bind_index("Hips"); var spine := _bind_index("Spine")
+	var left := _bind_index("LeftUpperLeg"); var right := _bind_index("RightUpperLeg")
+	for j in ys.size():
+		for k in n:
+			var a := (float(k) + 0.5) / n * TAU
+			var dir := Vector2(cos(a), sin(a))
+			var r: float = radius[j][k]
+			nv.append(Vector3(dir.x * r, ys[j], centre_z + dir.y * r))
+			nn.append(Vector3(dir.x, 0.0, dir.y))
+			# Front (+Z) follows its thigh most, the back least; across the middle the two
+			# thighs share it.
+			var along := dir.y
+			var share: float = lerpf(SKIRT_TO_LEG[1], SKIRT_TO_LEG[0] if along > 0.0 else SKIRT_TO_LEG[2], absf(along))
+			var to_leg := _ease_down(ys[j], SKIRT_TOP_Y - 0.05, JACKET_HEM_Y) * share
+			var to_left := clampf(0.5 + dir.x * 2.0, 0.0, 1.0)
+			var top := clampf((ys[j] - (SKIRT_TOP_Y - 0.04)) / 0.04, 0.0, 1.0) * 0.3
+			var on_hips := 1.0 - to_leg
+			nb.append_array(PackedInt32Array([hips, spine, left, right]))
+			nw.append_array(PackedFloat32Array([on_hips * (1.0 - top), on_hips * top, to_leg * to_left, to_leg * (1.0 - to_left)]))
+	for j in SKIRT_RINGS:
+		for k in n:
+			var a := j * n + k
+			var b := j * n + (k + 1) % n
+			ni.append_array(PackedInt32Array([a, a + n, b, b, a + n, b + n]))
+	var arr := []
+	arr.resize(Mesh.ARRAY_MAX)
+	arr[Mesh.ARRAY_VERTEX] = nv
+	arr[Mesh.ARRAY_NORMAL] = nn
+	arr[Mesh.ARRAY_BONES] = nb
+	arr[Mesh.ARRAY_WEIGHTS] = nw
+	arr[Mesh.ARRAY_INDEX] = ni
+	var mesh := ArrayMesh.new()
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arr)
+	var m: StandardMaterial3D = cloth_material.duplicate()
+	m.cull_mode = BaseMaterial3D.CULL_DISABLED   # the inside shows under the hem
+	mesh.surface_set_material(0, m)
+	var mi := MeshInstance3D.new()
+	mi.name = "Gi_skirt"
 	mi.mesh = mesh
 	return mi
 
@@ -748,8 +930,10 @@ func _belt(arrays: Array, dominant: PackedStringArray) -> MeshInstance3D:
 	var radii := PackedFloat32Array()
 	radii.resize(n)
 	radii.fill(0.0)
-	# Measured on the jacket shell, so the belt sits over the draped cloth.
+	# Measured on the jacket shell and its skirt, so the belt sits over the draped cloth.
 	var shell: PackedVector3Array = jacket.mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX]
+	if skirt:
+		shell.append_array(skirt.mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX])
 	for v in shell:
 		var d := Vector2(v.x - centre.x, v.z - centre.z)
 		if absf(v.y - BELT_Y) < BELT_HEIGHT * 0.75 and d.length() < 0.22:

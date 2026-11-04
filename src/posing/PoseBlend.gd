@@ -31,6 +31,7 @@ static func apply(scene: PosingScene, director: GripDirector, a: Dictionary, b: 
 	var grips_a := _grips_by_key(a)
 	var grips_b := _grips_by_key(b)
 	var orient_after := {}
+	var looking := []
 	# A figure with a weapon in hand moves its arms with its trunk: the weapon is held by both
 	# hands and driven from the hips, and arms trailing the turning body would put a forearm
 	# through it (kumijo's thrust).
@@ -57,6 +58,11 @@ static func apply(scene: PosingScene, director: GripDirector, a: Dictionary, b: 
 			ctx.get("solved_a", {}).get(id, {}), ctx.get("solved_b", {}).get(id, {}), ctx)
 		if not orient.is_empty():
 			orient_after[rig] = orient
+		# What the figure watches: the pose it is leaving until half way, then the one it is
+		# going to (Gaze; the eyes follow it on every frame).
+		var u_head := clampf(float(ctx.get("u", {}).get("head", u)), 0.0, 1.0)
+		rig.look = (cb if u_head >= 0.5 else ca).get("look", null)
+		looking.append([rig, u_head])
 	var cu: Dictionary = ctx.get("u", {})
 	var u_arms: float = clampf(float(cu.get("arms", u)), 0.0, 1.0)
 	var u_held: float = clampf(float(cu.get("spine", u)), 0.0, 1.0)
@@ -75,6 +81,16 @@ static func apply(scene: PosingScene, director: GripDirector, a: Dictionary, b: 
 		director.rebuild()
 	if director:
 		director.refresh_hand_driven()
+	# Between two poses whose figures both watch something, the neck and head take up what the
+	# blend left between the face and what it watches, fading to nothing at the poses (which
+	# already look where they should) as the clearance does.
+	for lk: Array in looking:
+		var who: CharacterRig = lk[0]
+		var w: float = lk[1]
+		var both: bool = chars_a.get(who.character_id, {}).get("look", null) != null \
+			and chars_b.get(who.character_id, {}).get("look", null) != null
+		if both and w > 0.0 and w < 1.0:
+			Gaze.turn_head(scene, who, smoothstep(0.0, CLEARANCE_FADE, w) * smoothstep(0.0, CLEARANCE_FADE, 1.0 - w))
 	# Strictly between two poses only: on a keyframe (u == 0) the saved pose is shown untouched.
 	if moving(u, ctx):
 		ContactSolve.solve(scene, director, clearance_strength(u, ctx))
@@ -385,6 +401,10 @@ static func _apply_character(rig: CharacterRig, ca: Dictionary, cb: Dictionary, 
 			var short := want - sole_lowest(rig, side, t)
 			if short > 0.0:
 				t.origin.y += short
+			if not falling:
+				# Faded in and out with the move, so a pose that stands on a bent ankle is
+				# still shown as saved.
+				t = lift_heel(rig, limb, t, smoothstep(0.0, CLEARANCE_FADE, ul) * smoothstep(0.0, CLEARANCE_FADE, 1.0 - ul))
 			limb.target.global_transform = t
 			if falling:
 				limb.pole.global_position = pa.lerp(pb, ul)
@@ -515,6 +535,46 @@ static func arm_with_body(rig: CharacterRig, limb: Limb, ta: Transform3D, tb: Tr
 const STEP_MIN := 0.08
 const STEP_MAX_LIFT := 0.10
 const STEP_FLOOR := 0.2
+
+
+## How far the shin may lean over a foot flat on the mat before the heel comes up, degrees: a
+## little inside the ankle's dorsiflexion (Joints, 35°).
+const HEEL_FROM := 30.0
+
+
+## A foot target turned up onto the ball of the foot as far as the shin leans past HEEL_FROM over
+## it. Walking in and stepping through, the hips pass over a foot that stays flat on the mat, and
+## the ankle was asked for 40–45° of dorsiflexion where it has 35: a person's heel lifts there and
+## the foot rolls onto its ball. The shin is where the leg's IK will put it (the knee from the hip,
+## the ankle and the pole), so this is read before the solve.
+static func lift_heel(rig: CharacterRig, limb: Limb, t: Transform3D, strength := 1.0) -> Transform3D:
+	var sk := rig.skeleton
+	var foot_i := sk.find_bone(limb.end_bone)
+	var toes_i := sk.find_bone(limb.end_bone.replace("Foot", "Toes"))
+	if foot_i < 0 or toes_i < 0:
+		return t
+	var rest := sk.get_bone_global_rest(foot_i)
+	var rest_basis := rest.basis.orthonormalized()
+	var up_local := rest_basis.inverse() * Vector3.UP
+	var ball_local := rest.affine_inverse() * sk.get_bone_global_rest(toes_i).origin
+	var toes_local := (rest_basis.inverse() * (sk.get_bone_global_rest(toes_i).origin - rest.origin)).normalized()
+	var hip := rig.fk_bone_transform(limb.root_bone).origin
+	var l1 := sk.get_bone_pose_position(sk.find_bone(limb.middle_bone)).length()
+	var l2 := sk.get_bone_pose_position(foot_i).length()
+	for _i in 2:
+		var b := t.basis.orthonormalized()
+		var up := (b * up_local).normalized()
+		var toes := b * toes_local
+		toes = (toes - up * toes.dot(up)).normalized()
+		var knee := ContactSolve._ik_middle(hip, t.origin, limb.pole.global_position, l1, l2)
+		var shin := (knee - t.origin).normalized()
+		var lean := rad_to_deg(atan2(shin.dot(toes), shin.dot(up)))
+		if lean <= HEEL_FROM or strength <= 0.0:
+			break
+		var pivot: Vector3 = t * ball_local
+		var turn := Basis(up.cross(toes).normalized(), deg_to_rad((lean - HEEL_FROM) * strength))
+		t = Transform3D(turn * t.basis, pivot + turn * (t.origin - pivot))
+	return t
 
 
 static func step_lift(from: Vector3, to: Vector3, u: float) -> float:

@@ -30,6 +30,48 @@ const ARM_BONES := ["RightUpperArm", "LeftUpperArm", "RightLowerArm", "LeftLower
 	"RightHand", "LeftHand"]
 const WEAPON_RADIUS := 0.015
 
+## The body's surface for contact between two people, fitted to the mesh
+## (tools/fit_body_shapes.gd prints this table): bone -> [point, point, radius] in the rest pose,
+## character space (+X the figure's left, +Z its front), each capsule carried by its bone.
+## RADII above are capsules round the bones themselves, and a bone is not where the body is: the
+## spine runs down the back, so a 10 cm capsule round it ends 5 cm short of the front of the chest
+## and 5 cm short of its sides, and a partner's forearm could lie that far inside a chest (and
+## the gi on it) with nothing noticing. Here the trunk is a capsule across the body per trunk
+## bone, as wide and as deep as the mesh, and each limb's capsule is moved onto the middle of its
+## flesh and made as thick as it (a hand, which is flat, as a little less: a capsule as wide as
+## the palm is twice as thick as it, and a palm laid on someone would read as pressed into them).
+## A foot, which is flat, is as high as it is at the toes (the fit's radius is its width), its
+## underside on the sole. These are what body_overlaps checks and ContactSolve keeps
+## apart; RADII stay for the figure against itself and against the mat, where they were tuned.
+const SHAPES := {
+	"Hips": [Vector3(-0.041, 0.920, 0.021), Vector3(0.041, 0.920, 0.021), 0.114],
+	"Spine": [Vector3(-0.041, 1.050, 0.048), Vector3(0.041, 1.050, 0.048), 0.091],
+	"Chest": [Vector3(-0.042, 1.190, 0.043), Vector3(0.042, 1.190, 0.043), 0.108],
+	"UpperChest": [Vector3(-0.040, 1.330, 0.025), Vector3(0.040, 1.330, 0.025), 0.099],
+	"Neck": [Vector3(0.000, 1.408, 0.022), Vector3(0.001, 1.459, 0.038), 0.058],
+	"Head": [Vector3(0.000, 1.496, 0.071), Vector3(-0.000, 1.590, 0.070), 0.083],
+	"RightUpperArm": [Vector3(-0.170, 1.320, 0.021), Vector3(-0.331, 1.139, 0.022), 0.058],
+	"LeftUpperArm": [Vector3(0.170, 1.320, 0.020), Vector3(0.331, 1.139, 0.021), 0.058],
+	"RightLowerArm": [Vector3(-0.329, 1.140, 0.022), Vector3(-0.451, 1.016, 0.185), 0.037],
+	"LeftLowerArm": [Vector3(0.329, 1.140, 0.022), Vector3(0.451, 1.016, 0.185), 0.037],
+	"RightHand": [Vector3(-0.452, 1.012, 0.181), Vector3(-0.488, 0.967, 0.244), 0.030],
+	"LeftHand": [Vector3(0.452, 1.012, 0.181), Vector3(0.488, 0.967, 0.244), 0.030],
+	"RightUpperLeg": [Vector3(-0.086, 0.865, 0.016), Vector3(-0.128, 0.474, 0.049), 0.097],
+	"LeftUpperLeg": [Vector3(0.086, 0.865, 0.015), Vector3(0.128, 0.474, 0.048), 0.098],
+	"RightLowerLeg": [Vector3(-0.149, 0.476, 0.019), Vector3(-0.187, 0.070, 0.004), 0.057],
+	"LeftLowerLeg": [Vector3(0.149, 0.476, 0.019), Vector3(0.187, 0.070, 0.004), 0.058],
+	"RightFoot": [Vector3(-0.191, 0.036, 0.014), Vector3(-0.189, 0.034, 0.147), 0.032],
+	"LeftFoot": [Vector3(0.192, 0.036, 0.014), Vector3(0.190, 0.034, 0.147), 0.032],
+}
+## What the gi adds over the skin where it covers the body, metres: the jacket and trousers stand
+## 2–4 cm off the skin but give when pressed, so a little of it counts.
+const CLOTH := 0.01
+const CLOTHED := ["Hips", "Spine", "Chest", "UpperChest", "RightUpperArm", "LeftUpperArm",
+	"RightUpperLeg", "LeftUpperLeg", "RightLowerLeg", "LeftLowerLeg"]
+## How deep two people's surfaces may press into each other before it reads as one through the
+## other: cloth and flesh give that much where bodies meet.
+const PRESS := 0.02
+
 ## Joint flexion limits in degrees: [min, max] of the angle between the two bone directions.
 ## 0 is straight. Elbows and knees do not hyperextend on this mannequin's rest pose.
 const FLEXION := {
@@ -306,6 +348,25 @@ static func segments(rig: CharacterRig, fk := false) -> Dictionary:
 	return out
 
 
+## The body's surface as capsules (SHAPES), posed: bone name -> [end a, end b, radius]. With
+## `fk` from the pose alone, as `segments`.
+static func shapes(rig: CharacterRig, fk := false) -> Dictionary:
+	var sk := rig.skeleton
+	var out := {}
+	var dressed := rig.gi_visible
+	for name: String in SHAPES:
+		var i := sk.find_bone(name)
+		if i < 0:
+			continue
+		var rest_inv := sk.get_bone_global_rest(i).affine_inverse()
+		var here := rig.fk_bone_transform(name) if fk else rig.bone_world_transform(name)
+		here = Transform3D(here.basis.orthonormalized(), here.origin)
+		var shape: Array = SHAPES[name]
+		var r: float = shape[2] + (CLOTH if dressed and name in CLOTHED else 0.0)
+		out[name] = [here * (rest_inv * (shape[0] as Vector3)), here * (rest_inv * (shape[1] as Vector3)), r]
+	return out
+
+
 static func parents_of(rig: CharacterRig) -> Dictionary:
 	var sk := rig.skeleton
 	var out := {}
@@ -349,8 +410,9 @@ static func allowed_overlap(a: String, b: String) -> float:
 	return PENETRATION
 
 
-## Two characters: any segment of one deeper than PENETRATION into any of the other, except a
-## gripping hand against the limb it grips (a hand closed on a wrist overlaps it by design).
+## Two characters: any part of one pressed deeper than PRESS into any part of the other, their
+## surfaces as SHAPES has them, except a gripping hand against the limb it grips (a hand closed
+## on a wrist overlaps it by design).
 static func body_intersections(a: CharacterRig, b: CharacterRig, director: GripDirector = null) -> PackedStringArray:
 	var out := PackedStringArray()
 	for o in body_overlaps(a, b, director):
@@ -363,7 +425,7 @@ static func body_intersections(a: CharacterRig, b: CharacterRig, director: GripD
 ## pb on `b`'s, so a caller can push the two bodies apart along pa - pb.
 static func body_overlaps(a: CharacterRig, b: CharacterRig, director: GripDirector = null, fk := false) -> Array:
 	var out := []
-	var sa := segments(a, fk); var sb := segments(b, fk)
+	var sa := shapes(a, fk); var sb := shapes(b, fk)
 	var exempt := {}
 	if director:
 		for g in director.grips:
@@ -385,7 +447,7 @@ static func body_overlaps(a: CharacterRig, b: CharacterRig, director: GripDirect
 			if exempt.has("%s/%s|%s/%s" % [a.character_id, na, b.character_id, nb]) or exempt.has("%s/%s|%s/%s" % [b.character_id, nb, a.character_id, na]):
 				continue
 			var hit := _overlap(sa[na], sb[nb])
-			if hit["depth"] > PENETRATION:
+			if hit["depth"] > PRESS:
 				hit["a"] = na; hit["b"] = nb
 				out.append(hit)
 	return out

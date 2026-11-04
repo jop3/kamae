@@ -25,6 +25,12 @@ extends SkeletonModifier3D
 ## Below this flexion the bend plane is too ill-defined to follow.
 const MIN_FLEXION_DEG := 5.0
 
+## What a centimetre of forearm inside the figure's own head costs the turn, in degrees of joint
+## range (LimbTurn.excess): a forearm through the face is worse than a shoulder a few degrees over.
+const HEAD_COST_PER_CM := 3.0
+const FOREARM_RADIUS := 0.037
+
+
 ## The rig whose joint ranges bound the root; without one the twist is unbounded.
 var rig: CharacterRig
 ## Mid-blend: the nearest local minimum, not the global one (see HandOrient.local_search).
@@ -88,12 +94,40 @@ func _keep_root_in_range(sk: Skeleton3D) -> void:
 	var line := (sk.get_bone_global_pose(_e).origin - sk.get_bone_global_pose(_r).origin).normalized()
 	if line.length_squared() < 0.5:
 		return
+	var head := _head_segment(sk)
+	var root_at := sk.get_bone_global_pose(_r).origin
+	var elbow_at := sk.get_bone_global_pose(_m).origin
+	var hand_at := sk.get_bone_global_pose(_e).origin
 	var cost := func(phi_deg: float) -> float:
 		var turned := (Basis(line, deg_to_rad(phi_deg)) * r0).orthonormalized()
-		return LimbTurn.excess(spec, LimbTurn.angles_of(spec, parent_basis, turned)) \
+		var c := LimbTurn.excess(spec, LimbTurn.angles_of(spec, parent_basis, turned)) \
 			+ LimbTurn.TURN_COST_PER_DEG * absf(phi_deg)
+		if not head.is_empty():
+			# The forearm kept out of the figure's own head: with the arm raised the turn that
+			# suits the shoulder can lay the forearm across the face.
+			var elbow := root_at + Basis(line, deg_to_rad(phi_deg)) * (elbow_at - root_at)
+			var pts := Anatomy._closest_points(elbow, hand_at, head[0], head[1])
+			var depth: float = head[2] + FOREARM_RADIUS - (pts[0] as Vector3).distance_to(pts[1])
+			if depth > 0.0:
+				c += depth * 100.0 * HEAD_COST_PER_CM
+		return c
 	var phi := LimbTurn.descend(cost) if local_search else LimbTurn.search(cost)
 	if absf(phi) < 1e-3:
 		return
 	last_turn_deg = phi
 	LimbTurn.set_world_basis(sk, _r, Basis(line, deg_to_rad(phi)) * r0)
+
+
+## The head's surface (Anatomy.SHAPES) in the skeleton's space as it is posed now, for an arm;
+## empty for a leg.
+func _head_segment(sk: Skeleton3D) -> Array:
+	if not root_bone.ends_with("UpperArm"):
+		return []
+	var h := sk.find_bone("Head")
+	if h < 0:
+		return []
+	var shape: Array = Anatomy.SHAPES["Head"]
+	var to_bone := sk.get_bone_global_rest(h).affine_inverse()
+	var pose := sk.get_bone_global_pose(h)
+	pose = Transform3D(pose.basis.orthonormalized(), pose.origin)
+	return [pose * (to_bone * (shape[0] as Vector3)), pose * (to_bone * (shape[1] as Vector3)), shape[2]]

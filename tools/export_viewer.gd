@@ -151,7 +151,15 @@ func _export_character(rig: CharacterRig, path: String) -> Error:
 		m.skin = child.skin
 		for s in child.mesh.get_surface_count():
 			var mat: Material = child.get_active_material(s)
-			if mat is ShaderMaterial and rig.gi and rig.gi.hakama_material:
+			if mat is ShaderMaterial and child.name == "Eyes":
+				# The turning eyes' shader has no glTF form either: the plain eye, cut out.
+				var eye := StandardMaterial3D.new()
+				eye.albedo_texture = mat.get_shader_parameter("albedo_texture")
+				eye.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
+				eye.alpha_scissor_threshold = 0.5
+				eye.roughness = 0.2
+				mat = eye
+			elif mat is ShaderMaterial and rig.gi and rig.gi.hakama_material:
 				mat = rig.gi.hakama_material   # the hakama's resting-on-the-mat shader has no glTF form
 			m.set_surface_override_material(s, mat)
 		sk.add_child(m)

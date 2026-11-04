@@ -58,6 +58,9 @@ func _ready() -> void:
 	if args.has("--render-stills"):
 		await _render_stills(args)
 		return
+	if args.has("--review-frames"):
+		await _review_frames(args)
+		return
 	if args.has("--screenshot-ui"):
 		# Development aid: the last drawn frame with the panel visible (exports never include it),
 		# with a joint selected so the gizmo shows too.
@@ -141,7 +144,7 @@ func _on_export_requested(transparent: bool) -> void:
 ## must keep the full export size.
 static func _is_render_child() -> bool:
 	var args := OS.get_cmdline_user_args()
-	return OS.has_feature("movie") or args.has("--render-sequence") or args.has("--render-stills")
+	return OS.has_feature("movie") or args.has("--render-sequence") or args.has("--render-stills") or args.has("--review-frames")
 
 
 func _on_video_export_requested(seq: Sequence) -> void:
@@ -257,6 +260,83 @@ func _render_stills(args: PackedStringArray) -> void:
 			var path := stills_dir.path_join("%s_%s_%s.png" % [seq.slug(), phases[i], view])
 			await StillExport.capture(get_viewport(), path, transparent, _hide_always(), _hide_for_transparent())
 			print("still saved: ", path)
+	get_tree().quit()
+
+
+## Review mode (tools/review_frames.sh): the sequence played frame by frame as the film plays it,
+## and every `--every` seconds (or at the `--at` times, comma separated) close-ups of the figures
+## as they are on that frame, framed tight from the front, the side, behind and the other side:
+## <dir>/<slug>_t<time>_<view>.png. For looking at an elbow, a face or two bodies in contact
+## between the keyframes, which the film's wide shot is too far away to show.
+func _review_frames(args: PackedStringArray) -> void:
+	var seq_path: String = args[args.find("--review-frames") + 1]
+	var poses_dir: String = args[args.find("--poses-dir") + 1] if args.has("--poses-dir") else seq_path.get_base_dir()
+	var out_dir: String = args[args.find("--out") + 1] if args.has("--out") else seq_path.get_base_dir()
+	var every: float = float(args[args.find("--every") + 1]) if args.has("--every") else 0.5
+	var times := []
+	if args.has("--at"):
+		for s in args[args.find("--at") + 1].split(","):
+			times.append(float(s))
+	var seq := Sequence.load(seq_path)
+	if seq == null or not player.load_sequence(seq, poses_dir).is_empty():
+		push_error("Cannot read sequence %s" % seq_path)
+		get_tree().quit(1)
+		return
+	posing_scene.show_handles = false
+	for rig in posing_scene.characters:
+		rig.set_show_handles(false)
+	PoseFile.apply(player.poses[seq.steps[0]["pose"]], posing_scene, grip_director)
+	ui_layer.visible = false
+	gizmo.suppressed = true
+	await get_tree().process_frame
+	await player.prepare()
+	DirAccess.make_dir_recursive_absolute(out_dir)
+	var fps := float(MovieExport.FPS)
+	var n := int(round(seq.duration() * fps))
+	var next := 0.0
+	# Only the frames that are looked at are drawn: drawing every one is most of the time taken.
+	RenderingServer.render_loop_enabled = false
+	for i in n + 1:
+		var t := float(i) / fps
+		player.seek(t)
+		await get_tree().process_frame
+		var due := false
+		if times.is_empty():
+			due = t >= next - 1e-4
+		else:
+			for want in times:
+				if absf(float(want) - t) < 0.5 / fps:
+					due = true
+		if not due:
+			continue
+		next += every
+		RenderingServer.render_loop_enabled = true
+		await get_tree().process_frame
+		var axis: Dictionary = posing_scene.tori_uke_axis()
+		var along: Vector3 = axis["to"] - axis["from"]
+		along.y = 0.0
+		along = along.normalized() if along.length() > 0.001 else Vector3(0, 0, 1)
+		var side := along.cross(Vector3.UP).normalized()
+		var sphere := CameraPresets.bounding_sphere(posing_scene)
+		if args.has("--focus"):   # "<id>.<Bone>": a close-up on that part (a face, a hand)
+			var spec: String = args[args.find("--focus") + 1]
+			var who := posing_scene.get_character(spec.get_slice(".", 0))
+			if who:
+				sphere = {"center": who.bone_world_transform(spec.get_slice(".", 1)).origin + Vector3(0, 0.06, 0), "radius": 0.18}
+				# Seen from the way that figure faces: "front" is its face.
+				along = -(Basis(Vector3.UP, who.rotation.y) * Vector3(0, 0, 1))
+				side = along.cross(Vector3.UP).normalized()
+		var distance := float(sphere["radius"]) / tan(deg_to_rad(CameraPresets.FOV_DEG) * 0.5) * 0.85
+		for view in [["front", (-along).rotated(Vector3.UP, deg_to_rad(35.0))], ["side", side], ["back", along.rotated(Vector3.UP, deg_to_rad(35.0))], ["other", -side]]:
+			camera.fov = CameraPresets.FOV_DEG
+			var dir: Vector3 = view[1]
+			dir = (dir + Vector3(0, 0.35, 0)).normalized()
+			camera.apply_preset({"direction": dir, "center": sphere["center"], "distance": distance})
+			var path := out_dir.path_join("%s_t%05.2f_%s.png" % [seq.slug(), t, view[0]])
+			await StillExport.capture(get_viewport(), path, false, _hide_always(), _hide_for_transparent())
+		RenderingServer.render_loop_enabled = false
+		print("review frame: t=%.2f" % t)
+	RenderingServer.render_loop_enabled = true
 	get_tree().quit()
 
 
