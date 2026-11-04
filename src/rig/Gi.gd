@@ -713,9 +713,10 @@ func _skirt(arrays: Array, dominant: PackedStringArray) -> MeshInstance3D:
 	arr[Mesh.ARRAY_INDEX] = ni
 	var mesh := ArrayMesh.new()
 	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arr)
-	var m: StandardMaterial3D = cloth_material.duplicate()
-	m.cull_mode = BaseMaterial3D.CULL_DISABLED   # the inside shows under the hem
-	mesh.surface_set_material(0, m)
+	# Both sides drawn (the inside shows under the hem), and whatever of it a fall puts on the
+	# mat laid on the mat, as the hakama is: carried by the hips, the back of the skirt went
+	# 3 cm under it with Uke on his back.
+	mesh.surface_set_material(0, resting_on_mat(cloth_material))
 	var mi := MeshInstance3D.new()
 	mi.name = "Gi_skirt"
 	mi.mesh = mesh

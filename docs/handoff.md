@@ -1930,14 +1930,19 @@ into the other, 9941 cm of overlap summed over frames — the old check had seen
   trousers — the shell cut from the body stopped at the hip joint, because the seat belongs to
   the thigh bones, and the trousers covered the hips over it. Hidden under a hakama.
 
-**Numbers** (check_motion on the fitted surface, the 14 technique scripts rebuilt; before → after):
-implausible frames 734 → 646, frames with a body pressed > 2 cm into the other 567 → 447,
-overlap summed over frames 9941 → 5586 cm, a figure's limb inside its own body 318 → 255. The 22
-attacks: no ankle faults left; what remains (159 frames) is mostly a gripping hand 2–4 cm into
-the gi it holds (eridori, hijidori, munedori), which a cloth grip does. The committed library's
-records went up only because the measure did: run with the old code under the new measure it
-is the same or worse (shihonage irimi 38, zenponage 14), and `OUTSTANDING` in check_motion and
-check_anatomy say so.
+**Numbers** (check_motion on the fitted surface, the 14 technique scripts rebuilt and re-filmed;
+before → after): implausible frames 734 → 655, frames with a body pressed > 2 cm into the other
+567 → 478, overlap summed over frames 9941 → 5279 cm, a figure's limb inside its own body
+318 → 254; kaitennage alone 1364 → 266 cm (62 → 39 frames). What is left, by pair: thigh against
+thigh (215 frames), upper arm against upper arm (125), thigh against shin (61), Tori's forearm
+in his own head (45). The 22 attacks: no ankle faults left; what remains is mostly a gripping
+hand 2–4 cm into the gi it holds (eridori 31, the attacks from behind 26–29), which a cloth grip
+does. Under the mat: the same four scripts as before (yokomenuchi shihonage 45 frames, 3.3 cm;
+ushiro ryotedori kotegaeshi 12; shomenuchi ikkyo 5; tenkan kokyunage 2), all skin. The committed
+library's records went up only because the measure did: run with the old code under the new
+measure it is the same or worse (shihonage irimi 38, zenponage 14), and `OUTSTANDING` in
+check_motion and check_anatomy say so. All 41 scripts were re-filmed (`techniques/build/`) and
+the gallery page regenerated locally; the published library page was not updated this session.
 
 **Still wrong, in order of what the films show:**
 1. *Thigh against thigh, upper arm against upper arm* standing side by side (shihonage, tenkan,
@@ -1947,9 +1952,20 @@ check_anatomy say so.
    Tori's head, too low for the forearms to clear it whatever the elbow does (6–9 cm). The
    script's held hand wants to be higher and further forward (it is Uke's `hand … at`).
 3. *Kaitennage* Kaiten and Kake: the wrist that holds Uke's arm bends 150–160°, and Uke's held
-   arm is wound past its rotation; Uke wants to bend further forward as the arm goes up.
+   arm is wound past its rotation; Uke wants to bend further forward as the arm goes up. With
+   Tori now facing Uke's flank, Uke's forward roll passes close in front of him: the `move`
+   before the fall wants turning away from Tori.
 4. *Suwari kokyudosa*'s Osae: Tori's hands do not reach Uke's arm after the fall (shoulder
    rotation 129–179°, the hands up by his own head); moving Tori in did not fix it — the hand
    placement on a fallen Uke needs looking at (`where`).
 5. Library: ryotemochi's two Ukes stand shoulder into shoulder (7.4 cm), shihonage's kuzushi has
    Tori's upper arm in Uke's (6.6 cm); `tools/relax_pose.gd` could not part them (both arms held).
+
+**Tests run** (alone, on what was touched): test_* all pass (test_attacks counts a staged body
+through another only past 4.5 cm — staging places by rule and every technique relaxes its poses
+to PRESS before saving them; relaxing inside `Attacks.stage` was tried and moved the bear hug's
+hands off their grips); check_anatomy, check_smooth, check_floor pass; check_motion passes with
+the records above. Goldens: the gi demos still match (the skirt is small in a thumbnail);
+`hakama_roll_side` fails at 3.5 %, and it failed the same way (3.6 %) on the code this session
+started from — drift from an earlier session, not refreshed here; look at it before
+`UPDATE_GOLDEN=1`.

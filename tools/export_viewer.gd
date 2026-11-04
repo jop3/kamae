@@ -159,6 +159,8 @@ func _export_character(rig: CharacterRig, path: String) -> Error:
 				eye.alpha_scissor_threshold = 0.5
 				eye.roughness = 0.2
 				mat = eye
+			elif mat is ShaderMaterial and child.name == "Gi_skirt" and rig.gi:
+				mat = rig.gi.cloth_material   # the jacket's skirt, laid on the mat by a shader too
 			elif mat is ShaderMaterial and rig.gi and rig.gi.hakama_material:
 				mat = rig.gi.hakama_material   # the hakama's resting-on-the-mat shader has no glTF form
 			m.set_surface_override_material(s, mat)

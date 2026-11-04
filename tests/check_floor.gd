@@ -5,9 +5,9 @@ extends SceneTree
 ## solid, and a fall blended between two grounded poses swung Uke's whole body under the mat in
 ## the middle of the roll (the root is at the feet, and the pitch was turned about it). This walks
 ## each sequence at the export frame rate, skins the body and the gi on the CPU with
-## the solved pose, and reports the deepest vertex per frame. The hakama is not counted: its
-## shader lays any of it that reaches the mat on the mat (Gi.resting_on_mat), which is what
-## cloth does and what skinning alone cannot.
+## the solved pose, and reports the deepest vertex per frame. The hakama and the jacket's skirt are
+## not counted: their shader lays any of it that reaches the mat on the mat
+## (Gi.resting_on_mat), which is what cloth does and what skinning alone cannot.
 ##
 ##   FLOOR_SEQS_DIR=<dir> FLOOR_POSES_DIR=<dir> godot --headless -s tests/check_floor.gd
 ##
@@ -111,7 +111,6 @@ func lowest(rig: CharacterRig) -> Dictionary:
 	if rig.gi and rig.gi_visible:
 		meshes.append([rig.gi.jacket, "gi"])
 		meshes.append([rig.gi.trousers, "trousers"])
-		meshes.append([rig.gi.skirt, "gi skirt"])
 	for m in meshes:
 		var mi: MeshInstance3D = m[0]
 		if mi == null or not mi.visible or mi.mesh == null or mi.skin == null:
