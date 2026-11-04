@@ -1969,3 +1969,25 @@ the records above. Goldens: the gi demos still match (the skirt is small in a th
 `hakama_roll_side` fails at 3.5 %, and it failed the same way (3.6 %) on the code this session
 started from — drift from an earlier session, not refreshed here; look at it before
 `UPDATE_GOLDEN=1`.
+
+### The gi stops looking inflated (same session, on request)
+
+"What is up with the Michelin man look of the gi? They look like balloons, it doesn't follow the
+body at all." The jacket was the skin pushed out 2.2 cm (sleeves 4 cm) along its normals, so it
+traced every muscle of this muscular mannequin 2–4 cm out: deltoids, pecs, lats and shoulder
+blades all came out as rounded balloons, the sleeves as inflated tubes round the biceps. Now
+(`Gi._smoothed_shell`, `_sleeve_cone`, `_hull_profile`):
+- the jacket's shell is smoothed over the mesh (80 Laplacian rounds, welded across UV seams) while
+  held at least 1 cm off the skin, so it rests on the high points and spans the hollows; normals
+  come from the smoothed surface, so the light no longer draws the muscles on it;
+- the sleeves are straight cones round the arm's bones, 8 cm at the shoulder narrowing to 5.8 cm
+  at the cuff, never closer than 1.2 cm to the arm;
+- each height slice of the draped trunk is the convex hull of the body's outline (cloth stretched
+  round a body), and the back hangs as one panel from the collar down (`DRAPE_BACK_TOP_Y`);
+- the trousers are unchanged: smoothed, they bridged out past the hakama's side openings.
+The gi goldens (`gi_belt`, `gi_sleeve`, `gi_shoulder`, `gi_collar`, `gi_collar_back`) were refreshed
+after looking at them. What still reads as big is the body under the cloth: the mannequin is
+MakeHuman's muscular build, with very large shoulders. A slimmer body is a regeneration
+(`tools/generate_mannequin.py`, `macro_detail_dict`) and moves the skeleton, so every committed
+pose with it — a decision for the user, not taken here.
+

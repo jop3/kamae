@@ -404,6 +404,10 @@ const DRAPE_TAPER := 0.35
 const SKIRT_FLARE := 0.0
 ## Above this the jacket narrows to the neck and is not draped; below it the trousers are legs.
 const DRAPE_TOP_Y := 1.30
+## The back of the jacket hangs from higher up, from the collar: a gi's back is one flat panel from
+## the shoulders down, not a back with its shoulder blades. (The front and sides stop at
+## DRAPE_TOP_Y, where the chest meets the shoulders and the arms hang beside the body.)
+const DRAPE_BACK_TOP_Y := 1.40
 const DRAPE_BOTTOM_Y := 0.70
 
 ## Per shell vertex on the torso (jacket) or hips (trousers): its draped rest position, on a
@@ -413,14 +417,14 @@ func _drape(piece: String, verts: PackedVector3Array, dominant: PackedStringArra
 	var out := {}
 	var draped_bones := ["Hips", "Spine", "Chest", "UpperChest", "LeftUpperLeg", "RightUpperLeg"] if piece == "jacket" else ["Hips"]
 	var n := DRAPE_SECTORS
-	var bins := int(ceil((DRAPE_TOP_Y - DRAPE_BOTTOM_Y) / DRAPE_BIN)) + 1
+	var bins := int(ceil((DRAPE_BACK_TOP_Y - DRAPE_BOTTOM_Y) / DRAPE_BIN)) + 1
 	var profile: Array = []
 	for b in bins:
 		var row := PackedFloat32Array(); row.resize(n); row.fill(0.0)
 		profile.append(row)
 	for i in verts.size():
 		var v := verts[i]
-		if v.y < DRAPE_BOTTOM_Y or v.y > DRAPE_TOP_Y or not (dominant[i] in TORSO):
+		if v.y < DRAPE_BOTTOM_Y or v.y > DRAPE_BACK_TOP_Y or not (dominant[i] in TORSO):
 			continue
 		var d := Vector2(v.x, v.z - DRAPE_AXIS_Z)
 		var k := int(floor(wrapf(d.angle(), 0.0, TAU) / TAU * n)) % n
@@ -440,14 +444,18 @@ func _drape(piece: String, verts: PackedVector3Array, dominant: PackedStringArra
 			elif not cinch:
 				profile[b][k] = maxf(profile[b][k], profile[b + 1][k] - DRAPE_TAPER * DRAPE_BIN)
 	for b in bins:
-		var row: PackedFloat32Array = profile[b]
+		var row: PackedFloat32Array = _hull_profile(profile[b])
 		var smooth := PackedFloat32Array(); smooth.resize(n)
 		for k in n:
 			smooth[k] = (row[(k + n - 1) % n] + row[k] * 2.0 + row[(k + 1) % n]) / 4.0
 		profile[b] = smooth
 	for i in verts.size():
 		var p := clamped[i]
-		if is_nan(p.x) or p.y < DRAPE_BOTTOM_Y or p.y > DRAPE_TOP_Y or not (dominant[i] in draped_bones):
+		if is_nan(p.x) or p.y < DRAPE_BOTTOM_Y or not (dominant[i] in draped_bones or (piece == "jacket" and dominant[i].ends_with("Shoulder"))):
+			continue
+		# Above the chest only the back hangs: well behind the axis and inside the shoulders.
+		var back := p.z < DRAPE_AXIS_Z - 0.02 and absf(p.x) < 0.16
+		if p.y > (DRAPE_BACK_TOP_Y if back else DRAPE_TOP_Y) or (dominant[i].ends_with("Shoulder") and not back):
 			continue
 		var d := Vector2(p.x, p.z - DRAPE_AXIS_Z)
 		if d.length() < 1e-4:
@@ -458,6 +466,205 @@ func _drape(piece: String, verts: PackedVector3Array, dominant: PackedStringArra
 		if d.length() < want:
 			var dir := d.normalized() * want
 			out[i] = Vector3(dir.x, p.y, DRAPE_AXIS_Z + dir.y)
+	return out
+
+
+## Cloth is not skin pushed out: cotton this heavy lies on the high points of the body and spans
+## the hollows between them. The shell as first made — every vertex pushed out along its normal —
+## traced each muscle of the mannequin 2–4 cm out, which made a balloon of every shoulder, chest
+## and upper arm. So the shell is smoothed over the mesh (Laplacian, positions welded across the
+## UV seams) while held at least SHELL_GAP off the skin under it: where the body bulges the cloth
+## rests near it, where it dips the cloth bridges over. Hems, cuffs, the collar band and the
+## draped front and back (which already hang) stay where they were. The normals are taken from
+## the smoothed surface, or the light would still draw the muscles on it.
+## Returns {body vertex: [position, normal]} for the vertices it moved.
+const SHELL_SMOOTHING := 80
+## The jacket only: the trousers are already plain tubes round the legs, and smoothed they
+## bridged out past the hakama's side openings at the hip.
+const SHELL_GAP := {"jacket": 0.010, "sleeve": 0.022}
+
+
+func _smoothed_shell(piece: String, verts: PackedVector3Array, normals: PackedVector3Array,
+		indices: PackedInt32Array, dominant: PackedStringArray, clamped: PackedVector3Array,
+		inside: PackedByteArray, draped: Dictionary, collar: PackedByteArray) -> Dictionary:
+	# Welded: one point per position, so the two sides of a UV seam move together.
+	var canon := PackedInt32Array(); canon.resize(verts.size()); canon.fill(-1)
+	var key_to := {}
+	var used := PackedByteArray(); used.resize(verts.size())
+	for t in indices.size() / 3:
+		var ins := 0
+		var usable := true
+		for k in 3:
+			var v := indices[t * 3 + k]
+			ins += inside[v]
+			if is_nan(clamped[v].x):
+				usable = false
+		if ins == 0 or not usable:
+			continue
+		for k in 3:
+			used[indices[t * 3 + k]] = 1
+	var pts: Array[Vector3] = []
+	var body: Array[Vector3] = []
+	var nrm: Array[Vector3] = []
+	var gap := PackedFloat32Array()
+	var axis: Array[Vector3] = []
+	var radius := PackedFloat32Array()
+	var fixed := PackedByteArray()
+	var members: Array = []
+	for v in verts.size():
+		if used[v] == 0:
+			continue
+		var key := Vector3i((verts[v] * 10000.0).round())
+		var c: int = key_to.get(key, -1)
+		if c < 0:
+			c = pts.size()
+			key_to[key] = c
+			var start: Vector3 = draped[v] if draped.has(v) else clamped[v] + normals[v] * _offset_for(piece, dominant[v])
+			var sleeve := piece == "jacket" and (dominant[v].ends_with("Arm") or dominant[v].ends_with("Hand"))
+			var cone := _sleeve_cone(clamped[v], dominant[v]) if sleeve else []
+			if not cone.is_empty():
+				var out_dir: Vector3 = clamped[v] - (cone[0] as Vector3)
+				start = (cone[0] as Vector3) + out_dir.normalized() * maxf(out_dir.length() + SLEEVE_MIN_GAP, float(cone[1]))
+			pts.append(start); body.append(clamped[v]); nrm.append(normals[v])
+			axis.append(cone[0] if not cone.is_empty() else Vector3.INF)
+			radius.append(maxf((clamped[v] - (cone[0] as Vector3)).length() + SLEEVE_MIN_GAP, float(cone[1])) if not cone.is_empty() else 0.0)
+			gap.append(SHELL_GAP["sleeve" if sleeve else piece])
+			fixed.append(1 if (draped.has(v) or inside[v] == 0 or collar[v] == 1) else 0)
+			members.append([v])
+		else:
+			(members[c] as Array).append(v)
+			if draped.has(v) or inside[v] == 0 or collar[v] == 1:
+				fixed[c] = 1
+		canon[v] = c
+	var n := pts.size()
+	var nbrs: Array = []
+	nbrs.resize(n)
+	for i in n:
+		nbrs[i] = []   # plain Arrays: a PackedInt32Array read out of `nbrs` is a copy
+	var faces := []
+	for t in indices.size() / 3:
+		var a := canon[indices[t * 3]]; var b := canon[indices[t * 3 + 1]]; var c := canon[indices[t * 3 + 2]]
+		if a < 0 or b < 0 or c < 0 or a == b or b == c or a == c:
+			continue
+		faces.append([a, b, c])
+		for e in [[a, b], [b, c], [c, a]]:
+			if not (nbrs[e[0]] as Array).has(e[1]):
+				(nbrs[e[0]] as Array).append(e[1])
+				(nbrs[e[1]] as Array).append(e[0])
+	for _it in SHELL_SMOOTHING:
+		var next := pts.duplicate()
+		for i in n:
+			var nb: Array = nbrs[i]
+			if fixed[i] == 1 or nb.is_empty():
+				continue
+			var avg := Vector3.ZERO
+			for j in nb:
+				avg += pts[j]
+			avg /= nb.size()
+			var p := pts[i].lerp(avg, 0.6)
+			# Never closer to the skin than the gap: the cloth rests on the high points. A sleeve
+			# keeps its cone's width round the arm's axis.
+			if axis[i] != Vector3.INF:
+				var r := (p - axis[i]).length()
+				if r < radius[i] and r > 1e-6:
+					p = axis[i] + (p - axis[i]) / r * radius[i]
+			else:
+				var off := (p - body[i]).dot(nrm[i])
+				if off < gap[i]:
+					p += nrm[i] * (gap[i] - off)
+			next[i] = p
+		pts = next
+	# Normals of the smoothed surface, turned to face the way the skin's did.
+	var acc: Array[Vector3] = []
+	acc.resize(n)
+	acc.fill(Vector3.ZERO)
+	for f: Array in faces:
+		var fn: Vector3 = (pts[f[1]] - pts[f[0]]).cross(pts[f[2]] - pts[f[0]])
+		for i in f:
+			acc[i] += fn
+	var out := {}
+	for i in n:
+		if fixed[i] == 1:
+			continue
+		var nn := acc[i].normalized() if acc[i].length() > 1e-9 else nrm[i]
+		if nn.dot(nrm[i]) < 0.0:
+			nn = -nn
+		for v in members[i]:
+			out[v] = [pts[i], nn]
+	return out
+
+
+## A keikogi sleeve is a wide straight tube, a little narrower at the cuff, that hangs off the
+## arm rather than tracing the biceps: its radius round the bone, metres, at the shoulder and the
+## elbow of the upper arm, and at the elbow and the cuff of the forearm; never closer to the arm
+## than SLEEVE_MIN_GAP.
+const SLEEVE_RADII := [0.080, 0.072, 0.068, 0.058]
+const SLEEVE_MIN_GAP := 0.012
+
+
+## The point on the arm's axis nearest `p` and the sleeve's radius there, for a vertex owned by
+## `bone`; empty when it is not an arm's.
+func _sleeve_cone(p: Vector3, bone: String) -> Array:
+	if bone.ends_with("Hand") or FingerCurl.is_finger_bone(bone):
+		bone = ("Left" if bone.begins_with("Left") else "Right") + "LowerArm"
+	if not (bone.ends_with("UpperArm") or bone.ends_with("LowerArm")):
+		return []
+	var sk := rig.skeleton
+	var i := sk.find_bone(bone)
+	var kids := sk.get_bone_children(i)
+	if i < 0 or kids.is_empty():
+		return []
+	var a := sk.get_bone_global_rest(i).origin
+	var b := sk.get_bone_global_rest(kids[0]).origin
+	var t := clampf((p - a).dot(b - a) / maxf((b - a).length_squared(), 1e-9), 0.0, 1.0)
+	var r: float = lerpf(SLEEVE_RADII[0], SLEEVE_RADII[1], t) if bone.ends_with("UpperArm") \
+		else lerpf(SLEEVE_RADII[2], SLEEVE_RADII[3], clampf(t / SLEEVE_END, 0.0, 1.0))
+	return [a.lerp(b, t), r]
+
+
+## A height slice of the drape as cloth wraps it: the convex hull of the body's outline. The
+## outline per sector traced the spine's groove, the lats and the shoulder blades, and the back
+## of the jacket came out as a bodybuilder's back in a leotard; cloth stretched round a body
+## spans every hollow of it. `row` is a radius per sector round the drape's axis.
+static func _hull_profile(row: PackedFloat32Array) -> PackedFloat32Array:
+	var n := row.size()
+	var pts: Array[Vector2] = []
+	for k in n:
+		if row[k] > 0.0:
+			var a := (float(k) + 0.5) / n * TAU
+			pts.append(Vector2(cos(a), sin(a)) * row[k])
+	if pts.size() < 3:
+		return row
+	pts.sort_custom(func(p, q): return p.x < q.x or (p.x == q.x and p.y < q.y))
+	var hull: Array[Vector2] = []
+	for pass_ in 2:   # monotone chain: lower then upper half
+		var start := hull.size()
+		var seq := pts if pass_ == 0 else pts.duplicate()
+		if pass_ == 1:
+			seq.reverse()
+		for p in seq:
+			while hull.size() >= start + 2 and (hull[-1] - hull[-2]).cross(p - hull[-2]) <= 0.0:
+				hull.pop_back()
+			hull.append(p)
+		hull.pop_back()
+	var out := row.duplicate()
+	for k in n:
+		if row[k] <= 0.0:
+			continue
+		var a := (float(k) + 0.5) / n * TAU
+		var dir := Vector2(cos(a), sin(a))
+		for i in hull.size():
+			var p: Vector2 = hull[i]
+			var q: Vector2 = hull[(i + 1) % hull.size()]
+			var e := q - p
+			var den := dir.cross(e)
+			if absf(den) < 1e-9:
+				continue
+			var t := p.cross(e) / den        # distance along the ray
+			var u := p.cross(dir) / den      # where on the edge
+			if t > 0.0 and u >= -1e-6 and u <= 1.0 + 1e-6:
+				out[k] = maxf(row[k], t)
+				break
 	return out
 
 
@@ -558,6 +765,8 @@ func _shell(arrays: Array, dominant: PackedStringArray, piece: String, material:
 	collar.resize(verts.size())
 	for v in verts.size():
 		collar[v] = 1 if (piece == "jacket" and _in_collar(clamped[v], dominant[v])) else 0
+	var smooth := _smoothed_shell(piece, verts, normals, indices, dominant, clamped, inside, draped, collar) \
+		if piece == "jacket" else {}
 	var mesh := ArrayMesh.new()
 	for surface in ([0, 1] if piece == "jacket" else [0]):
 		var remap := PackedInt32Array()
@@ -593,6 +802,10 @@ func _shell(arrays: Array, dominant: PackedStringArray, piece: String, material:
 						nv.append(d + normals[v] * (LAPEL_THICKNESS if collar[v] == 1 else 0.0))
 						var radial := Vector3(d.x, 0.0, d.z - DRAPE_AXIS_Z).normalized()
 						nn.append((normals[v] * 0.35 + radial).normalized())
+					elif smooth.has(v):
+						var sm: Array = smooth[v]
+						nv.append((sm[0] as Vector3) + (sm[1] as Vector3) * (LAPEL_THICKNESS if collar[v] == 1 else 0.0))
+						nn.append(sm[1])
 					else:
 						nv.append(clamped[v] + normals[v] * offset)
 						nn.append(normals[v])

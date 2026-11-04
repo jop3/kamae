@@ -322,7 +322,8 @@ func _review_frames(args: PackedStringArray) -> void:
 			var spec: String = args[args.find("--focus") + 1]
 			var who := posing_scene.get_character(spec.get_slice(".", 0))
 			if who:
-				sphere = {"center": who.bone_world_transform(spec.get_slice(".", 1)).origin + Vector3(0, 0.06, 0), "radius": 0.18}
+				sphere = {"center": who.bone_world_transform(spec.get_slice(".", 1)).origin + Vector3(0, 0.06, 0),
+					"radius": float(args[args.find("--radius") + 1]) if args.has("--radius") else 0.18}
 				# Seen from the way that figure faces: "front" is its face.
 				along = -(Basis(Vector3.UP, who.rotation.y) * Vector3(0, 0, 1))
 				side = along.cross(Vector3.UP).normalized()
