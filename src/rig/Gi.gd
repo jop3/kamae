@@ -16,7 +16,7 @@ const TROUSER_OFFSET := 0.024
 ## Rest-pose heights, metres, on this mannequin (hips joint at 0.91, waist just above it).
 const BELT_Y := 0.985
 const BELT_HEIGHT := 0.045
-const BELT_THICKNESS := 0.010
+const BELT_THICKNESS := 0.006
 const JACKET_HEM_Y := 0.74
 const TROUSER_HEM_Y := 0.15
 ## The sleeve ends this far along the forearm (elbow 0 → wrist 1); the trouser leg this far
@@ -1129,9 +1129,15 @@ static func _rq(nv: PackedVector3Array, nn: PackedVector3Array, uv: PackedVector
 # ---------------------------------------------------------------- belt
 
 ## A band measured round the waist of the rest mesh, a knot in front and two ends hanging.
+## The belt: a flat cotton band, two wraps of it, lying tight on the jacket at the waist where it
+## holds the jacket closed, with a flat square knot in front and the two ends hanging from it.
+## It used to be a ring as wide as the widest cloth anywhere near the waist — which took in the
+## jacket's skirt flaring out below it — 1 cm thick and smooth-shaded all round, and it read as a
+## hard coil standing off the body. Now it is measured on the cloth inside its own band only,
+## stands BELT_THICKNESS off it, and its faces meet at edges, as a woven band's do.
 func _belt(arrays: Array, dominant: PackedStringArray) -> MeshInstance3D:
 	var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
-	var n := 32
+	var n := 48
 	var centre := Vector3.ZERO
 	var count := 0
 	# Torso vertices only: the hands hang at waist height in the rest pose.
@@ -1144,21 +1150,25 @@ func _belt(arrays: Array, dominant: PackedStringArray) -> MeshInstance3D:
 	var radii := PackedFloat32Array()
 	radii.resize(n)
 	radii.fill(0.0)
-	# Measured on the jacket shell and its skirt, so the belt sits over the draped cloth.
+	# The cloth inside the band: the jacket's shell there, and the skirt's top edge under it.
 	var shell: PackedVector3Array = jacket.mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX]
 	if skirt:
 		shell.append_array(skirt.mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX])
 	for v in shell:
 		var d := Vector2(v.x - centre.x, v.z - centre.z)
-		if absf(v.y - BELT_Y) < BELT_HEIGHT * 0.75 and d.length() < 0.22:
+		if absf(v.y - BELT_Y) < BELT_HEIGHT * 0.5 and d.length() < 0.22:
 			var k := int(floor(wrapf(d.angle(), 0.0, TAU) / TAU * n)) % n
 			radii[k] = maxf(radii[k], d.length())
-	# Fill sectors that no vertex fell into from their neighbours, then pad a little.
+	# Sectors no vertex fell into take their neighbours', then the band is drawn smooth round:
+	# pulled tight, it does not follow every fold of the cloth under it.
+	for _pass in 4:
+		for k in n:
+			if radii[k] <= 0.0:
+				radii[k] = maxf(radii[(k + n - 1) % n], radii[(k + 1) % n])
+	var smooth := PackedFloat32Array(); smooth.resize(n)
 	for k in n:
-		if radii[k] <= 0.0:
-			radii[k] = maxf(radii[(k + n - 1) % n], radii[(k + 1) % n])
-	for k in n:
-		radii[k] += 0.006
+		smooth[k] = maxf(radii[k], (radii[(k + n - 1) % n] + radii[k] * 2.0 + radii[(k + 1) % n]) / 4.0) + 0.002
+	radii = smooth
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	var hips := _bind_index("Hips")
@@ -1176,28 +1186,85 @@ func _belt(arrays: Array, dominant: PackedStringArray) -> MeshInstance3D:
 	var bot_out: Array = ring.call(BELT_Y - BELT_HEIGHT * 0.5, BELT_THICKNESS)
 	var top_in: Array = ring.call(BELT_Y + BELT_HEIGHT * 0.5, 0.0)
 	var bot_in: Array = ring.call(BELT_Y - BELT_HEIGHT * 0.5, 0.0)
+	# The second wrap's edge: a shallow step a third of the way up the outer face.
+	var seam_out: Array = ring.call(BELT_Y - BELT_HEIGHT * 0.17, BELT_THICKNESS * 0.75)
+	var seam_hi: Array = ring.call(BELT_Y - BELT_HEIGHT * 0.17 + 0.002, BELT_THICKNESS)
 	bind4.call(0.7)
+	# Each face its own smoothing group: the band is round the body, but square in section.
 	for k in n:
 		var k2 := (k + 1) % n
-		_quad(st, bot_out[k], bot_out[k2], top_out[k2], top_out[k])   # outer face
-		_quad(st, top_in[k], top_in[k2], bot_in[k2], bot_in[k])       # inner face (back-facing)
-		_quad(st, top_out[k], top_out[k2], top_in[k2], top_in[k])     # top
-		_quad(st, bot_in[k], bot_in[k2], bot_out[k2], bot_out[k])     # bottom
-	# The knot: a box in front, where the two ends cross, and the ends hanging from it.
+		st.set_smooth_group(1)
+		_quad(st, bot_out[k], bot_out[k2], seam_out[k2], seam_out[k])   # outer face, lower wrap
+		_quad(st, seam_hi[k], seam_hi[k2], top_out[k2], top_out[k])     # outer face, upper wrap
+		st.set_smooth_group(2)
+		_quad(st, seam_out[k], seam_out[k2], seam_hi[k2], seam_hi[k])   # the step between them
+		st.set_smooth_group(3)
+		_quad(st, top_in[k], top_in[k2], bot_in[k2], bot_in[k])         # inner face (back-facing)
+		st.set_smooth_group(4)
+		_quad(st, top_out[k], top_out[k2], top_in[k2], top_in[k])       # top edge
+		st.set_smooth_group(5)
+		_quad(st, bot_in[k], bot_in[k2], bot_out[k2], bot_out[k])       # bottom edge
+	# The knot: flat and square, a little proud of the band in front, and the two ends hanging
+	# from under it, apart at the bottom.
 	bind4.call(1.0)
+	st.set_smooth_group(0xFFFFFFFF)
 	var front_r: float = radii[int(n / 4)] + BELT_THICKNESS   # +Z is the front (angle π/2)
-	var knot_c := centre + Vector3(0.0, 0.0, front_r + 0.012)
-	_box(st, knot_c, Vector3(0.075, 0.05, 0.035))
+	var knot_c := centre + Vector3(0.0, -0.002, front_r + 0.007)
+	_box(st, knot_c, Vector3(0.062, 0.048, 0.014))
 	for side in [-1.0, 1.0]:
-		var hang := Vector3(side * 0.05, -0.15, 0.0)
-		var top_c := knot_c + Vector3(side * 0.02, -0.03, -0.004)
-		_strap(st, top_c, top_c + hang, 0.04, 0.008)
+		var top_c := knot_c + Vector3(side * 0.012, -0.02, -0.002)
+		var hang := Vector3(side * 0.06, -0.20, 0.012)
+		_strap(st, top_c, top_c + hang, BELT_HEIGHT, 0.007)
 	st.generate_normals()
 	st.set_material(belt_material)
 	var mi := MeshInstance3D.new()
 	mi.name = "Gi_belt"
 	mi.mesh = st.commit()
+	# The belt holds the jacket in: the cloth under it is drawn in to just inside it.
+	# The jacket within the band only: eased in above it too, its waist no longer covered the top
+	# of a hakama's side openings.
+	_cinch(jacket, centre, radii, 0.002, 0.0)
+	_cinch(skirt, centre, radii, 0.002)
+	# The trousers' waist is under the jacket's, a layer further in.
+	_cinch(trousers, centre, radii, 0.008)
 	return mi
+
+
+## Pulls every vertex of `piece` within the belt's height (and, easing out, CINCH_EASE above it)
+## in toward the waist until it lies inside the belt's inner face. Without it the jacket,
+## measured on its own, stood a few millimetres proud of the tight band in places and showed over
+## its edges, and the skirt flared out from under its bottom edge straight away.
+const CINCH_EASE := 0.025
+
+
+func _cinch(piece: MeshInstance3D, centre: Vector3, radii: PackedFloat32Array, inset: float, ease := CINCH_EASE) -> void:
+	var n := radii.size()
+	var old: ArrayMesh = piece.mesh
+	var mesh := ArrayMesh.new()
+	for si in old.get_surface_count():
+		var a := old.surface_get_arrays(si)
+		var vs: PackedVector3Array = a[Mesh.ARRAY_VERTEX]
+		for i in vs.size():
+			var v := vs[i]
+			# Below the belt the cloth flares out again at once (the jacket's skirt over the hips,
+			# which under a hakama is what covers its side openings); above it eases out.
+			if v.y < BELT_Y - BELT_HEIGHT * 0.5:
+				continue
+			var dy := v.y - (BELT_Y + BELT_HEIGHT * 0.5)
+			if dy > ease:
+				continue
+			var d := Vector2(v.x - centre.x, v.z - centre.z)
+			var k := int(floor(wrapf(d.angle(), 0.0, TAU) / TAU * n)) % n
+			var limit: float = radii[k] - inset
+			if dy > 0.0:   # above or below the band: eased back to where the cloth was
+				limit += (d.length() - limit) * smoothstep(0.0, ease, dy)
+			if d.length() > limit and d.length() > 1e-4:
+				d = d.normalized() * limit
+				vs[i] = Vector3(centre.x + d.x, v.y, centre.z + d.y)
+		a[Mesh.ARRAY_VERTEX] = vs
+		mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, a)
+		mesh.surface_set_material(si, old.surface_get_material(si))
+	piece.mesh = mesh
 
 
 func _bind_index(bone_name: String) -> int:
