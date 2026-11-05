@@ -1991,3 +1991,75 @@ MakeHuman's muscular build, with very large shoulders. A slimmer body is a regen
 (`tools/generate_mannequin.py`, `macro_detail_dict`) and moves the skeleton, so every committed
 pose with it — a decision for the user, not taken here.
 
+## Session 2026-11-05: a slimmer body, a cloth belt, a dojo's light
+
+Asked for: "regenerate with a slimmer, more average body. Also, the belt still looks very
+unrealistic, like a hard coil around the body, not something holding the jacket together. And
+get rid of the big shadows, it looks like a spotlight is on them from the side. In a regular dojo
+there is very strong even light from the ceiling so shadows are never visible."
+
+**Light** (`src/app/Main.tscn`): the side "Sun" with hard shadows (45° up, from one side) is gone.
+The Sun now shines nearly straight down (1.0), four fills come from every side at 30° (0.26
+each), the ambient is brighter (0.7), and nothing casts a shadow. The hand close-ups still move
+the Sun to follow their camera.
+
+**Belt** (`Gi._belt`, `_cinch`): it was a ring as wide as the widest cloth anywhere near the
+waist — the jacket's skirt flaring below it included — 1 cm thick and smooth-shaded all round: a
+tyre. Now it is measured on the cloth inside its own 4.5 cm only, 6 mm thick, square in section
+with the second wrap's edge as a step on its face, a flat 6×5 cm knot and ends hanging apart;
+the jacket, the skirt and the trousers are drawn in to just inside it over its height (the jacket
+within the band only: eased in above it too, its waist no longer covered a hakama's side openings),
+and nothing more than 4 cm outside it is touched (sleeves and hands hanging at belt height were
+drawn into lines by the first version).
+
+**Body** (`tools/generate_mannequin.py`, `MACRO`): MPFB's defaults were every slider at 0.5,
+gender included — an androgynous body with wide hips. Silhouettes of the bare bodies
+(`tools/compare_bodies.py --silhouette`) showed it was not heavy in itself: the balloon look of
+the gi came mostly from the cloth (2026-11-04). The new body: gender 0.85, muscle 0.25, weight
+0.2, height 0.40 — slimmer hips, thighs, legs and arms, the shoulders about as before, 1.652 m
+(was 1.659). The joints moved up to 3 cm (upper chest 3.1, fingertips 2.4, hips under 1), so the
+committed poses still fit. Set-up for the generator in a fresh container: Python 3.11 venv with
+`bpy==4.2.0`, the MPFB zip checked against the SHA-256 in `tools/README.md` before installing,
+the MakeHuman CC0 asset pack unzipped into MPFB's data (that README).
+
+What a new body needed (and `tools/README.md` "Changing the body" now lists): `Anatomy.SHAPES`
+refitted (thighs 8.5 cm radius, were 9.7; the hand's kept at 3 cm); the eye centres in `Gaze`;
+the kneels (`Stance`: seiza folds the foot over 148° with the ankle at 7 cm and the hips at 0.26 m — the new foot held the knees 5 cm off the mat — and kiza's hips at 0.31 m); the jacket below the
+belt measures the hips' thigh-owned vertices and stands outside the trousers there (it was inside
+them at the hip); two catalogue attacks nudged (ushiro eridori's collar hand points up a little
+more, 1° of wrist; yokomenuchi's free hand held back out of Tori's kamae hand). A fallen figure is
+now rested on the mat again after the contact relax (`Staging.relax`): the relax moves hips and
+`feet_on_floor` leaves a figure off its feet alone, so a fallen Uke was saved 3.5 cm up.
+
+Library: katatedori ikkyo's and shihonage's kake grips re-seated (`tools/refit_grips.gd`) —
+ikkyo's kake is now clean, shihonage's lost three joint faults and gained a thumb 21 mm into
+Uke's hand; zenponage's tenkan re-seat made it worse and was undone. Records: check_anatomy
+(ikkyo kake's entry gone; shihonage kake one fault; kuzushi a forearm 2.3 cm into Uke's arm; zenponage
+tenkan pronation for supination; zenponage ukemi elbows 1° over; jo dori's uke a wrist on the
+jo), check_grips (five finger faults gone, three new, each noted), check_motion (jo dori 7 → 4,
+shihonage irimi 36 → 33, ryotemochi 27 → 26, zenponage 13 → 8, kumijo 0 → 3: a wrist 4° over on
+the jo — the weapon holds were fitted on the first body's hands and want refitting). Tests whose
+set-ups were tuned to the first body's hands restated (test_m3's wrap starts a third of the way
+down the forearm; test_wrist turns the wrist 18° not 25° and allows 1.5 cm on the neck, whose
+flesh lies further in front of its bone; test_joints' "a wrist asked for more than it has" now
+uses zenponage's tenkan). test_gi counts skin the gi hides as covered. Every golden refreshed
+after looking at them (new body, new light; the exports too).
+
+Later the same day: saved poses lift the heel of a foot whose shin leans past the ankle's range
+(`Staging.feet_on_floor` uses `PoseBlend.lift_heel`; a deep front knee had the toes 5 cm into the
+mat), a fallen figure grounded after the relax has its hands put on the mat again, the kiza toes
+bend their full 85°, and `tools/compare_bodies.py` compares two bodies.
+
+**Re-filmed** (all 41 scripts, `tools/technique.sh`): frames under the mat in the same four
+scripts as before (yokomenuchi shihonage 39 frames at 3.4 cm, ushiro ryotedori kotegaeshi 12,
+shomenuchi ikkyo 9, tenkan kokyunage 6) and two in suwari kokyudosa; none elsewhere. Implausible
+frames per technique against the films of 2026-11-04 (same measure): iriminage 62 → 51, tsuki
+kotegaeshi 46 → 45, kaitennage 39 → 43, kotegaeshi 28 → 25, shihonage 73 → 76, tenkan 38 → 46,
+tenkan kokyunage 24 → 39, morotedori kokyunage 51 → 59, tenchinage 36 → 27, shomenuchi ikkyo
+38 → 36, shomenuchi iriminage 55 → 51, kokyudosa 19 → 35, ushiro ryotedori kotegaeshi 61 → 54,
+yokomenuchi shihonage 80 → 80. The attacks: most as before, but five grabs got worse —
+katadori 0 → 30, katadori menuchi 2 → 49, munedori 10 → 27, ryokatadori 8 → 27, ushiro ryotedori
+5 → 22 — all the front thighs (Tori's right, Uke's left) 2–4 cm into each other through the grab
+and its hold: on the slimmer body the grab stands Uke a little closer, and the relax cannot part
+two planted legs. The catalogue's `min_gap` (or a leg-aware relax) is the next thing to try.
+The gallery page was regenerated locally, not published.
