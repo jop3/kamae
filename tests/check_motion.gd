@@ -57,7 +57,7 @@ func check(cond: bool, msg: String) -> void:
 ## that session, measured the same way, gives the same counts or worse (katatedori_shihonage_irimi
 ## 38, ushiro_ryotedori_zenponage 14) — see docs/handoff.md, Session 2026-11-04.
 const OUTSTANDING := {
-	"jo_dori": 7,   ## 11 until 2026-11-01 (the blends reworked for smoothness); +1 with the fingers weighed in the weapon fit (the staff grazes a spine in one blend frame);
+	"jo_dori": 4,   ## 7 until the slimmer body (2026-11-05); 11 until 2026-11-01 (the blends reworked for smoothness); +1 with the fingers weighed in the weapon fit (the staff grazes a spine in one blend frame);
 		## 29 until the fingers were closed onto the staff by what they hold rather than by a preset
 		## (GripDirector.close_fingers_on_weapon): a hand that is not a full fist leaves its wrist more range, and
 		## two thirds of these frames were that wrist;
@@ -72,28 +72,28 @@ const OUTSTANDING := {
 		## rebuilding refit grepp/kuzushi under the finger coupling, which shifted
 		## the grepp->kuzushi blend enough to add 3 frames of Uke's gripping wrist over its range;
 		## +2 with the fist's range (the kake's own wrist fault is gone: 12 -> 14 is the measurement)
-	"katatedori_shihonage_irimi": 36,   ## 14 before the bodies were measured by their surface (2026-11-04); 14 before and after the contact solve (ContactSolve, 2026-11-01), shallower after; 20 until 2026-11-01 (the blends reworked for smoothness; 14 once a limb counts as mid-move whenever its body is); +1 when the blend stopped sweeping feet through the mat (2026-10-31): Tori's leg
+	"katatedori_shihonage_irimi": 33,   ## 36 until the slimmer body (2026-11-05); 14 before the bodies were measured by their surface (2026-11-04); 14 before and after the contact solve (ContactSolve, 2026-11-01), shallower after; 20 until 2026-11-01 (the blends reworked for smoothness; 14 once a limb counts as mid-move whenever its body is); +1 when the blend stopped sweeping feet through the mat (2026-10-31): Tori's leg
 		## used to stand straight toward a target buried under the mat; blended between where the foot really was,
 		## the knee bends a little mid-step and the hanging forearm brushes the thigh — a deliberate exception to "only down";
 		## +2 more with the fingers fitted: a foot through a foot as Tori steps in;
 		## +3 with the hands re-seated (grip_seat), as above: a forearm through a thigh
 		## for three frames of the blend into the kake;
 		## re-authored after the shoulder girdle: 26 before it, 51 with it, 18 then; 16 once its grepp (shared with katatedori_ikkyo) was refit; 14 with the arm's turn scoring the fist
-	"kumijo": 0,   ## 4 until 2026-11-01 (the arms of a figure holding a weapon move on its trunk's clock); all four from the fit keeping the fingers out of the staff: an elbow a few degrees over as the
+	"kumijo": 3,   ## 3 since the slimmer body (2026-11-05): a wrist 4° past its extension on the jo, the hold fitted on the first body's hand; 0 before; 4 until 2026-11-01 (the arms of a figure holding a weapon move on its trunk's clock); all four from the fit keeping the fingers out of the staff: an elbow a few degrees over as the
 		## thrust goes out;
 		## 2 until the fingers were closed onto the staff by what they hold;
 		## both from the shaft moving to the base of the fingers: a wrist 4° over as the staff is thrust
 	"kumitachi": 0,   ## 1 while the rear hands were refused in both keyframes and so not counted; 13 while the
 		## awase->uchi blend rolled both hands right round the tsuka, and none once the cut's fit kept the
 		## holds the awase had (15° of roll and 20° of skew apart, where the default-hold fit was 60° of skew)
-	"ryotemochi": 27,   ## 3 before the bodies were measured by their surface (2026-11-04); 4 until the contact solve (ContactSolve, 2026-11-01); 6 until 2026-11-01 (the blends reworked for smoothness); +1 with the two grips re-seated in place (tools/refit_grips.gd): Uke 1 and Uke 2's arms cross
+	"ryotemochi": 26,   ## 27 until the slimmer body (2026-11-05); 3 before the bodies were measured by their surface (2026-11-04); 4 until the contact solve (ContactSolve, 2026-11-01); 6 until 2026-11-01 (the blends reworked for smoothness); +1 with the two grips re-seated in place (tools/refit_grips.gd): Uke 1 and Uke 2's arms cross
 		## for one frame between grepp and kuzushi;
 		## the grip is the catalogue's wrap now (0 before); the blend swings the wrist past ulnar deviation for frames the keyframes themselves do not; +1 with the fist's range
 	"tachi_dori": 26,   ## 25 before the bodies were measured by their surface (2026-11-04); 30 until 2026-11-01 (the blends reworked for smoothness); all but one a hand rolling on the tsuka between two holds, as below; three fewer once the fingers were weighed in the fit;
 		## 37 until the fingers were closed onto the tsuka by what they hold;
 		## 12 while Uke's hands were refused in every keyframe and so not counted at all; the raise, the cut and
 		## the handover roll them on the tsuka between clean holds; +5 with the shaft at the base of the fingers
-	"ushiro_ryotedori_zenponage": 13,   ## 7 before the bodies were measured by their surface (2026-11-04); until the contact solve (ContactSolve, 2026-11-01) it was higher, see below; 9 until the fall was blended about the hips (2026-10-31); 11 before the grepp and kuzushi grips were re-seated; the Tenkan and Kake
+	"ushiro_ryotedori_zenponage": 8,   ## 13 until the slimmer body (2026-11-05); 7 before the bodies were measured by their surface (2026-11-04); until the contact solve (ContactSolve, 2026-11-01) it was higher, see below; 9 until the fall was blended about the hips (2026-10-31); 11 before the grepp and kuzushi grips were re-seated; the Tenkan and Kake
 		## poses still hold with the old seat, because re-seating them put a hand out of reach (docs/handoff.md)
 }
 

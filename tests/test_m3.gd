@@ -135,7 +135,9 @@ func _initialize() -> void:
 	for g in director.grips.duplicate():
 		director._remove(g)
 	await settle()
-	uke.limbs["LeftArm"].target.global_position = tori.bone_world_transform("RightLowerArm").origin + Vector3(0, 0.06, 0.10)
+	# A third of the way down the forearm: where on it the hand starts is what the wrap keeps.
+	uke.limbs["LeftArm"].target.global_position = tori.bone_world_transform("RightLowerArm").origin.lerp(
+		tori.bone_world_transform("RightHand").origin, 0.33) + Vector3(0, 0.06, 0.10)
 	await settle()
 	director.attach_wrapped(uke, "Left", tori, "RightLowerArm")
 	await settle(3)

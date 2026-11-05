@@ -63,13 +63,14 @@ func _initialize() -> void:
 	var hand_before: Basis = uke.bone_world_transform("LeftHand").basis.orthonormalized()
 	var offset_before: Transform3D = grip.offset
 	ctrl.select(uke, "LeftHand")
-	# 25°: what a wrist has to spare here. Past its range the joints hold the hand back and
-	# say so (Anatomy.range_problems), which is another test's business.
-	ctrl.rotate_selected_world(forearm, deg_to_rad(25))
+	# 18°: what a wrist has to spare here (25° on the first, broader body's hand; the slimmer
+	# body's wrist reaches its radial deviation sooner). Past its range the joints hold the hand
+	# back and say so (Anatomy.range_problems), which is another test's business.
+	ctrl.rotate_selected_world(forearm, deg_to_rad(18))
 	await settle(3)
 	var hand_after: Basis = uke.bone_world_transform("LeftHand").basis.orthonormalized()
 	var turned := rad_to_deg(hand_before.get_rotation_quaternion().angle_to(hand_after.get_rotation_quaternion()))
-	check(turned > 18.0 and turned < 32.0, "the gizmo turns a gripping wrist about the gripped forearm (%.0f deg, refused %s)" % [turned, uke.joint_limits.report()])
+	check(turned > 12.0 and turned < 25.0, "the gizmo turns a gripping wrist about the gripped forearm (%.0f deg, refused %s)" % [turned, uke.joint_limits.report()])
 	check(not grip.offset.is_equal_approx(offset_before), "the grip offset was re-captured with the new wrist angle")
 	check(director.worst_error() < 0.003, "the grip is still exact after the turn (%.4f m)" % director.worst_error())
 	# The new angle is what the grip keeps when the gripped arm moves.
@@ -151,7 +152,9 @@ func _initialize() -> void:
 	var off := knuckles.distance_to(BodyCapsules.closest_on_segment(knuckles, neck_a, neck_b))
 	var want: float = uke.skin_radius("Neck", 0.5) + Weapon.PALM_PAD
 	check(director.worst_error() < 0.003, "the neck grip is exact (%.4f m)" % director.worst_error())
-	check(absf(off - want) < 0.012, "the palm sits at the neck's radius (%.3f m off the axis, wanted %.3f)" % [off, want])
+	# 1.5 cm: measured from the neck's bone, and the slimmer body's neck lies further in front of
+	# its bone (Anatomy.SHAPES), so a hand at its side sits nearer the bone than the mean radius.
+	check(absf(off - want) < 0.015, "the palm sits at the neck's radius (%.3f m off the axis, wanted %.3f)" % [off, want])
 	check(GripDirector.hold_radius("Neck") > GripDirector.WRAP_RADIUS, "a neck is held on its surface, not wrapped like a wrist")
 	check(GripDirector.curl_for_bone("Neck") < GripDirector.curl_for_bone("RightLowerArm"), "fingers close less on a neck than on a wrist")
 	var exempt := BodyCapsules.neighbours(uke, "Neck")

@@ -40,12 +40,17 @@ const OUTSTANDING := {
 	## his thumb out of Uke's forearm: the grip search weighs a finger through what it holds
 	## against what the arm refuses (Staging.fingers_through), and this hold is the one place the
 	## two pull against each other. The thumb was 20 mm inside the arm before.
-	"katatedori_ikkyo_kake": ["tori: RightHand: wrist radial deviation"],
+	## (Its wrist fault went with the slimmer body of 2026-11-05 and the grips re-seated on it.)
 	## A degree over, and the same trade: the hold that keeps this hand's fingers out of the
 	## staff asks the wrist for 59° of extension where a fist has 58.
 	"kumijo_tsuki": ["tori: LeftHand: wrist extension"],
-	"katatedori_shihonage_kake": ["tori: LeftHand: wrist radial deviation", "tori: RightHand: wrist flexion", "uke1: LeftUpperArm: shoulder adduction"],
+	## The body was regenerated slimmer on 2026-11-05 (tools/generate_mannequin.py): every committed
+	## pose moved a little with its bones, the grips here were re-seated on it (tools/refit_grips.gd),
+	## and three of this pose's faults went; Uke's held arm is now wound 26° past its outward roll.
+	"katatedori_shihonage_kake": ["uke1: LeftUpperArm: shoulder external rotation"],
 	"katatedori_shihonage_kuzushi": ["uke1: LeftHand: wrist flexion",
+		## On the slimmer body (2026-11-05) Tori's forearm lies 2.3 cm into Uke's arm as well.
+		"tori RightLowerArm passes through uke1 LeftUpperArm",
 		## Not new, newly measured: two people are now checked against each other's surface
 		## (Anatomy.SHAPES, fitted to the mesh) instead of thin capsules round their bones, and
 		## Tori's raised upper arm lies 6.6 cm into Uke's held one. The contact solve cannot part
@@ -55,14 +60,20 @@ const OUTSTANDING := {
 	## The same: two Ukes holding one arm stand shoulder into shoulder, 7.4 cm deep at the upper
 	## arms, which the bones' capsules did not show. They want to stand further apart.
 	"ryotemochi_grepp": ["uke1 RightUpperArm passes through uke2 LeftUpperArm",
-		"uke1 RightUpperArm passes through uke2 LeftLowerArm", "uke1 RightLowerArm passes through uke2 LeftUpperArm"],
+		"uke1 RightLowerArm passes through uke2 LeftUpperArm"],   # the forearm one went with the slimmer body
 	## Both of Uke's gripping wrists came free when the hands were re-seated where a hand holds a
 	## forearm (tools/refit_grips.gd): they were bent that far by a palm that had the arm across
 	## its middle. The Tenkan and Kake poses are still the old seat — re-seating them put a hand
 	## out of reach — so this technique is half re-seated; docs/handoff.md.
 	"ushiro_ryotedori_zenponage_kake": ["uke1: LeftUpperArm: shoulder extension", "uke1: RightUpperArm: shoulder extension", "uke1: RightHand: wrist extension"],
 
-	"ushiro_ryotedori_zenponage_tenkan": ["uke1: LeftUpperArm: shoulder extension", "uke1: RightUpperArm: shoulder extension", "uke1: LeftLowerArm: elbow supination", "uke1: LeftHand: wrist ulnar deviation", "uke1: RightHand: wrist flexion"],
+	## On the slimmer body (2026-11-05) Uke's left forearm is refused the other way round, pronation
+	## for supination; re-seating its grips made the wrist worse (156° of extension) and was undone.
+	"ushiro_ryotedori_zenponage_tenkan": ["uke1: LeftUpperArm: shoulder extension", "uke1: RightUpperArm: shoulder extension", "uke1: LeftLowerArm: elbow pronation", "uke1: LeftHand: wrist ulnar deviation", "uke1: RightHand: wrist flexion"],
+	## 1° past full elbow flexion on both arms, rolled up in the fall, on the slimmer body.
+	"ushiro_ryotedori_zenponage_ukemi": ["uke1: LeftLowerArm: elbow flexion", "uke1: RightLowerArm: elbow flexion"],
+	## Tori's hand on the jo, from a hold fitted on the first body: 85° of wrist flexion on this one.
+	"jo_dori_uke": ["tori: RightHand: wrist flexion"],
 }
 
 var scene: PosingScene

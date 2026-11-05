@@ -8,7 +8,20 @@ bpy.ops.wm.read_factory_settings(use_empty=True)
 # detailed_helpers must stay True: MPFB fits the rig's bones to the helper geometry, and without it
 # the arm and hand bones land up to 47 cm away from the body, so every arm pose tears the mesh.
 # The helpers are excluded from the exported mesh by the Mask modifier, not by deleting vertices.
-basemesh = HumanService.create_human(mask_helpers=True, detailed_helpers=True, extra_vertex_groups=False, feet_on_ground=True, scale=0.1)
+# The body: MakeHuman's macro sliders, 0..1 with 0.5 the average. MPFB's own defaults (every
+# slider 0.5, gender half way) made a soft, wide-hipped androgynous figure; the figures are a
+# slimmer, ordinary adult man. `--macro '{"muscle": 0.3}'` overrides a value
+# to try another body without editing this.
+# Chosen 2026-11-05: male (gender 0.85, not the androgynous 0.5 with its wider hips), lean
+# (muscle 0.25, weight 0.2), and height 0.40 to keep the figure about as tall as the first one
+# (1.65 m against 1.66): the gi's cut is given in heights on this body, and every joint moved less
+# than 2 cm, so the committed poses still fit. `tools/README.md` has how to compare two bodies.
+MACRO = {"gender": 0.85, "age": 0.5, "muscle": 0.25, "weight": 0.2, "proportions": 0.5, "height": 0.40,
+         "cupsize": 0.5, "firmness": 0.5, "race": {"asian": 0.33, "caucasian": 0.33, "african": 0.33}}
+if "--macro" in sys.argv:
+    MACRO.update(json.loads(sys.argv[sys.argv.index("--macro") + 1]))
+print("macro", MACRO)
+basemesh = HumanService.create_human(mask_helpers=True, detailed_helpers=True, extra_vertex_groups=False, feet_on_ground=True, scale=0.1, macro_detail_dict=MACRO)
 print("basemesh", basemesh.name, "verts", len(basemesh.data.vertices), "modifiers", [m.type for m in basemesh.modifiers])
 arm = HumanService.add_builtin_rig(basemesh, "mixamo", import_weights=True)
 print("armature", arm.name, "bones", len(arm.data.bones))

@@ -264,6 +264,10 @@ func _exposed(rig: CharacterRig) -> Array:
 		var jacket: PackedVector3Array = _posed(rig, rig.gi.jacket.mesh)[0]
 		for i in rig.gi.jacket.mesh.surface_get_arrays(0)[Mesh.ARRAY_INDEX]:
 			faces.append(jacket[i])
+		if rig.gi.skirt and rig.gi.skirt.visible:   # and the jacket's skirt, worn under the hakama
+			var sk_v: PackedVector3Array = _posed(rig, rig.gi.skirt.mesh)[0]
+			for i in rig.gi.skirt.mesh.surface_get_arrays(0)[Mesh.ARRAY_INDEX]:
+				faces.append(sk_v[i])
 	var shape := ConcavePolygonShape3D.new()
 	shape.backface_collision = true
 	shape.set_faces(faces)
@@ -285,7 +289,12 @@ func _exposed(rig: CharacterRig) -> Array:
 		var rest: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
 		var bb: PackedInt32Array = arrays[Mesh.ARRAY_BONES]
 		var bw: PackedFloat32Array = arrays[Mesh.ARRAY_WEIGHTS]
+		# Skin the gi covers is not drawn (Gi._without_covered_skin): it cannot show.
+		var drawn := {}
+		for i in arrays[Mesh.ARRAY_INDEX]:
+			drawn[i] = true
 		for i in rest.size():
+			var hidden := not drawn.has(i)
 			var best_k := 0
 			for k in 4:
 				if bw[i * 4 + k] > bw[i * 4 + best_k]:
@@ -299,6 +308,8 @@ func _exposed(rig: CharacterRig) -> Array:
 			if n.y < -0.5 or p.y < 0.03:
 				continue
 			counted += 1
+			if hidden:   # covered by definition
+				continue
 			var q := PhysicsRayQueryParameters3D.create(p + n * 0.003, p + n * 0.6, 1 << 19)
 			q.hit_back_faces = true
 			q.hit_from_inside = true

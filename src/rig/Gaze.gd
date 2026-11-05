@@ -30,9 +30,9 @@ const EYE_UP := 15.0
 const EYE_DOWN := 20.0
 ## The eyeballs' centres in the rest pose (character space, metres), measured from the eye mesh:
 ## the front of each eyeball less its radius.
-const EYE_CENTRE := Vector3(0.0289, 1.553, 0.1226)
+const EYE_CENTRE := Vector3(0.0287, 1.546, 0.1262)
 ## Between the eyes, a little in front of them: what a look is measured from.
-const EYES := Vector3(0.0, 1.553, 0.13)
+const EYES := Vector3(0.0, 1.546, 0.134)
 
 const EYE_SHADER := """
 shader_type spatial;
@@ -40,8 +40,8 @@ render_mode cull_back, depth_draw_opaque;
 // The eye mesh (eyeball and cornea), each eyeball turned about its own centre in the skinned
 // mesh's space: Gaze.aim_eyes sets where the centres are and how each eye is turned this frame.
 uniform sampler2D albedo_texture : source_color, filter_linear_mipmap, repeat_disable;
-uniform vec3 centre_right = vec3(-0.0289, 1.553, 0.1226);
-uniform vec3 centre_left = vec3(0.0289, 1.553, 0.1226);
+uniform vec3 centre_right = vec3(-0.0287, 1.546, 0.1262);
+uniform vec3 centre_left = vec3(0.0287, 1.546, 0.1262);
 uniform mat3 turn_right = mat3(1.0);
 uniform mat3 turn_left = mat3(1.0);
 void vertex() {

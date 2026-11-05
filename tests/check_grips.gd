@@ -55,15 +55,11 @@ const OUTSTANDING := {
 	"katatedori_shihonage_kuzushi: uke1 left": "thumb",
 	"ryotemochi_kuzushi: uke1 right": "thumb",
 	"ryotemochi_kuzushi: uke2 left": "thumb",
-	"ushiro_ryotedori_zenponage_grepp: uke1 right": "thumb",
-	"ushiro_ryotedori_zenponage_grepp: uke1 left": "thumb",
 	"ushiro_ryotedori_zenponage_kuzushi: uke1 right": "thumb",
 	"ushiro_ryotedori_zenponage_kuzushi: uke1 left": "thumb",
 	## An index finger that reaches round a forearm and meets the thumb's side of it. The jo's
 	## were the same fault and went when the weapon fit started weighing the fingers too
 	## (Staging.fingers_through_shaft).
-	"ryotemochi_grepp: uke1 right": "index finger round a forearm",
-	"ryotemochi_grepp: uke2 left": "index finger round a forearm",
 	## Tori takes Uke's forearm and then the sword is refitted in Uke's hands, which moves that
 	## forearm out from under the hand already on it. The grab would have to be re-taken after
 	## the weapon fit, or the fit told not to move a limb someone is holding.
@@ -73,11 +69,15 @@ const OUTSTANDING := {
 	## (tools/refit_grips.gd), so they are still the old seat; docs/handoff.md.
 	"ushiro_ryotedori_zenponage_kake: uke1 right": "the hand is half a metre from the arm it holds",
 	"ushiro_ryotedori_zenponage_kake: uke1 left": "the hand is a third of a metre from the arm it holds",
-	"ushiro_ryotedori_zenponage_tenkan: uke1 right": "a little finger through a forearm",
 	"ushiro_ryotedori_zenponage_tenkan: uke1 left": "the hand is 5 cm off the arm it holds",
-	## Tori's hand is pressed into Uke's forearm as the grip turns it — the same shihonage
-	## question the other checks record (tests/check_anatomy.gd).
-	"katatedori_shihonage_kake: tori left": "the hand is pressed into the forearm it turns",
+	## The slimmer body of 2026-11-05 cleared five of these (the two zenponage grepp thumbs, both
+	## ryotemochi index fingers, a zenponage little finger) and the re-seated shihonage kake hand.
+	## Two weapon holds, fitted on the first body's hands, put a finger into the shaft on this one:
+	"jo_dori_uke: tori right": "a thumb 12 mm into the jo, from a hold fitted on the first body",
+	"tachi_dori_irimi: uke1 right": "a middle finger 13 mm into the tsuka, from a hold fitted on the first body",
+	## Re-seated on the slimmer body, which cleared three joint faults of this pose
+	## (tests/check_anatomy.gd); the thumb of the hand on Uke's hand goes in instead.
+	"katatedori_shihonage_kake: tori right": "a thumb 21 mm into the hand it holds",
 }
 
 const POSES := "res://poses"

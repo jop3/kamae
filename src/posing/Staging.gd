@@ -461,7 +461,16 @@ func relax() -> void:
 		ContactSolve.solve(scene, director, {"root": 1.0, "arms": 1.0, "legs": 1.0})
 		await settle(2)
 	await feet_on_floor()
+	# A figure down on the mat (a fall) is rested on it again: the solve moves hips, and feet_on_floor
+	# leaves anyone off their feet alone, so a fallen Uke pushed off his partner was saved floating.
+	var grounded := false
+	for r: CharacterRig in scene.characters:
+		if r.visible and (not r.fall.is_empty() or absf(r.rotation.x) > 0.6 or absf(r.rotation.z) > 0.6):
+			Ukemi.ground(r)
+			grounded = true
 	await settle(2)
+	if grounded:
+		await settle(2)
 
 
 func feet_on_floor() -> void:

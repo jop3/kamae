@@ -34,7 +34,7 @@ const SEIZA_FOOT_TURN := 138.0
 const KIZA_FOOT_TURN := 103.0
 ## How far the hips sit above the mat when kneeling.
 const SEIZA_HIP_HEIGHT := 0.25
-const KIZA_HIP_HEIGHT := 0.33
+const KIZA_HIP_HEIGHT := 0.29   # 0.33 on the first, broader body (2026-11-05: the slimmer one kneels lower)
 
 
 ## Lowers the hips by `metres`, leaving both feet on the mat, which is what bends the knees.

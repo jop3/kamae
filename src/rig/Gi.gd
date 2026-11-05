@@ -424,7 +424,10 @@ func _drape(piece: String, verts: PackedVector3Array, dominant: PackedStringArra
 		profile.append(row)
 	for i in verts.size():
 		var v := verts[i]
-		if v.y < DRAPE_BOTTOM_Y or v.y > DRAPE_BACK_TOP_Y or not (dominant[i] in TORSO):
+		# Below the belt the jacket hangs over the hips, which are as much the thighs' vertices
+		# as the trunk's: measured on the trunk alone it lay inside the trousers at the hip.
+		var hip_vertex: bool = piece == "jacket" and v.y < BELT_Y and dominant[i].ends_with("UpperLeg")
+		if v.y < DRAPE_BOTTOM_Y or v.y > DRAPE_BACK_TOP_Y or not (dominant[i] in TORSO or hip_vertex):
 			continue
 		var d := Vector2(v.x, v.z - DRAPE_AXIS_Z)
 		var k := int(floor(wrapf(d.angle(), 0.0, TAU) / TAU * n)) % n
@@ -463,6 +466,8 @@ func _drape(piece: String, verts: PackedVector3Array, dominant: PackedStringArra
 		var k := int(floor(wrapf(d.angle(), 0.0, TAU) / TAU * n)) % n
 		var b := int((p.y - DRAPE_BOTTOM_Y) / DRAPE_BIN)
 		var want: float = profile[b][k] + _offset_for(piece, dominant[i])
+		if piece == "jacket" and p.y < BELT_Y:   # over the trousers, not inside them
+			want = maxf(want, profile[b][k] + TROUSER_OFFSET + 0.008)
 		if d.length() < want:
 			var dir := d.normalized() * want
 			out[i] = Vector3(dir.x, p.y, DRAPE_AXIS_Z + dir.y)
@@ -1255,6 +1260,10 @@ func _cinch(piece: MeshInstance3D, centre: Vector3, radii: PackedFloat32Array, i
 				continue
 			var d := Vector2(v.x - centre.x, v.z - centre.z)
 			var k := int(floor(wrapf(d.angle(), 0.0, TAU) / TAU * n)) % n
+			# The waist only: a sleeve or a hand that happens to be at the belt's height (arms
+			# hanging) is not under the belt, and pulled in it was drawn out into a line.
+			if d.length() > radii[k] + 0.04:
+				continue
 			var limit: float = radii[k] - inset
 			if dy > 0.0:   # above or below the band: eased back to where the cloth was
 				limit += (d.length() - limit) * smoothstep(0.0, ease, dy)
