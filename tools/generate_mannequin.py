@@ -14,8 +14,9 @@ bpy.ops.wm.read_factory_settings(use_empty=True)
 # to try another body without editing this.
 # Chosen 2026-11-05: male (gender 0.85, not the androgynous 0.5 with its wider hips), lean
 # (muscle 0.25, weight 0.2), and height 0.40 to keep the figure about as tall as the first one
-# (1.65 m against 1.66): the gi's cut is given in heights on this body, and every joint moved less
-# than 2 cm, so the committed poses still fit. `tools/README.md` has how to compare two bodies.
+# (1.65 m against 1.66): the gi's cut is given in heights on this body, and no joint moved more
+# than about 3 cm (the upper chest 3.1, the fingertips 2.4, the hips under 1), so the committed
+# poses still fit. `tools/compare_bodies.py` compares two bodies (tools/README.md).
 MACRO = {"gender": 0.85, "age": 0.5, "muscle": 0.25, "weight": 0.2, "proportions": 0.5, "height": 0.40,
          "cupsize": 0.5, "firmness": 0.5, "race": {"asian": 0.33, "caucasian": 0.33, "african": 0.33}}
 if "--macro" in sys.argv:

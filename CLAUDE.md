@@ -75,4 +75,8 @@ The `OUTSTANDING` lists in `check_anatomy.gd`/`check_motion.gd` may only shrink.
 `tools/README.md`): the MakeHuman body and rig plus eyes, brows, lashes and five hair styles.
 Textures are in `assets/characters/textures/`; `CharacterRig.set_appearance()` picks skin, hair
 and eyes per character, `Palette.APPEARANCES` the defaults. The body mesh and skeleton must stay
-byte-identical across regenerations, or every committed pose moves.
+byte-identical across regenerations, or every committed pose moves. The body's shape is `MACRO`
+in the generator (a lean, average man since 2026-11-05); changing it on purpose is a long job
+listed in `tools/README.md` ("Changing the body"), and it needs Python 3.11 for bpy 4.2.
+
+The lighting is a dojo's: strong and even from the ceiling, no shadows (`src/app/Main.tscn`).

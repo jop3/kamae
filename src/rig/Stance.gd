@@ -19,7 +19,7 @@ enum Kneel { SEIZA, KIZA }
 ## Where the ankle goes when kneeling, behind and below the hips in the body's own frame, and
 ## where the knee is steered to. Found by trying: the leg is a two-bone chain, so the ankle
 ## placement sets how far the shin lies back and the pole decides which way the knee folds.
-const SEIZA_ANKLE := Vector3(0.0, 0.05, -0.08)
+const SEIZA_ANKLE := Vector3(0.0, 0.07, -0.08)   # 0.05 on the first body
 const KIZA_ANKLE := Vector3(0.0, 0.06, -0.10)
 const KNEEL_WIDTH := 0.10
 const KNEEL_POLE_FORWARD := 0.60
@@ -30,11 +30,11 @@ const KNEEL_POLE_FORWARD := 0.60
 ## forward, it is folded onto the front of the shin, which is 90° of dorsiflexion and no ankle
 ## does that — the joint model (Joints) is what caught it. Seiza plantarflexes the ankle close
 ## to its limit, which is exactly what seiza feels like.
-const SEIZA_FOOT_TURN := 138.0
+const SEIZA_FOOT_TURN := 148.0   # 138 on the first body; the slimmer one's foot folds further to lie flat (2026-11-05)
 const KIZA_FOOT_TURN := 103.0
 ## How far the hips sit above the mat when kneeling.
-const SEIZA_HIP_HEIGHT := 0.25
-const KIZA_HIP_HEIGHT := 0.29   # 0.33 on the first, broader body (2026-11-05: the slimmer one kneels lower)
+const SEIZA_HIP_HEIGHT := 0.26   # 0.25 on the first body (2026-11-05)
+const KIZA_HIP_HEIGHT := 0.31   # 0.33 on the first, broader body (2026-11-05)
 
 
 ## Lowers the hips by `metres`, leaving both feet on the mat, which is what bends the knees.
@@ -108,7 +108,7 @@ static func kneel(ctrl: PoseController, rig: CharacterRig, kind: int = Kneel.SEI
 ## Bends the toes flat on the mat, pointing the way the body faces, as toes do under a foot that
 ## stands on its ball (kiza; up on the toes). Left straight they carry on the line of the foot,
 ## down into the mat. Call it once the kneel has solved: it reads where the foot is.
-const TOES_BEND_MAX := 82.0
+const TOES_BEND_MAX := 85.0
 
 
 static func toes_flat(rig: CharacterRig) -> void:

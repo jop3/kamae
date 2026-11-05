@@ -463,14 +463,20 @@ func relax() -> void:
 	await feet_on_floor()
 	# A figure down on the mat (a fall) is rested on it again: the solve moves hips, and feet_on_floor
 	# leaves anyone off their feet alone, so a fallen Uke pushed off his partner was saved floating.
-	var grounded := false
+	var fallen := []
 	for r: CharacterRig in scene.characters:
 		if r.visible and (not r.fall.is_empty() or absf(r.rotation.x) > 0.6 or absf(r.rotation.z) > 0.6):
 			Ukemi.ground(r)
-			grounded = true
+			fallen.append(r)
 	await settle(2)
-	if grounded:
-		await settle(2)
+	# And as the fall itself does, a hand that grounding put through the mat is put on it.
+	for _pass in 3:
+		var under := 0.0
+		for r: CharacterRig in fallen:
+			under = maxf(under, Ukemi.hands_on_mat(r))
+		if under <= 0.0:
+			break
+		await settle(3)
 
 
 func feet_on_floor() -> void:
@@ -484,6 +490,11 @@ func feet_on_floor() -> void:
 				var leg: Limb = r.limbs[side + "Leg"]
 				if leg.mode != Limb.Mode.IK or _lifted.has("%s/%s" % [r.character_id, side]):
 					continue
+				# A shin leaning further over the foot than the ankle bends lifts the heel, as
+				# in the blends (PoseBlend.lift_heel): held flat, the ankle's limit tipped the
+				# foot forward instead and the toes went into the mat (a deep front knee).
+				if pass_ == 0 and r.position.y > -0.2:
+					leg.target.global_transform = PoseBlend.lift_heel(r, leg, leg.target.global_transform)
 				var err: float = 0.02 - r.bone_world_transform(side + "Toes").origin.y
 				if absf(err) > 0.004:
 					leg.target.global_position += Vector3(0.0, err, 0.0)

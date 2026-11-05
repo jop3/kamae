@@ -25,12 +25,31 @@ before committing a regenerated GLB. The textures in `assets/characters/textures
 from the same asset pack (skins as 2K JPEG, hair at 1K, eyes as RGBA PNG — the eye's cornea is
 the transparent part of its image, and without the alpha the eyes render black).
 
-What it does: creates the default (gender-neutral, average) MakeHuman body at metre scale with feet
+What it does: creates a MakeHuman body (the `MACRO` sliders: a lean, average man) at metre scale with feet
 on the ground, adds the Mixamo-layout skeleton with finger bones and skin weights, deletes MakeHuman's
 invisible helper geometry, adds the eyes, eyebrows, eyelashes and five hair styles as proxies
 weighted from the body (before the bones are renamed, since weights are copied by bone name),
 renames bones to Godot humanoid names, assigns one flat material and exports
 a GLB with skins. Body proportions can be changed through `macro_detail_dict` in `create_human`.
+
+### Changing the body
+
+The body's shape is MakeHuman's macro sliders, `MACRO` at the top of the generator (gender, age,
+muscle, weight, proportions, height; 0.5 is the average). `--macro '{"weight": 0.3}'` tries
+another value without editing the file:
+
+```sh
+python3 tools/generate_mannequin.py -- /tmp/try.glb --macro '{"muscle": 0.2, "weight": 0.2}'
+python3 tools/compare_bodies.py assets/characters/mannequin.glb /tmp/try.glb --silhouette /tmp/try.png
+```
+
+`compare_bodies.py` says how far the vertices and the joints moved and draws the two silhouettes
+over each other. A new body moves every committed pose with its joints, so after one:
+`tools/fit_body_shapes.gd` for `Anatomy.SHAPES`; the eye centres in `Gaze` (`EYE_CENTRE`, `EYES`,
+measured off the eye mesh); the kneeling hip heights in `Stance`; then the tests that judge the
+library (`check_anatomy`, `check_grips`, `check_motion`), `tools/refit_grips.gd` for poses whose
+grips land differently, and every golden. The body chosen on 2026-11-05 (gender 0.85, muscle
+0.25, weight 0.2, height 0.40) did all of that.
 
 ## Technique tools
 
