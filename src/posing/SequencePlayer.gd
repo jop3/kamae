@@ -8,7 +8,11 @@ signal finished
 
 var scene: PosingScene
 var director: GripDirector
-var camera: Node        ## OrbitCamera, only used when the sequence's camera is "per_pose"
+var camera: Node        ## OrbitCamera, only used when the sequence's camera is "per_pose" or a film track is set
+## The film's following camera (CameraPresets.follow_track), one {center, distance, direction} per
+## frame at `camera_track_fps`; empty for every other use of the player.
+var camera_track: Array = []
+var camera_track_fps := 30.0
 var sequence: Sequence
 var poses: Dictionary = {}     ## slug -> pose dictionary
 var time := 0.0
@@ -162,6 +166,14 @@ func apply_time(t: float) -> void:
 		var cb = b.get("camera")
 		if ca is Dictionary or cb is Dictionary:
 			camera.apply_state(OrbitCamera.blend_state(ca if ca is Dictionary else {}, cb if cb is Dictionary else {}, st["u"]))
+	if camera != null and not camera_track.is_empty():
+		var f := clampf(t * camera_track_fps, 0.0, camera_track.size() - 1.0)
+		var i0 := int(floor(f))
+		var i1 := mini(i0 + 1, camera_track.size() - 1)
+		var a0: Dictionary = camera_track[i0]
+		var a1: Dictionary = camera_track[i1]
+		var w := f - i0
+		camera.look_from(a0["direction"], (a0["center"] as Vector3).lerp(a1["center"], w), lerpf(a0["distance"], a1["distance"], w))
 
 
 ## A body standing on a pose is not a statue. Two small movements on top of the blend, both nothing

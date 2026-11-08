@@ -198,13 +198,15 @@ func _render_sequence(args: PackedStringArray) -> void:
 	_apply_sequence_camera(seq)
 	# Where every limb really is on each pose, so the blends can steer elbows and knees between them.
 	# A movie records every frame drawn, these too: say which, so the film can start after them.
-	var drawn_before := Engine.get_frames_drawn()
+	# The frames drawn before it (the scene set up, still seen from the app's own camera) are not
+	# film either: everything up to the start of the film is dropped.
 	await player.prepare()
+	await _follow_figures(seq)
 	var movie_path := Engine.get_write_movie_path()
 	if movie_path != "":
 		var f := FileAccess.open(movie_path.get_base_dir().path_join(MovieExport.PREPARE_FRAMES_FILE), FileAccess.WRITE)
 		if f:
-			f.store_line("%d %d" % [drawn_before, Engine.get_frames_drawn()])
+			f.store_line("%d %d" % [0, Engine.get_frames_drawn()])
 			f.close()
 	player.seek(0.0)
 	await get_tree().process_frame
@@ -267,7 +269,7 @@ func _render_stills(args: PackedStringArray) -> void:
 ## and every `--every` seconds (or at the `--at` times, comma separated) close-ups of the figures
 ## as they are on that frame, framed tight from the front, the side, behind and the other side:
 ## <dir>/<slug>_t<time>_<view>.png. For looking at an elbow, a face or two bodies in contact
-## between the keyframes, which the film's wide shot is too far away to show.
+## between the keyframes, which the film, framed on both figures, is too far away to show.
 func _review_frames(args: PackedStringArray) -> void:
 	var seq_path: String = args[args.find("--review-frames") + 1]
 	var poses_dir: String = args[args.find("--poses-dir") + 1] if args.has("--poses-dir") else seq_path.get_base_dir()
@@ -342,7 +344,8 @@ func _review_frames(args: PackedStringArray) -> void:
 
 
 ## Frames the whole technique, not the pose it opens on: a preset built from the first pose alone
-## loses everyone who moves, and a figure thrown two metres ends up outside the picture.
+## loses everyone who moves, and a figure thrown two metres ends up outside the picture. The film
+## keeps only the direction this looks from; _follow_figures then moves the camera with the figures.
 func _apply_sequence_camera(seq: Sequence) -> void:
 	camera.fov = CameraPresets.FOV_DEG
 	var points: Array[Vector3] = []
@@ -358,6 +361,27 @@ func _apply_sequence_camera(seq: Sequence) -> void:
 			camera.apply_preset(CameraPresets.front(posing_scene, points))
 		_:
 			camera.apply_preset(CameraPresets.side(posing_scene, points))
+
+
+## The film's camera follows the figures: every frame of the film is played once (and drawn, so the
+## hands and feet are where the solve puts them; these frames are dropped with prepare's), and the
+## camera, still looking the way the sequence's view does, moves with them and stands as close as
+## frames them (CameraPresets.follow_track). Not for a sequence with a camera saved per pose.
+func _follow_figures(seq: Sequence) -> void:
+	player.camera_track = []
+	if seq.camera == "per_pose":
+		return
+	var direction := camera.global_transform.basis.z
+	camera.fov = CameraPresets.FILM_FOV_DEG
+	var fps := float(MovieExport.FPS)
+	var samples := []
+	for i in int(ceil(seq.duration() * fps)) + 1:
+		player.apply_time(float(i) / fps)
+		await get_tree().process_frame
+		samples.append(CameraPresets.film_points(posing_scene))
+	var size := get_viewport().get_visible_rect().size
+	player.camera_track = CameraPresets.follow_track(direction, samples, fps, size.x / maxf(size.y, 1.0), camera.fov)
+	player.camera_track_fps = fps
 
 
 ## Phase slugs for filenames: the pose slug with the technique's own slug stripped off.

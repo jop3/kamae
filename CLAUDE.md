@@ -27,7 +27,7 @@ $GODOT --headless --import >/dev/null 2>&1      # once, before anything else
    `motion.txt` and `floor.txt` in the build list the video frames where a body is implausible
    or anything of it is under the mat; `smooth.txt` scores how smoothly it moves
    (`tests/check_smooth.gd`: jerk, frozen frames, joints that flip, keyframes shown as saved).
-   The film is shot too wide to judge an elbow or a face: `tools/review_frames.sh <slug> --at 1.2,2.0`
+   The film follows the two figures and frames them close (`CameraPresets.follow_track`), but still not close enough to judge an elbow or a face: `tools/review_frames.sh <slug> --at 1.2,2.0`
    renders those moments close up from four sides (`FOCUS=uke1.Head` for one part).
 3. When it reads right, build without `--no-video` for `techniques/build/<slug>/<slug>.mp4`
    (≈2–4 min). Send the user the contact sheet, the stills they want and the MP4.
