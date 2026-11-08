@@ -236,8 +236,11 @@ func fingers(id: String, side: String, curl: float) -> void:
 ## `prefer`, when given, is a wrap the hand already has (a Grip's offset): every candidate then
 ## also costs how far it would turn the hand from it, so re-taking a grip shifts the hand on the
 ## arm rather than flipping it round to the other side, which a blend would carry the wrist
-## through on the way.
-func grab(gripper: String, hand: String, target: String, bone: String, approach_offset: Vector3 = Vector3.ZERO, along: float = 0.0, curl: float = 0.6, skews: Array = [0.0], prefer = null) -> Grip:
+## through on the way. With `round_weight` (degrees of refused joint per degree) the part of the
+## turn that only takes the hand round the bone costs that instead (wrap_turn): for a hand whose
+## owner walks round the arm it holds (an attack from behind, Attacks.pose_stage), where the
+## hand travelling round the wrist is the walk.
+func grab(gripper: String, hand: String, target: String, bone: String, approach_offset: Vector3 = Vector3.ZERO, along: float = 0.0, curl: float = 0.6, skews: Array = [0.0], prefer = null, round_weight := -1.0) -> Grip:
 	var g := rig(gripper)
 	if g.limbs[hand + "Arm"].mode != Limb.Mode.IK:
 		await ctrl.set_limb_mode(g, hand + "Arm", Limb.Mode.IK)
@@ -299,8 +302,12 @@ func grab(gripper: String, hand: String, target: String, bone: String, approach_
 								+ 60.0 * fingers_through(g, hand, t, bone)
 							var refused := cost
 							if prefer is Transform3D:
-								var turn := wrap_turn(prefer, trial.offset)
-								cost += PREFER_WEIGHT * turn.y + PREFER_ROUND_WEIGHT * turn.x
+								if round_weight < 0.0:
+									var turn: float = ((prefer as Transform3D).basis.orthonormalized().inverse() * trial.offset.basis.orthonormalized()).get_rotation_quaternion().get_angle()
+									cost += PREFER_WEIGHT * rad_to_deg(turn)
+								else:
+									var parts := wrap_turn(prefer, trial.offset)
+									cost += PREFER_WEIGHT * parts.y + round_weight * parts.x
 							director._remove(trial)
 							if cost < best_cost:
 								best_refused = refused
@@ -317,14 +324,17 @@ func grab(gripper: String, hand: String, target: String, bone: String, approach_
 ## Degrees of refused joint a grip is worth for each degree it does not turn the hand from the
 ## wrap it had: a flip to the far side of the arm (180°) has to save the arm 54° to be taken.
 const PREFER_WEIGHT := 0.3
-## The same for the part of the turn that only takes the hand round the bone it holds: a hand
-## slides round a wrist as the arm under it turns or as its owner walks round, without letting
-## go; it cannot tip over or swap the way its fingers run along the wrist.
+## What a degree round the bone costs for a hand whose owner walks round what it holds (grab's
+## `round_weight`). Not for refits: there it put ushiro ryotedori kotegaeshi's hand across Tori's
+## chest (54 -> 61 implausible frames); in ushiro ryotedori's walk it is 7 frames against 29.
 const PREFER_ROUND_WEIGHT := 0.1
 
 
 ## How far a wrap `trial` turns the hand from `prefer` (both Grip offsets, in the held bone's
-## frame, whose y runs along the bone): x the degrees round the bone, y the degrees of the rest.
+## frame, whose y runs along the bone): x the degrees round the bone — a hand slides round a
+## wrist as the arm under it turns, without letting go — y the degrees of the rest, the hand
+## tipped over or its fingers swapped end for end along the wrist, which it cannot do holding on
+## (PoseBlend.REGRIP_TURN).
 static func wrap_turn(prefer: Transform3D, trial: Transform3D) -> Vector2:
 	var q := (trial.basis.orthonormalized() * prefer.basis.orthonormalized().inverse()).get_rotation_quaternion()
 	if q.w < 0.0:

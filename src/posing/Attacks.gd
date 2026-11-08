@@ -268,7 +268,7 @@ static func _take(st: Staging, g: Dictionary, tori_id: String, uke_id: String, t
 	var approach := Vector3.ZERO
 	if g.has("approach"):
 		approach = tori.global_transform.basis * _vec(g["approach"], mirror)
-	return await st.grab(uke_id, hand, tori_id, bone, approach, float(g.get("along", 0.0)), float(g.get("curl", 0.6)), _skews(g, mirror), held.get(hand + "|" + bone))
+	return await st.grab(uke_id, hand, tori_id, bone, approach, float(g.get("along", 0.0)), float(g.get("curl", 0.6)), _skews(g, mirror), held.get(hand + "|" + bone), Staging.PREFER_ROUND_WEIGHT)
 
 
 ## The wraps `uke_id`'s hands have on Tori's bones now, "hand|bone" -> the grip's offset: a stage
