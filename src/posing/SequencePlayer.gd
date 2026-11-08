@@ -83,7 +83,8 @@ func prepare() -> void:
 					var pg: Transform3D = rig._solved_poses[sk.get_bone_parent(bi)]
 					rot[bone] = (pg.basis.orthonormalized().inverse() * g.basis.orthonormalized()).get_rotation_quaternion()
 				limbs[key] = {"mid": inv * rig.bone_world_transform(limb.middle_bone).origin,
-					"end": inv * rig.bone_world_transform(limb.end_bone).origin, "rot": rot}
+					"end": inv * rig.bone_world_transform(limb.end_bone).origin, "rot": rot,
+					"turns": [limb.twist.last_turn_deg, limb.hand_orient.last_turn_deg]}
 			per[rig.character_id] = limbs
 		found.append(per)
 	solved = found
@@ -274,10 +275,11 @@ func _settle_group(group: Array, k: int, bump: float) -> void:
 
 
 ## On a pose that is breathing and settling, each limb stays in the shape the pose was solved in:
-## the pole goes where that solve had the elbow or knee and the limb's turn is searched locally, as
-## between two poses (PoseBlend.steered_pole, Limb.set_blending). Searched afresh every frame, a
-## gripping arm whose best and second-best elbow are nearly as good flips between them with a
-## breath.
+## the pole is the pose's own (PoseBlend puts it there, as on the keyframe) and the limb's turn is
+## searched locally from the turns the keyframe was solved with (Limb.hold_turns). Searched afresh
+## every frame, a gripping arm whose best and second-best elbow are nearly as good flips between
+## them with a breath; searched locally from no turn with the pole on the solved elbow, it found
+## another shape than the keyframe's.
 func _steady_limbs(rig: CharacterRig, k: int) -> void:
 	if solved.size() != sequence.steps.size():
 		return
@@ -286,8 +288,8 @@ func _steady_limbs(rig: CharacterRig, k: int) -> void:
 		var limb: Limb = rig.limbs[key]
 		if limb.mode != Limb.Mode.IK or not mine.has(key):
 			continue
-		limb.set_blending(true)
-		limb.pole.global_position = PoseBlend.steered_pole(rig, limb, mine[key], mine[key], 0.0, limb.pole.global_position)
+		var turns: Array = mine[key].get("turns", [0.0, 0.0])
+		limb.hold_turns(turns[0], turns[1])
 
 
 ## How fast a figure's root was going as it reached step `k` (SETTLE of the blend's even speed),

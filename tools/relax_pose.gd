@@ -27,7 +27,7 @@ func _initialize() -> void:
 		await st.settle(6)
 		var before := Anatomy.scene_problems(scene, director)
 		for _round in TechniqueScript.RELAX_ROUNDS:
-			ContactSolve.solve(scene, director, {"root": 1.0, "arms": 1.0, "legs": 1.0})
+			ContactSolve.solve(scene, director, {"root": 1.0, "arms": 1.0, "legs": 1.0, "moved": ContactSolve.RELAX_MOVED})
 			await st.settle(2)
 		await st.feet_on_floor()
 		await st.settle(4)

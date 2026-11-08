@@ -484,7 +484,7 @@ const RELAX_ROUNDS := 6
 
 func relax() -> void:
 	for _round in RELAX_ROUNDS:
-		ContactSolve.solve(scene, director, {"root": 1.0, "arms": 1.0, "legs": 1.0})
+		ContactSolve.solve(scene, director, {"root": 1.0, "arms": 1.0, "legs": 1.0, "moved": ContactSolve.RELAX_MOVED})
 		await settle(2)
 	await feet_on_floor()
 	# A figure down on the mat (a fall) is rested on it again: the solve moves hips, and feet_on_floor

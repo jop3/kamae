@@ -2125,3 +2125,82 @@ bodies side by side (thigh against thigh is still the commonest fault in the tec
 shihonage's overhead arms; kaitennage's wrist; suwari kokyudosa's Osae; Tori meeting the
 attack (`"until"` on the attack move); the kick's chamber; weapon attacks; a pivot that turns on
 the ball of the foot with the heel up (ushiro ryotedori's last ankle frames).
+
+## Session 2026-11-08 (evening): films framed close; held arms shown as saved; the solve meets the surfaces
+
+Asked for: "Resume work from handoff. And make sure any videos you generate are better zoomed in,
+not with 90% empty space, its hard to see any improvements at that scale."
+
+**The film follows the figures** (`CameraPresets.follow_track`, `Main._follow_figures`,
+`SequencePlayer.camera_track`). The film used to be framed once over every pose of the technique
+(a bounding sphere, 50° lens, margin 1.25): the two figures took 40–55 % of the frame's height,
+less when Uke walked in from 2.5 m or was thrown. Now, after `prepare`, every film frame is played
+once (drawn, so hands and feet are where the solve puts them; those frames are dropped with
+prepare's) and the camera keeps the sequence's view direction but moves with the figures: a 30°
+lens (`FILM_FOV_DEG`; a foot stepped towards a 50° lens loomed over everything), the outline
+centred in the picture, the distance that puts every point (`film_points`: the framing bones, the
+top of the head, the soles, weapons, each padded `FILM_PAD`) inside `FILM_FILL` (94 %) of the
+half-frame, smoothed (`FILM_CENTER_SMOOTH`, `FILM_DISTANCE_SMOOTH`) and standing back
+`FILM_LOOKAHEAD` ahead of what is coming. The figures now fill 80–85 % of the height. The frames
+the app drew before `prepare` (its own camera) are dropped too: the film opened on one of them.
+Stills (`--render-stills`, the contact sheet) are unchanged. `test_camera` checks the track
+(every point in frame, comes in with Uke, fills the height, glides).
+
+**A held arm on a keyframe was not the saved arm.** `PoseBlend` set a gripping limb's pole only
+while steering it mid-blend; on a keyframe or a hold the pole stayed wherever the last frame of
+the blend left it, so the player (the film, the contact-sheet stills, `prepare`'s record of each
+keyframe) showed Uke's arm in katatedori tenkan's Tenkan with the elbow 10 cm off and the wrist
+bent 110° the other way, and its upper arm 3.4 cm into Tori's. It now takes the poses' pole like
+every other IK limb. Then a hold re-solved that arm with a local search from no turn and found
+another shape (forearm pronated 144° for the whole hold): `prepare` now records each limb's turns
+(`TwistFollow`/`HandOrient.last_turn_deg`) and a hold starts its local search from them
+(`Limb.hold_turns`, `LimbTurn.descend`'s `start`). Tenkan 46 → 19 implausible frames from this
+alone; 674 → 644 over the 14 techniques.
+
+**ContactSolve did not see the bodies the checks see.** Three mismatches, each found on a pose
+the relax could not part:
+- *Limbs against a partner were capsules on the bones*; the check (and the body) has the flesh off
+  them (`Anatomy.SHAPES`: the thigh 2.5 cm in front of the femur, the foot heel to toe below the
+  ankle). Two knees the check had 2.6 cm into each other were 0.5 cm apart to the solve. Partner
+  contacts now use the surface capsules, as offsets from the joints carried through the solve
+  (`skin` in `_figure`). Against its own body a hand or foot is the real bone segment (`own_end`),
+  not a stub along the forearm (a hanging hand bent into the thigh: 1.0 cm to the solve, 4.3 to
+  the check).
+- *The knee or elbow was where the pole says*, but the IK's turn search turns the whole limb about
+  hip–ankle afterwards (a leg turned 45° for its foot had the knee 16 cm away). `_figure` turns the
+  modelled joint by the limb's last turns and `_write` takes them off again for the pole.
+- *A contact moved its ends by depth·w*, so one at the hips (w 0.15) took out 7 % a step while the
+  pull to the blend put back 10 %: the solve settled with 40 % of the overlap left. Pushes are now
+  shared by the ends' masses (`_w`, `CONTACT_STIFFNESS` 0.8), position-based.
+And two thresholds: a leg is re-aimed for corrections over `MOVED_LEG` (3 mm; a knee has no wrist
+to trouble) and the relax before saving re-aims an arm over `RELAX_MOVED` (4 mm; each round started
+where the last left off, so a push under `MOVED` was never made). `tools/relax_pose.gd` relaxes the
+same way.
+
+**Numbers** (14 technique scripts rebuilt, no video; implausible frames before → after this
+session): chudan tsuki iriminage 51 → 35, chudan tsuki kotegaeshi 45 → 43, kaitennage 46 → 72,
+katatedori kotegaeshi 25 → 23, shihonage 79 → 66, tenkan 46 → 14, tenkan kokyunage 38 → 19,
+morotedori kokyunage 60 → 68, tenchinage 27 → 11, shomenuchi ikkyo 36 → 34, shomenuchi iriminage
+51 → 35, suwari kokyudosa 35 → 35, ushiro ryotedori kotegaeshi 56 → 42, yokomenuchi shihonage
+79 → 69: **674 → 566**. Under the mat: yokomenuchi shihonage 39 → 37 frames, tenkan kokyunage
+6 → 5, the rest as before. The library: check_motion shihonage irimi 33 → 31, ryotemochi 27 → 26
+(`OUTSTANDING` lowered); check_smooth, check_floor, check_anatomy, check_grips and every golden
+pass. The attack scripts were not re-filmed.
+
+The two that got worse: *kaitennage* — its Kake keyframe now has Tori's right upper arm 6–7 cm in
+Uke's left (both arms held; the relax cannot part them) and Uke's left leg passes Tori's on the
+roll; *morotedori kokyunage* — Uke's shoulders through the throw (adduction 26 frames, internal
+rotation 19) and Tori's hand in his own thigh at the end. Both are the scripts' staging meeting a
+solve that now moves what it did not; neither was traced further.
+
+Tried and dropped: *re-checking each saved pose as it reloads* (`PoseFile.apply` of the capture,
+relaxed again if the reload had more bodies through bodies). A reload is not always the pose as
+staged (the IK starts from the baked bones and its turn search can land elsewhere: chudan tsuki
+kotegaeshi's Kuzushi was saved clear and reloads with the knees 2.6 cm in), and the check fixed
+that one, but the reload also changes the state the next phase is staged from (katatedori
+kotegaeshi's Kote grab then missed by 19 cm), and over the 14 it came to 593 against 566 without.
+Save→reload fidelity is worth its own look.
+
+**Next**: the save→reload difference above; kaitennage's Kake arms; morotedori's Uke shoulders;
+then as before — shihonage's overhead arms, kaitennage's wrist, suwari kokyudosa's Osae, Tori
+meeting the attack (`"until"`), the kick's chamber, weapon attacks, a pivot on the ball of the foot.

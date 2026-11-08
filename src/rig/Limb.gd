@@ -132,6 +132,18 @@ func set_influence(x: float) -> void:
 func set_blending(on: bool) -> void:
 	twist.local_search = on
 	hand_orient.local_search = on
+	twist.seed_turn_deg = 0.0
+	hand_orient.seed_turn_deg = 0.0
+
+
+## On a pose being held: the turns its keyframe was solved with, where the local search starts, so
+## the held pose stays the keyframe's shape (searched from no turn, it found another minimum: a
+## gripping forearm pronated 144° through the whole hold of katatedori tenkan).
+func hold_turns(twist_deg: float, hand_deg: float) -> void:
+	twist.local_search = true
+	hand_orient.local_search = true
+	twist.seed_turn_deg = twist_deg
+	hand_orient.seed_turn_deg = hand_deg
 
 
 ## Sequence playback: the hand takes the target's orientation this much (0..1), so a hand that is

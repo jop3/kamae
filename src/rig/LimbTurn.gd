@@ -40,18 +40,20 @@ const TURN_COST_PER_DEG := 0.05
 const DESCEND_LIMIT := 45.0
 
 
-static func descend(cost: Callable, step := 7.5) -> float:
-	var best := 0.0
-	var best_cost: float = cost.call(0.0)
+## `start`: where the search begins instead of no turn (a pose held after its keyframe starts from
+## the turn the keyframe was solved with; the limit is counted from there).
+static func descend(cost: Callable, step := 7.5, start := 0.0) -> float:
+	var best := start
+	var best_cost: float = cost.call(start)
 	if best_cost <= 1e-6:
-		return 0.0
+		return start
 	var dir := 0.0
 	for d in [-1.0, 1.0]:
-		var c: float = cost.call(d * step)
-		if c < best_cost - 1e-9 and (dir == 0.0 or c < cost.call(dir * step)):
+		var c: float = cost.call(start + d * step)
+		if c < best_cost - 1e-9 and (dir == 0.0 or c < cost.call(start + dir * step)):
 			dir = d
 	if dir != 0.0:
-		while absf(best + dir * step) <= DESCEND_LIMIT:
+		while absf(best + dir * step - start) <= DESCEND_LIMIT:
 			var c: float = cost.call(best + dir * step)
 			if c >= best_cost - 1e-9:
 				break
@@ -60,7 +62,7 @@ static func descend(cost: Callable, step := 7.5) -> float:
 	var h := step * 0.5
 	for _i in REFINE_STEPS + 1:
 		for cand in [best - h, best + h]:
-			if absf(cand) > DESCEND_LIMIT:
+			if absf(cand - start) > DESCEND_LIMIT:
 				continue
 			var c: float = cost.call(cand)
 			if c < best_cost:

@@ -348,6 +348,11 @@ static func _apply_character(rig: CharacterRig, ca: Dictionary, cb: Dictionary, 
 			else:
 				orient[key] = oa + (1.0 - oa) * weight
 			limb.set_orient_weight(orient[key])
+			# Its elbow as the poses have it when nothing steers it: left alone, a held arm on a
+			# keyframe or a hold kept the pole the last frame of the blend left, and showed (and
+			# prepare recorded) an elbow 10 cm off the saved one, the wrist bent the other way.
+			if not steer and not falling:
+				limb.pole.global_position = body_pole(rig, ga, gb, xa, xb, ul, limb.pole.global_position)
 			if ga.has("target") and gb.has("target"):
 				var gta := PoseFile.array_to_transform(ga["target"])
 				var gtb := PoseFile.array_to_transform(gb["target"])

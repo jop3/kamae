@@ -24,6 +24,8 @@ extends RefCounted
 const ITERATIONS := 20
 ## How much overlap is left alone, metres: a little under what the checks allow.
 const ALLOW_PARTNER := 0.01
+## How much of a contact's depth one step of the solve takes out (1 meets it outright).
+const CONTACT_STIFFNESS := 0.8
 ## Width of the soft zone either side of each limit, metres.
 const SOFT := 0.01
 const ALLOW_OWN_TRUNK := 0.05
@@ -44,6 +46,13 @@ const W_FOOT_DOWN := 0.02
 const FOOT_DOWN := 0.2
 ## Less than this moved by the solve, metres, and a limb is left as the blend set it.
 const MOVED := 0.015
+## A leg's: a knee re-aimed has no wrist to trouble, and two knees a centimetre into each other
+## are what the solve is for (left alone under MOVED, they stayed 2.6 cm into each other).
+const MOVED_LEG := 0.003
+## An arm's when a pose is relaxed before it is saved: there each round starts where the last left
+## off, and an arm whose push stayed under MOVED stayed where it was round after round (a hanging
+## hand 4 cm into the thigh moved 1.4 cm a round and was never moved).
+const RELAX_MOVED := 0.004
 ## How far a correction goes toward this frame's answer from the last frame's (see _eased).
 const EASE := 0.6
 ## How far out past the solved elbow or knee its pole is put, metres.
@@ -52,7 +61,9 @@ const POLE_OUT := 0.3
 const LIMB_BONES := {"Arm": ["UpperArm", "LowerArm", "Hand"], "Leg": ["UpperLeg", "LowerLeg", "Foot"]}
 
 
-## Solves the scene as PoseBlend has just set it. `strength` per part as clearance_strength.
+## Solves the scene as PoseBlend has just set it. `strength` per part as clearance_strength, and
+## "moved": how far an arm must be moved to be re-aimed (MOVED unless given; Staging.relax gives
+## RELAX_MOVED).
 static func solve(scene: PosingScene, director: GripDirector, strength: Dictionary) -> void:
 	var k := maxf(float(strength.get("root", 0.0)), maxf(float(strength.get("arms", 0.0)), float(strength.get("legs", 0.0))))
 	if k <= 0.0:
@@ -77,7 +88,7 @@ static func solve(scene: PosingScene, director: GripDirector, strength: Dictiona
 			for j in range(i + 1, figures.size()):
 				_contact(figures[i], figures[j])
 	for f: Dictionary in figures:
-		_write(f, k)
+		_write(f, k, float(strength.get("moved", MOVED)))
 
 
 # --- the figure as points --------------------------------------------------------------------
@@ -117,12 +128,50 @@ static func _figure(rig: CharacterRig, director: GripDirector) -> Dictionary:
 		if gripping:
 			# Put on its grip below (_grip_links), from this frame's figures.
 			mid = _ik_middle(root, end, limb.pole.global_position, l1, l2)
+		# The IK puts the elbow or knee toward the pole, then TwistFollow and HandOrient turn the
+		# whole limb about its root-to-end line (LimbTurn) as the joints ask: a leg turned 45° for
+		# its foot had the knee 16 cm from where the pole says, and the solve kept a hand out of a
+		# thigh that was not there. Turned as the last solve turned it.
+		var turn := deg_to_rad(limb.twist.last_turn_deg + limb.hand_orient.last_turn_deg) \
+			if limb.mode == Limb.Mode.IK else 0.0
+		mid = _turned(root, end, mid, turn)
+		# Where the limb's surface lies off its joints (Anatomy.SHAPES: the thigh's flesh is in
+		# front of the femur, the foot runs from heel to toe below the ankle), as offsets from the
+		# joints carried through the solve. On the bones alone, two knees the check found 2.6 cm into
+		# each other were half a centimetre apart to the solve, and the relax left them so.
+		var joint_at := [rig.fk_bone_transform(limb.root_bone).origin, rig.fk_bone_transform(limb.middle_bone).origin,
+			rig.fk_bone_transform(limb.end_bone).origin]
+		var skin := []
+		for b in 3:
+			var bone_name: String = [limb.root_bone, limb.middle_bone, limb.end_bone][b]
+			if surface.has(bone_name):
+				var from: Vector3 = joint_at[b]
+				var to: Vector3 = joint_at[b + 1] if b < 2 else joint_at[b]
+				skin.append([surface[bone_name][0] - from, surface[bone_name][1] - to])
+			else:
+				skin.append([])
+		# The hand or foot against the figure's own body as Anatomy.segments has it (from the wrist
+		# or ankle the way the hand or foot really points), carried with the end: as a stub on along
+		# the forearm a hand bent at the wrist into the thigh was a centimetre clear to the solve
+		# and 4.3 cm in to the check.
+		var own_end := []
+		if segs.has(limb.end_bone):
+			own_end = [segs[limb.end_bone][0] - joint_at[2], segs[limb.end_bone][1] - joint_at[2]]
 		limbs[key] = {"limb": limb, "root_local": root - hips, "l1": l1, "l2": l2, "arm": limb.is_arm,
+			"skin": skin, "own_end": own_end,
 			"mid": {"p": mid, "w": W_JOINT}, "end": {"p": end, "w": W_FOOT_DOWN if down else W_END},
-			"mid0": mid, "end0": end, "down": down, "gripping": gripping, "ik": limb.mode == Limb.Mode.IK,
+			"mid0": mid, "end0": end, "turn": turn, "down": down, "gripping": gripping, "ik": limb.mode == Limb.Mode.IK,
 			"names": [limb.root_bone, limb.middle_bone, limb.end_bone]}
 	return {"rig": rig, "hips": {"p": hips, "w": W_HIPS}, "hips0": hips, "trunk": trunk, "limbs": limbs,
 		"outer": outer, "limb_r": limb_r, "parents": Anatomy.parents_of(rig)}
+
+
+## `p` turned by `angle` (radians) about the line from `root` to `end`.
+static func _turned(root: Vector3, end: Vector3, p: Vector3, angle: float) -> Vector3:
+	var line := end - root
+	if absf(angle) < 1e-5 or line.length() < 1e-5:
+		return p
+	return root + Basis(line.normalized(), angle) * (p - root)
 
 
 ## Where a two-bone IK puts the middle joint for root, end and pole.
@@ -266,8 +315,19 @@ static func _capsules(f: Dictionary, outer := false) -> Array:
 	for key: String in f["limbs"]:
 		var lb: Dictionary = f["limbs"][key]
 		var names: Array = lb["names"]
+		var skin: Array = lb["skin"]
+		if outer and not (skin[0].is_empty() or skin[1].is_empty() or skin[2].is_empty()):
+			out.append([{"hips": hips, "local": (lb["root_local"] as Vector3) + (skin[0][0] as Vector3)},
+				{"pt": lb["mid"], "off": skin[0][1]}, radii.get(names[0], 0.05), names[0]])
+			out.append([{"pt": lb["mid"], "off": skin[1][0]}, {"pt": lb["end"], "off": skin[1][1]}, radii.get(names[1], 0.04), names[1]])
+			out.append([{"pt": lb["end"], "off": skin[2][0]}, {"pt": lb["end"], "off": skin[2][1]}, radii.get(names[2], 0.03), names[2]])
+			continue
 		out.append([{"hips": hips, "local": lb["root_local"]}, lb["mid"], radii.get(names[0], 0.05), names[0]])
 		out.append([lb["mid"], lb["end"], radii.get(names[1], 0.04), names[1]])
+		var own_end: Array = lb["own_end"]
+		if not outer and not own_end.is_empty():
+			out.append([{"pt": lb["end"], "off": own_end[0]}, {"pt": lb["end"], "off": own_end[1]}, radii.get(names[2], 0.03), names[2]])
+			continue
 		# The hand or foot as a short stub on past the end, along the forearm or shin.
 		out.append([lb["end"], {"stub": lb["end"], "from": lb["mid"], "len": 0.08 if lb["arm"] else 0.12},
 			radii.get(names[2], 0.03), names[2]])
@@ -275,6 +335,8 @@ static func _capsules(f: Dictionary, outer := false) -> Array:
 
 
 static func _pos(e: Dictionary) -> Vector3:
+	if e.has("pt"):
+		return (e["pt"]["p"] as Vector3) + (e["off"] as Vector3)
 	if e.has("hips"):
 		return (e["hips"]["p"] as Vector3) + (e["local"] as Vector3)
 	if e.has("stub"):
@@ -285,7 +347,9 @@ static func _pos(e: Dictionary) -> Vector3:
 
 ## Moves one end of a capsule by `d` (a fixed-to-hips end moves the hips, by their mass).
 static func _move(e: Dictionary, d: Vector3, share: float) -> void:
-	if e.has("hips"):
+	if e.has("pt"):
+		e["pt"]["p"] += d * share * float(e["pt"]["w"])
+	elif e.has("hips"):
 		e["hips"]["p"] += d * share * float(e["hips"]["w"])
 	elif e.has("stub"):
 		e["stub"]["p"] += d * share * float(e["stub"]["w"])
@@ -308,9 +372,28 @@ static func _push_apart(c1: Array, c2: Array, allow: float) -> void:
 	var n := diff / dist if dist > 1e-6 else Vector3.UP
 	var s1 := _along(a1, b1, pts[0])
 	var s2 := _along(a2, b2, pts[1])
-	var push := n * depth * 0.5
+	# The depth shared by the four ends by their masses and how near the contact each is, so the
+	# contact is met in one go (a position-based solve): pushed by depth·w alone, a contact at the
+	# hips or shoulders moved 7 % of its depth a step while the pull back to the blend took 10 %,
+	# and the solve settled with 40 % of the overlap left.
+	var w := _w(c1[0]) * (1.0 - s1) * (1.0 - s1) + _w(c1[1]) * s1 * s1 \
+		+ _w(c2[0]) * (1.0 - s2) * (1.0 - s2) + _w(c2[1]) * s2 * s2
+	if w <= 1e-6:
+		return
+	var push := n * depth * CONTACT_STIFFNESS / w
 	_move(c1[0], push, 1.0 - s1); _move(c1[1], push, s1)
 	_move(c2[0], -push, 1.0 - s2); _move(c2[1], -push, s2)
+
+
+## The inverse mass of a capsule's end (an end fixed to the hips moves with them).
+static func _w(e: Dictionary) -> float:
+	if e.has("pt"):
+		return float(e["pt"]["w"])
+	if e.has("hips"):
+		return float(e["hips"]["w"])
+	if e.has("stub"):
+		return float(e["stub"]["w"])
+	return float(e["w"])
 
 
 static func _along(a: Vector3, b: Vector3, p: Vector3) -> float:
@@ -384,7 +467,7 @@ static func _eased(rig: CharacterRig, key: String, raw: Vector3) -> Vector3:
 	return raw
 
 
-static func _write(f: Dictionary, k: float) -> void:
+static func _write(f: Dictionary, k: float, moved_arm := MOVED) -> void:
 	var rig: CharacterRig = f["rig"]
 	if not _last.has(rig.get_instance_id()):
 		_last[rig.get_instance_id()] = {"frame": -100}
@@ -400,17 +483,19 @@ static func _write(f: Dictionary, k: float) -> void:
 		# A limb contact did not move is left as the blend set it: re-aiming an elbow nothing
 		# pushed only hands the wrist a different problem.
 		var pushed: float = maxf((mid - (lb["mid0"] as Vector3) - moved * k).length(), (end - (lb["end0"] as Vector3)).length())
-		if pushed < MOVED:
+		if pushed < (moved_arm if lb["arm"] else MOVED_LEG):
 			continue
 		if not lb["gripping"]:
 			limb.target.global_position = end
 		var root := (f["hips0"] as Vector3) + moved * k + (lb["root_local"] as Vector3)
+		# The pole for the joint before the limb's turn (see _figure), which the IK then turns again.
+		mid = _turned(root, end, mid, -float(lb["turn"]))
 		var line := end - root
 		var off := mid - (root + line.normalized() * (mid - root).dot(line.normalized())) if line.length() > 1e-5 else Vector3.ZERO
 		# A push that takes the elbow (or knee) across the line from shoulder to hand to the far
 		# side would turn the forearm over half a turn: the joint stays on its own side, and only
 		# the hand or foot is moved.
-		var mid0: Vector3 = lb["mid0"]
+		var mid0: Vector3 = _turned(root, end, lb["mid0"], -float(lb["turn"]))
 		var off0 := mid0 - (root + line.normalized() * (mid0 - root).dot(line.normalized())) if line.length() > 1e-5 else Vector3.ZERO
 		if off.length() > 0.005 and off.normalized().dot(off0.normalized()) > 0.0:
 			limb.pole.global_position = mid + off.normalized() * POLE_OUT

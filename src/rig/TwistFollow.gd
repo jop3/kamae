@@ -35,6 +35,9 @@ const FOREARM_RADIUS := 0.037
 var rig: CharacterRig
 ## Mid-blend: the nearest local minimum, not the global one (see HandOrient.local_search).
 var local_search := false
+## Where the local search starts, degrees (LimbTurn.descend): the keyframe's own turn on a pose
+## being held, no turn between two poses.
+var seed_turn_deg := 0.0
 var _r := -1
 var _m := -1
 var _e := -1
@@ -111,7 +114,7 @@ func _keep_root_in_range(sk: Skeleton3D) -> void:
 			if depth > 0.0:
 				c += depth * 100.0 * HEAD_COST_PER_CM
 		return c
-	var phi := LimbTurn.descend(cost) if local_search else LimbTurn.search(cost)
+	var phi := LimbTurn.descend(cost, 7.5, seed_turn_deg) if local_search else LimbTurn.search(cost)
 	if absf(phi) < 1e-3:
 		return
 	last_turn_deg = phi
