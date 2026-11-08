@@ -1,7 +1,11 @@
 extends SceneTree
 ## Re-seats the hands in poses that are already committed, without rebuilding the technique.
 ##
-##   godot --headless -s tools/refit_grips.gd -- <pose slug> [<pose slug> ...]
+##   godot --headless -s tools/refit_grips.gd -- <pose slug> [<pose slug> ...] [--prefer <pose slug>]
+##
+## --prefer: each hand re-takes its hold as close as it can to the wrap it has in that pose (the
+## pose before it in the sequence), so the blend between the two does not have it let go and
+## take hold again (PoseBlend.REGRIP_TURN).
 ##
 ## build_fixtures.gd rebuilds a technique from its script, which is right while the technique is
 ## being authored and wrong once a pose has been corrected by hand: ushiro ryotedori zenponage's
@@ -31,7 +35,16 @@ func _initialize() -> void:
 	director = GripDirector.new(); world.add_child(director); director.setup(scene, ctrl)
 	st = Staging.new(self, scene, director, ctrl)
 	await physics_frame
-	for slug in OS.get_cmdline_user_args():
+	var args := Array(OS.get_cmdline_user_args())
+	var prefer := {}   # "gripper/hand|character/bone" -> that pose's offset
+	var at := args.find("--prefer")
+	if at >= 0:
+		for g in PoseFile.load("%s/%s.json" % [POSES, args[at + 1]]).get("grips", []):
+			var tg: Dictionary = g.get("target", {})
+			if tg.get("kind", "") == "bone":
+				prefer["%s/%s|%s/%s" % [g["gripper"], g["hand"], tg["character"], tg["bone"]]] = PoseFile.array_to_transform(g["offset"])
+		args = args.slice(0, at) + args.slice(at + 2)
+	for slug in args:
 		var path := "%s/%s.json" % [POSES, slug]
 		var data := PoseFile.load(path)
 		if data.is_empty():
@@ -59,7 +72,9 @@ func _initialize() -> void:
 			# The same search a fresh grab does — which side of the bone, which way round, how
 			# far the fingers close — from where this pose has already put the two bodies. A
 			# hand simply re-attached where it was keeps whatever the old seat made of it.
-			var new_grip := await st.grab(grip.gripper_id, grip.hand, grip.target.character_id, bone, Vector3.ZERO, along)
+			var key := "%s/%s|%s/%s" % [grip.gripper_id, grip.hand, grip.target.character_id, bone]
+			var new_grip := await st.grab(grip.gripper_id, grip.hand, grip.target.character_id, bone, Vector3.ZERO, along,
+				0.6, [0.0], prefer.get(key))
 			await settle(4)
 			refit += 1
 			print("  %s %s/%s on %s %s at %.2f along: the hand moved %.1f cm"

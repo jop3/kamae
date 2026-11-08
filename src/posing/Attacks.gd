@@ -77,6 +77,9 @@ static func stage(st: Staging, key: String, opts: Dictionary = {}) -> Dictionary
 	var tori := st.rig(tori_id)
 	var uke := st.rig(uke_id)
 	assert(tori and uke, "stage() needs both characters in the scene")
+	# "continue": the attack's moment after its stages — a hand that holds on from the last stage
+	# keeps the wrap it has.
+	var held: Dictionary = _held(st, uke_id) if opts.get("continue", false) else {}
 	# Everyone lets go and stands up straight before the attack is set.
 	await st.release_all(uke_id)
 	await st.release_all(tori_id)
@@ -138,13 +141,13 @@ static func stage(st: Staging, key: String, opts: Dictionary = {}) -> Dictionary
 		await _strike(st, e["strike"], tori, uke, mirror)
 	var grips: Array = []
 	for g in e.get("grips", []):
-		grips.append(await _take(st, g, tori_id, uke_id, tori, mirror))
+		grips.append(await _take(st, g, tori_id, uke_id, tori, mirror, held))
 	var nominal: Vector3 = uke.position
 	if not grips.is_empty() and opts.get("fit", true):
 		# Twice: the way a hand wraps its target is chosen from where Uke stands, and where Uke
 		# stands is chosen from how the hands wrap. Once round each is enough in practice.
 		await _fit(st, tori, uke, grips, e)
-		grips = await _regrab(st, e, tori_id, uke_id, tori, mirror)
+		grips = await _regrab(st, e, tori_id, uke_id, tori, mirror, held)
 		await _fit(st, tori, uke, grips, e)
 	await st.feet_on_floor()
 	await st.settle(3)
@@ -251,7 +254,7 @@ static func _strike(st: Staging, s: Dictionary, tori: CharacterRig, uke: Charact
 ## Takes one grip of the catalogue: a hand wrapped round a bone, or with "cloth" a fist in the
 ## gi over it (knuckles "along" the bone plus "offset" in Tori's frame, turned as "point" and
 ## "palm" say in Uke's frame).
-static func _take(st: Staging, g: Dictionary, tori_id: String, uke_id: String, tori: CharacterRig, mirror: bool) -> Grip:
+static func _take(st: Staging, g: Dictionary, tori_id: String, uke_id: String, tori: CharacterRig, mirror: bool, held: Dictionary = {}) -> Grip:
 	var hand := _side(g["hand"], mirror)
 	var bone := _side(g["bone"], mirror)
 	if g.get("cloth", false):
@@ -265,7 +268,18 @@ static func _take(st: Staging, g: Dictionary, tori_id: String, uke_id: String, t
 	var approach := Vector3.ZERO
 	if g.has("approach"):
 		approach = tori.global_transform.basis * _vec(g["approach"], mirror)
-	return await st.grab(uke_id, hand, tori_id, bone, approach, float(g.get("along", 0.0)), float(g.get("curl", 0.6)), _skews(g, mirror))
+	return await st.grab(uke_id, hand, tori_id, bone, approach, float(g.get("along", 0.0)), float(g.get("curl", 0.6)), _skews(g, mirror), held.get(hand + "|" + bone))
+
+
+## The wraps `uke_id`'s hands have on Tori's bones now, "hand|bone" -> the grip's offset: a stage
+## that goes on holding what the last one held re-takes it from there (Staging.grab's `prefer`),
+## so the hand goes round the wrist as Uke walks round rather than turning over on it.
+static func _held(st: Staging, uke_id: String) -> Dictionary:
+	var out := {}
+	for grip in st.director.grips_for(uke_id):
+		if grip.target.kind == GripTarget.Kind.BONE:
+			out[grip.hand + "|" + grip.target.bone_name] = grip.offset
+	return out
 
 
 ## A point `along` a bone of `r`, from its joint (0) to its child's (1).
@@ -394,6 +408,7 @@ static func pose_stage(st: Staging, key: String, stage_: Dictionary, opts: Dicti
 	var uke_id: String = opts.get("uke", "uke1")
 	var tori := st.rig(tori_id)
 	var spec: Dictionary = stage_.get("spec", {})
+	var held := _held(st, uke_id)
 	for grip in st.director.grips_for(uke_id).duplicate():
 		if grip.target.kind == GripTarget.Kind.BONE:
 			st.director._remove(grip)
@@ -419,16 +434,16 @@ static func pose_stage(st: Staging, key: String, stage_: Dictionary, opts: Dicti
 		st.fingers(uke_id, _side(side, mirror), float(spec["curls"][side]))
 	var grips: Array = e.get("grips", [])
 	for i in spec.get("grips", []):
-		await _take(st, grips[int(i)], tori_id, uke_id, tori, mirror)
+		await _take(st, grips[int(i)], tori_id, uke_id, tori, mirror, held)
 	await st.settle(3)
 
 
 ## Takes every grip of the attack again from where Uke now stands.
-static func _regrab(st: Staging, e: Dictionary, tori_id: String, uke_id: String, tori: CharacterRig, mirror: bool) -> Array:
+static func _regrab(st: Staging, e: Dictionary, tori_id: String, uke_id: String, tori: CharacterRig, mirror: bool, held: Dictionary = {}) -> Array:
 	await st.release_all(uke_id)
 	var grips: Array = []
 	for g in e.get("grips", []):
-		grips.append(await _take(st, g, tori_id, uke_id, tori, mirror))
+		grips.append(await _take(st, g, tori_id, uke_id, tori, mirror, held))
 	return grips
 
 
@@ -459,6 +474,9 @@ static func _fit(st: Staging, tori: CharacterRig, uke: CharacterRig, grips: Arra
 	# the mat. Arm's length is what a grab from the front looks like; without it the joints alone
 	# pulled Uke in until the two stood chest to chest with the gripping elbow out to the side.
 	var min_gap: float = float(e.get("uke", {}).get("min_gap", 0.0))
+	# How deep the bodies may press before it costs: Anatomy.PRESS, or the attack's own "press"
+	# where the hold is a squeeze (the bear hug's arms round Tori's chest).
+	var press: float = float(e.get("uke", {}).get("press", Anatomy.PRESS))
 	for d_in in e.get("uke", {}).get("fit_in", FIT_STEPS_IN):
 		for d_side in FIT_STEPS_SIDE:
 			var at: Vector3 = start + toward * d_in + side * d_side
@@ -469,7 +487,10 @@ static func _fit(st: Staging, tori: CharacterRig, uke: CharacterRig, grips: Arra
 				cost += FIT_REFUSAL + _excess_of(uke, line)
 			cost += FIT_ERROR_PER_M * _worst_error(st, grips) + FIT_MOVE_PER_M * at.distance_to(start)
 			for o in Anatomy.body_overlaps(tori, uke, st.director):
-				cost += FIT_BODY_PER_M * (o["depth"] - Anatomy.PENETRATION)
+				# body_overlaps lists only what is deeper than PRESS; what lies past it is the cost.
+				# (Subtracting the older, larger PENETRATION made a light press a reward: the fit
+				# pulled Uke's front thigh 2-4 cm into Tori's in five grabs.)
+				cost += FIT_BODY_PER_M * maxf(0.0, o["depth"] - press)
 			if min_gap > 0.0:
 				var gap := Vector2(at.x - tori.position.x, at.z - tori.position.z).length()
 				cost += FIT_GAP_PER_M * maxf(0.0, min_gap - gap)

@@ -299,8 +299,8 @@ func grab(gripper: String, hand: String, target: String, bone: String, approach_
 								+ 60.0 * fingers_through(g, hand, t, bone)
 							var refused := cost
 							if prefer is Transform3D:
-								var turn: float = ((prefer as Transform3D).basis.orthonormalized().inverse() * trial.offset.basis.orthonormalized()).get_rotation_quaternion().get_angle()
-								cost += PREFER_WEIGHT * rad_to_deg(turn)
+								var turn := wrap_turn(prefer, trial.offset)
+								cost += PREFER_WEIGHT * turn.y + PREFER_ROUND_WEIGHT * turn.x
 							director._remove(trial)
 							if cost < best_cost:
 								best_refused = refused
@@ -317,6 +317,22 @@ func grab(gripper: String, hand: String, target: String, bone: String, approach_
 ## Degrees of refused joint a grip is worth for each degree it does not turn the hand from the
 ## wrap it had: a flip to the far side of the arm (180°) has to save the arm 54° to be taken.
 const PREFER_WEIGHT := 0.3
+## The same for the part of the turn that only takes the hand round the bone it holds: a hand
+## slides round a wrist as the arm under it turns or as its owner walks round, without letting
+## go; it cannot tip over or swap the way its fingers run along the wrist.
+const PREFER_ROUND_WEIGHT := 0.1
+
+
+## How far a wrap `trial` turns the hand from `prefer` (both Grip offsets, in the held bone's
+## frame, whose y runs along the bone): x the degrees round the bone, y the degrees of the rest.
+static func wrap_turn(prefer: Transform3D, trial: Transform3D) -> Vector2:
+	var q := (trial.basis.orthonormalized() * prefer.basis.orthonormalized().inverse()).get_rotation_quaternion()
+	if q.w < 0.0:
+		q = -q
+	var round_ := Quaternion(0.0, q.y, 0.0, q.w)
+	round_ = Quaternion() if round_.length_squared() < 1e-12 else round_.normalized()
+	var rest := q * round_.inverse()
+	return Vector2(rad_to_deg(2.0 * acos(clampf(absf(round_.w), 0.0, 1.0))), rad_to_deg(2.0 * acos(clampf(absf(rest.w), 0.0, 1.0))))
 
 
 ## Closes each of `hand`'s fingers as far as resting on `bone` takes, no further: the curl is

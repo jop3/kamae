@@ -644,7 +644,7 @@ static func grip_weight(key: String, grips_a: Dictionary, grips_b: Dictionary, u
 	var ga: Dictionary = grips_a.get(key, {})
 	var gb: Dictionary = grips_b.get(key, {})
 	if not ga.is_empty() and not gb.is_empty():
-		return 1.0 if _same_target(ga, gb) else absf(2.0 * u - 1.0)
+		return 1.0 if _continuous(ga, gb) else absf(2.0 * u - 1.0)
 	var g: Dictionary = ga if not ga.is_empty() else gb
 	var cyclic := false
 	var owner: String = g.get("target", {}).get("character", "")
@@ -674,8 +674,10 @@ static func _apply_grips(scene: PosingScene, director: GripDirector, a: Dictiona
 			continue
 		var src: Dictionary = ga if not ga.is_empty() else gb
 		var d: Dictionary = src.duplicate(true)
-		if not ga.is_empty() and not gb.is_empty() and _same_target(ga, gb):
-			d["offset"] = PoseFile.array_to_transform(ga.get("offset")).interpolate_with(PoseFile.array_to_transform(gb.get("offset")), u)
+		if not ga.is_empty() and not gb.is_empty() and _continuous(ga, gb):
+			var oa := PoseFile.array_to_transform(ga.get("offset"))
+			var ob := PoseFile.array_to_transform(gb.get("offset"))
+			d["offset"] = round_bone(oa, ob, u) if ga.get("target", {}).get("kind", "") == "bone" else oa.interpolate_with(ob, u)
 		elif not ga.is_empty() and not gb.is_empty():
 			d = (ga if u < 0.5 else gb).duplicate(true)
 			d["offset"] = PoseFile.array_to_transform(d.get("offset"))
@@ -704,6 +706,37 @@ static func _apply_grips(scene: PosingScene, director: GripDirector, a: Dictiona
 		var rig: CharacterRig = scene.get_character(grip.gripper_id)
 		if rig and rig.limbs.has(grip.limb_key()):
 			grip.free = rig.limbs[grip.limb_key()].target.global_transform
+
+
+## Between two holds on the same bone (Grip offsets in its frame, y along it): the hand goes
+## round the bone and along it rather than straight from one hold to the other, which for a hand
+## that has slid a quarter round a wrist cuts 3 cm into it on the way.
+static func round_bone(a: Transform3D, b: Transform3D, u: float) -> Transform3D:
+	var t := a.interpolate_with(b, u)
+	var ra := Vector2(a.origin.x, a.origin.z)
+	var rb := Vector2(b.origin.x, b.origin.z)
+	if ra.length() < 1e-4 or rb.length() < 1e-4:
+		return t
+	var ang := lerp_angle(atan2(ra.x, ra.y), atan2(rb.x, rb.y), u)
+	var r := lerpf(ra.length(), rb.length(), u)
+	t.origin = Vector3(sin(ang) * r, lerpf(a.origin.y, b.origin.y, u), cos(ang) * r)
+	return t
+
+
+## A hold on a bone that turns over by more than this between two poses — the fingers running
+## the other way along the wrist, the hand tipped across it — is let go and taken again on the
+## way (Staging.wrap_turn's second part): no hand turns over on what it is holding.
+const REGRIP_TURN := 90.0
+
+
+## The same hold in both poses: the same target, and on a bone the hand not turned over on it.
+static func _continuous(ga: Dictionary, gb: Dictionary) -> bool:
+	if not _same_target(ga, gb):
+		return false
+	if ga.get("target", {}).get("kind", "") != "bone":
+		return true
+	var turn := Staging.wrap_turn(PoseFile.array_to_transform(ga.get("offset")), PoseFile.array_to_transform(gb.get("offset")))
+	return turn.y < REGRIP_TURN
 
 
 static func _same_target(ga: Dictionary, gb: Dictionary) -> bool:

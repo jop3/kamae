@@ -142,7 +142,9 @@ func do_move(m: Dictionary) -> void:
 			for s: Dictionary in stages:
 				await Attacks.pose_stage(st, m["attack"], s, opts)
 				await _save_phase(s["name"], s["transition"], s["hold"])
-			res = await Attacks.stage(st, m["attack"], opts)
+			var then := opts.duplicate()
+			then["continue"] = true   # a hand that held on through the stages keeps its wrap
+			res = await Attacks.stage(st, m["attack"], then)
 			_phase_timing = Attacks.entry(m["attack"]).get("motion", {}).get("final", {})
 		var uke := _rig(m.get("uke", "uke1"))
 		if uke:

@@ -149,7 +149,9 @@ Besides `hanmi`, `distance`, `lateral`, `facing` and `hands`, an attack's `uke` 
 may give the stance's `depth`, `width`, `drop`, `weight` (how far onto the front foot) and `lean`;
 `"hands": "kamae"` holds both hands in kamae. `min_gap` is how close Uke's hips may come to
 Tori's when the fit moves him (a grab is taken at arm's length; without it the joints alone pulled
-Uke in chest to chest), `fit_in` the distances toward Tori the fit tries.
+Uke in chest to chest), `fit_in` the distances toward Tori the fit tries. The fit also costs
+the two bodies pressing deeper than `Anatomy.PRESS` (2 cm) into each other; `press` raises that
+for a hold that is a squeeze (the bear hug, 3.5 cm), whose arms round Tori are the hold.
 
 A grip with `"cloth": true` is a fist in the gi, not a hand wrapped round a bone: its knuckles go
 `along` the bone plus `offset` (Tori's frame), turned by `point` and `palm` (Uke's frame), closed

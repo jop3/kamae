@@ -1367,7 +1367,7 @@
           {
             "name": "Ushiro",
             "frame": "tori",
-            "turn": 100,
+            "turn": 180,
             "feet": {
               "Left": [
                 -0.88,
@@ -1952,7 +1952,8 @@
         "hanmi": "Right",
         "distance": 0.3,
         "lateral": 0.0,
-        "facing": "same"
+        "facing": "same",
+        "press": 0.035
       },
       "grips": [
         {
