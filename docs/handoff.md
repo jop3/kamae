@@ -2063,3 +2063,65 @@ katadori 0 → 30, katadori menuchi 2 → 49, munedori 10 → 27, ryokatadori 8 
 and its hold: on the slimmer body the grab stands Uke a little closer, and the relax cannot part
 two planted legs. The catalogue's `min_gap` (or a leg-aware relax) is the next thing to try.
 The gallery page was regenerated locally, not published.
+
+## Session 2026-11-08: the grabs stand off again; a held hand stays on what it holds
+
+Asked for: "keep working on this project". Picked up the last session's open regression first.
+
+**Five grabs had the front thighs in each other** (katadori 30 implausible frames, katadori
+menuchi 49, munedori 27, ryokatadori 27, ushiro ryotedori 22). The cause was a bug in
+`Attacks._fit`, not the slimmer body: body overlap was costed as depth minus the old
+`PENETRATION` (3.5 cm), but `Anatomy.body_overlaps` lists only what passes `PRESS` (2 cm) since
+the bodies are measured by their surface — so a 2–3.5 cm press scored *negative* and the fit
+pulled Uke in (katadori from 0.71 m to 0.61 m, into Tori's thigh). Now the cost is depth past
+`PRESS`, or past the attack's own `"press"` on its `uke` block for a hold that is a squeeze
+(`ushiro_dori`, 3.5 cm: its arms round Tori are the hold, and without it its hands stopped 3 cm
+short). Katadori 0, katadori menuchi 2, munedori 0, ryokatadori 0.
+
+**Ushiro ryotedori** (22 → 7) was three things:
+- *The hand turned over on the wrist.* Each stage of an attack in motion re-took its grip from
+  scratch, and between Mawari and Ushiro the search chose the other wrap: the hand flipped 167°
+  on Tori's wrist mid-walk (wrist 92° flexed, 55° radial in the film). Now each stage, and the
+  attack's moment after them (`Attacks.stage` with `"continue"`, which TechniqueScript passes),
+  re-takes a held grip preferring the wrap it has (`Staging.grab`'s `prefer`), with the turn
+  *round* the held bone costed at `PREFER_ROUND_WEIGHT` (0.1) and the rest at `PREFER_WEIGHT`
+  (`Staging.wrap_turn` splits them; a bone's y runs along it). Only for attacks: as the refit cost
+  it put ushiro ryotedori kotegaeshi's hand across Tori's chest, so refits cost the whole turn
+  as before (`round_weight` −1).
+- *Where no wrap can be kept, the hand lets go.* Ushiro's body turn leaves every unflipped wrap at
+  ≥ 74° of wrist extension, so the blend now treats a hold on a bone whose wrap turns over by more
+  than `PoseBlend.REGRIP_TURN` (90°, the part not round the bone) as let go and re-taken on the
+  way, like a change of target. Between two holds on the same bone the hand travels round it
+  (`PoseBlend.round_bone`), not on the chord through it.
+- *Crossed feet.* The catalogue's Ushiro stage had Uke facing Tori (turn 100) with his left
+  foot 0.57 m to the right of his right; the next step uncrossed them through the knees. Turn 180
+  — facing the way he walks past Tori's side — and that step is a pivot. What is left is that
+  pivot: the right ankle everted 19–25° (range 15°) for six frames as Uke turns 150° on it.
+
+**The library.** `ryotemochi`'s two grips turn over 150–160° on Tori's forearms between Grepp
+and Kuzushi; the blend used to turn the hands over on the wrists, now they let go and re-take,
+and the two Ukes' upper arms meet on the way: check_motion 26 → 27, raised in OUTSTANDING with
+the reason (an exception to "only shrink": the old count was a motion no hand can make). Keeping
+the wrap was tried (`tools/refit_grips.gd … --prefer <pose>`, new): 21 frames, but Kuzushi then
+needs 136° of supination in both Ukes, so the pose was left as it was.
+
+**Re-filmed** (no video; 14 techniques and 17 grab attacks). Attacks, implausible frames: aihanmi
+katatedori 0, eridori 0, hijidori 7, katadori 0, katadori menuchi 2, katatedori 4, morotedori 3,
+munedori 0, ryokatadori 0, ryotedori 5, sodedori 0, ushiro dori 5, ushiro eridori 5, ushiro
+kubishime 2, ushiro ryokatadori 5, ushiro ryotedori 7; nothing under the mat. Techniques against
+2026-11-05: iriminage 51, tsuki kotegaeshi 45, kaitennage 43 → 46, kotegaeshi 25, shihonage
+76 → 79, tenkan 46, tenkan kokyunage 39 → 38, morotedori kokyunage 59 → 60, tenchinage 27,
+shomenuchi ikkyo 36, shomenuchi iriminage 51, kokyudosa 35, ushiro ryotedori kotegaeshi 54 → 56,
+yokomenuchi shihonage 80 → 79 (667 → 674); under the mat exactly as before. The +3s are within
+what a re-grip or a slightly different fitted stand changes; nothing was traced further. No
+films with video were made and the gallery was not regenerated or published.
+
+**Tests run** (alone): test_attacks, test_technique_script, check_motion (with ryotemochi's new
+record), check_floor, check_smooth, check_anatomy and check_grips on the library before the
+ryotemochi pose was restored (it is the committed pose again).
+
+**Next**, unchanged from 2026-11-04/05 except the grabs: a trunk yaw in ContactSolve for two
+bodies side by side (thigh against thigh is still the commonest fault in the techniques);
+shihonage's overhead arms; kaitennage's wrist; suwari kokyudosa's Osae; Tori meeting the
+attack (`"until"` on the attack move); the kick's chamber; weapon attacks; a pivot that turns on
+the ball of the foot with the heel up (ushiro ryotedori's last ankle frames).
